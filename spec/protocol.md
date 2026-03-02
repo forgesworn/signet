@@ -1,0 +1,785 @@
+# The Signet Protocol
+
+**Decentralised Identity Verification for Nostr**
+
+**Version:** 0.1.0 (Draft)
+**Date:** 2026-03-02
+**Status:** Draft specification — seeking community feedback
+**Licence:** MIT
+
+---
+
+## Abstract
+
+Signet is an open protocol for decentralised identity verification on Nostr. It enables users to prove claims about their identity — age, parenthood, professional status — using zero-knowledge proofs, without revealing personal data or relying on a central authority.
+
+The protocol defines four verification tiers, a continuous trust score, a verifier accountability framework, and six Nostr event kinds. Any Nostr client can implement Signet. Any community can set verification policies. Any licensed professional can become a verifier.
+
+**Child safety is the killer app. Social proof (blue checkmarks) drives adoption across all of Nostr.**
+
+---
+
+## Table of Contents
+
+1. [Motivation](#1-motivation)
+2. [Design Principles](#2-design-principles)
+3. [Credential Tiers](#3-credential-tiers)
+4. [Trust Score](#4-trust-score)
+5. [Service Policies](#5-service-policies)
+6. [Verifier Network](#6-verifier-network)
+7. [Anti-Corruption Framework](#7-anti-corruption-framework)
+8. [Event Kinds](#8-event-kinds)
+9. [Cryptographic Stack](#9-cryptographic-stack)
+10. [Social Proof — The Blue Checkmark](#10-social-proof--the-blue-checkmark)
+11. [Alignment with Existing Standards](#11-alignment-with-existing-standards)
+12. [Regulatory Compatibility](#12-regulatory-compatibility)
+13. [Limitations](#13-limitations)
+14. [Reference Implementation](#14-reference-implementation)
+
+---
+
+## 1. Motivation
+
+### The Identity Gap on Nostr
+
+Nostr has no identity verification. Anyone can claim to be anyone. There is no blue checkmark, no web-of-trust scoring, no way to prove "I met this person" or "a professional verified this person's identity." The result: spam, impersonation, and zero basis for trust beyond "I recognise this pubkey."
+
+### For Children
+
+Every kids' social platform that failed (Club Penguin, Messenger Kids, Wizz, Yubo) collapsed because safety was policy-based, not cryptographic. Adults could create child accounts to impersonate children. Age verification was self-declaration or nonexistent. No platform could prove:
+
+- This parent is a real person
+- This child is a real child
+- This parent actually has this child
+
+### For Everyone
+
+Nostr needs a trust layer that:
+
+- Proves claims without revealing personal data
+- Works without a central authority
+- Starts with nothing (any account can get verified retroactively)
+- Scales from casual peer vouching to professional identity verification
+- Lets communities set their own policies
+
+### The Regulatory Landscape
+
+The world is moving to mandatory age verification:
+
+- **EU eIDAS 2.0** (December 2026): Every Member State must offer a digital identity wallet with selective disclosure
+- **France SREN law** (April 2025): Adult sites must implement ZKP-based age verification
+- **UK Online Safety Act** (2023): Platforms liable for children's exposure; Ofcom requires "highly effective age assurance"
+- **US COPPA 2.0** (pending): Extends protections to under-17
+- **US FTC COPPA flexibility** (March 2026): FTC will not enforce against data collected solely for age verification — but requires robust deletion and clear notice. Signet exceeds this: no personal data is collected at all.
+- **Australia under-16 ban** (2024): $50M AUD fines on platforms
+- **ISO/IEC 27566-1:2025**: New global age assurance standard
+
+Nobody has built this for the decentralised world. Signet fills that gap.
+
+---
+
+## 2. Design Principles
+
+1. **The credential states facts, the service sets policy.** Credentials say "here's what was verified and how." Communities decide "here's what we require." Separation of attestation and enforcement.
+
+2. **Privacy by default.** ZKP means proving a claim without revealing the underlying data. "This parent has a child aged 8-12" without revealing which parent, which child, or the exact age.
+
+3. **No central authority.** Professional bodies (Law Society, Medical Board, notary commissions) are the trust anchors. No single entity approves verifiers. No DAO. No token.
+
+4. **Progressive — more than nothing is better than nothing.** Users who refuse to show documents can still accumulate peer vouches. Less trust weight, but more than zero, which is what everyone has today.
+
+5. **Retroactive.** Verification attaches to existing accounts. Any active Nostr identity — adult or child — can get verified at any time. Not tied to account creation.
+
+6. **Composable.** Discrete tiers for policy gates + continuous score for reputation. Simple for end users, nuanced for power users.
+
+7. **Nostr-native.** Built on secp256k1. Uses existing Nostr event infrastructure. Zero new dependencies for basic functionality.
+
+---
+
+## 3. Credential Tiers
+
+Four tiers of verification, each declaring what was proven and by whom.
+
+### Tier 1 — Self-Declared
+
+| Aspect | Detail |
+|--------|--------|
+| **What's proven** | Nothing — a signed claim: "I say I'm X" |
+| **Issuer** | Self |
+| **ZKP hides** | N/A |
+| **Use case** | Baseline. What every Nostr account has today. |
+| **Trust weight** | Minimal |
+
+### Tier 2 — Web-of-Trust Vouched
+
+| Aspect | Detail |
+|--------|--------|
+| **What's proven** | N verified people (Tier 2+) attest: "I know this person/family" |
+| **Issuer** | Peers |
+| **ZKP hides** | Who vouched (proves count and minimum tier of vouchers without revealing identities) |
+| **Use case** | Local communities, meetup groups, conferences. People who know each other. |
+| **Trust weight** | Moderate. In-person vouches carry more weight than online vouches. |
+| **Threshold** | Configurable per community. Default: 3 vouches from Tier 2+ accounts. |
+
+### Tier 3 — Professional Verified (Adult)
+
+| Aspect | Detail |
+|--------|--------|
+| **What's proven** | A licensed professional verified this adult's government-issued ID in person |
+| **Issuer** | Professional (lawyer, doctor, notary) |
+| **ZKP hides** | Which professional, the adult's real name, ID number, address — everything except "a professional verified this person" |
+| **Use case** | High-trust communities. Adults who want strong verification without publishing their identity. |
+| **Trust weight** | High |
+
+### Tier 4 — Professional Verified (Adult + Child)
+
+| Aspect | Detail |
+|--------|--------|
+| **What's proven** | A licensed professional verified the adult's ID AND confirmed a child exists in a specific age range |
+| **Issuer** | Professional |
+| **ZKP hides** | Everything in Tier 3 + child's identity, exact age, which documents were shown |
+| **Evidence the professional sees** | Parent's ID (passport, driving licence) + child evidence (birth certificate, passport, school record) |
+| **Use case** | Maximum safety spaces. Proves the child is real and the parent is real. |
+| **Trust weight** | Maximum |
+
+### Why Tier 4 Stops Predators
+
+A predator who is a verified real adult (Tier 3) could still create a fake child account. Tier 4 prevents this because:
+
+- A professional independently confirms the child exists
+- The professional sees evidence of the child (birth cert, passport)
+- The professional's licence is on the line — fraudulent attestation = professional misconduct
+- The ZKP cryptographically binds the parent's identity to the child's verified age range
+- An adult pretending to have a child cannot produce a child's birth certificate to a lawyer
+
+---
+
+## 4. Trust Score
+
+On top of discrete tiers, a continuous trust score (0-100%) provides nuanced reputation.
+
+### Score Components
+
+| Signal | Weight | Notes |
+|--------|--------|-------|
+| Professional verification (Tier 3/4) | Heavy | Single event, large impact |
+| In-person peer signature | Strong | Met in person, signed keys face-to-face |
+| Online vouch from verified user | Light | Accumulates — many light vouches add up |
+| Account age | Passive | Time on the network adds weight gradually |
+| Voucher's own score | Multiplier | A vouch from someone at 90% carries more than from someone at 30% |
+
+### Score Algorithm
+
+The exact algorithm is implementation-defined (clients can weight signals differently), but the protocol specifies the **signal types and their relative ordering**:
+
+```
+professional verification > in-person vouch > online vouch > account age
+```
+
+Clients MUST respect this ordering. A single professional verification always outweighs any number of online vouches. This prevents gaming through vouch farms.
+
+### Display
+
+```
+┌───────────────────────────────────┐
+│  Alice ✓✓✓              Tier 3   │
+│  Trust: 87%                       │
+│                                   │
+│  ● Prof verified (lawyer)         │
+│  ● 4 in-person vouches            │
+│  ● 12 online vouches              │
+│  ● Account age: 2 years           │
+└───────────────────────────────────┘
+```
+
+- **Tier** = the gate (can you enter this space?)
+- **Score** = the reputation (how much should I trust this person?)
+- End users see a simple tier badge. Power users can drill into the score breakdown.
+
+---
+
+## 5. Service Policies
+
+Each community, circle, relay, or client sets a minimum verification requirement.
+
+### Policy Matrix
+
+| Community Type | Adult Minimum | Child Minimum | Example |
+|----------------|---------------|---------------|---------|
+| Open | Tier 1 | Tier 1 | Public Nostr feed |
+| Casual group | Tier 2 | Tier 2 | Local meetup group |
+| Curated circle | Tier 3 | Tier 3 | Trusted community |
+| Max safety | Tier 3 | Tier 4 | Children's learning space |
+
+### Policy Options
+
+Services can also set:
+
+- **Minimum score**: "Tier 2 AND score > 50%"
+- **Per-role requirements**: "moderators need Tier 3, members need Tier 2"
+- **Child-specific overrides**: "adults can be Tier 2, child accounts must be Tier 4"
+
+### Policy Enforcement
+
+Policy is enforced at the **client level** and optionally at the **relay level**:
+
+- **Client-side**: Clients check Signet credentials before displaying content or allowing interaction.
+- **Relay-side** (optional): AUTH-gated relays can require minimum verification tier before accepting events. This prevents unverified accounts from even publishing to protected spaces.
+
+---
+
+## 6. Verifier Network
+
+### Open With Credentials — No Central Authority
+
+Anyone can become a verifier if they meet the criteria. No single entity approves verifiers. No DAO. No token.
+
+### Professional Verifiers (Issue Tier 3/4)
+
+**Becoming a professional verifier:**
+
+1. Publish a verifier credential (kind 30473) containing your professional licence information (bar number, medical licence number, notary commission ID)
+2. Get cross-verified by other professional verifiers (prevents fraudulent licence claims)
+3. You can now issue Tier 3 and Tier 4 attestations
+4. Your professional body is your accountability — fraudulent attestations = professional misconduct, loss of licence, potential criminal liability
+
+**Professional bodies as trust anchors:**
+
+The system doesn't create a new trust hierarchy. It uses the ones that already exist: the Law Society, medical licensing boards, notary commissions. These bodies already:
+
+- Verify practitioners' identities
+- Hold them to ethical standards
+- Have disciplinary procedures
+- Can revoke licences
+
+Signet gives these existing trust relationships a cryptographic expression.
+
+**Cross-verification prevents gaming:**
+
+A fake lawyer can't just publish a credential claiming to be a lawyer. Other verified lawyers in the network must vouch for the credential. This creates a self-policing professional network — the same professionals who risk their licences have every incentive to call out fakes.
+
+### Peer Verifiers (Contribute to Tier 2 and Score)
+
+**Becoming a peer verifier:**
+
+1. Reach Tier 2+ yourself
+2. You can vouch for others you know
+3. In-person vouches (key signing at meetups, conferences) carry more weight than online vouches
+4. Your vouches' weight scales with your own trust score
+
+**The already-doxed advantage:**
+
+People who are already public figures (conference speakers, known community members) can vouch freely for people they meet in person. Their public identity IS their credential. When they sign someone's key at a meetup, that signature carries real weight because the voucher is already publicly accountable.
+
+### Verification Flow
+
+```
+Professional Verification (Tier 3/4):
+
+  User ──── meets in person ────► Lawyer/Doctor/Notary
+                                       │
+                                  sees passport
+                                  (+ child evidence for Tier 4)
+                                       │
+                                  issues Signet credential
+                                       │
+                                  publishes to Nostr relay
+                                       │
+  User's account ◄──── credential attached ────┘
+
+
+Peer Verification (Tier 2 / score):
+
+  User A ──── meets User B in person ────► key signing
+                                              │
+                                         mutual vouch events
+                                         published to relay
+                                              │
+  Both users' scores increase ◄───────────────┘
+
+
+Online Vouching (score only):
+
+  Verified User ──── "I vouch for this person" ────► vouch event
+                                                        │
+  Target user's score increases ◄───────────────────────┘
+  (weight depends on voucher's own score)
+```
+
+---
+
+## 7. Anti-Corruption Framework
+
+A registered professional can still be corrupt — doctors sell black market prescriptions, lawyers take bribes. No single measure prevents this. The defence is layered: make corruption expensive, detectable, and permanently traceable.
+
+### Layer 1 — Public Registry Verification
+
+Every verifier credential (kind 30473) includes a licence number and jurisdiction. Any client can link directly to the relevant public register for users to verify:
+
+| Jurisdiction | Register | URL |
+|-------------|----------|-----|
+| UK solicitors | SRA | sra.org.uk/consumers/register |
+| UK doctors | GMC | gmc-uk.org/registration-and-licensing |
+| US lawyers | State bar (per state) | Varies by state |
+| Notaries | State/county register | Varies by jurisdiction |
+
+A fake professional is caught immediately — anyone can look up whether the licence number corresponds to a real, active practitioner. Clients can automate this check where registers expose APIs.
+
+### Layer 2 — Cross-Professional Verification
+
+A new verifier needs vouches from verified professionals in **other** fields. A corrupt doctor needs corrupt friends who are lawyers, notaries, or accountants. Cross-profession collusion rings are exponentially harder to build than single-profession ones.
+
+Minimum requirement for verifier activation:
+
+- At least 2 vouches from verified professionals
+- At least 2 different professions represented
+- Vouchers must themselves be active, non-revoked verifiers
+
+### Layer 3 — Rate Limiting / Anomaly Detection
+
+All credentials are public Nostr events. Issuance volume is visible to the entire network.
+
+Clients perform statistical anomaly detection:
+
+- **Volume flags:** A doctor issuing 200 verifications/week vs. the network average of 5/week is automatically flagged.
+- **Geographic flags:** A solicitor in Manchester verifying 50 families in Tokyo is suspicious.
+- **Temporal flags:** 30 verifications in one hour suggests rubber-stamping, not in-person ID checks.
+- **Display:** Clients show a warning badge on credentials from flagged verifiers: "This verifier's issuance pattern is unusual."
+
+This is purely client-side — no central authority decides what's suspicious. Each client applies its own heuristics. The transparency of Nostr events makes this possible without surveillance.
+
+### Layer 4 — Lightning Bond (Skin in the Game)
+
+Professional verifiers stake sats via Lightning when registering as a verifier. The bond is:
+
+- **Locked** when the verifier credential (kind 30473) is published
+- **Slashed** (burned or redistributed to reporters) if the verifier is found fraudulent and revoked
+- **Returned** if the verifier deactivates cleanly (retires, leaves the network)
+
+Bond amount is configurable per community policy. A casual group might require 100,000 sats. A high-security community might require 1,000,000 sats. The bond makes corruption financially costly — a corrupt verifier doesn't just lose their reputation, they lose money.
+
+Implementation: NWC (Nostr Wallet Connect) for bond locking. The bond mechanism is optional — communities that don't require it simply don't set a bond threshold in their policy (kind 30472).
+
+### Layer 5 — Community Reporting and Revocation
+
+Anyone can publish a **challenge event** (kind 30474) against a verifier, presenting evidence of fraudulent behaviour.
+
+Challenge flow:
+
+```
+Reporter ──── publishes kind 30474 ────► challenge event
+                                            │
+                                        includes evidence
+                                        (screenshots, registry status,
+                                         anomaly data, testimony)
+                                            │
+              ◄──── community reviews ──────┘
+                                            │
+              If N trusted accounts (Tier 3+) confirm:
+                │
+                ├─ Verifier's kind 30473 is superseded
+                │  by a revocation event (kind 30475)
+                │
+                ├─ Lightning bond is slashed
+                │
+                └─ All credentials issued by this verifier
+                   are flagged in clients
+```
+
+The threshold for revocation (how many confirmations needed) is set per community policy. Default: 5 confirmations from Tier 3+ accounts.
+
+### Layer 6 — Credential Provenance Trail
+
+Every credential (kind 30470) traces back to its issuer via the `pubkey` field. This is an immutable, public audit trail on Nostr relays.
+
+If a verifier is revoked:
+
+- Clients display a warning on all credentials they issued: "This verification was issued by a now-revoked verifier. Re-verification recommended."
+- The credentials are not automatically invalidated — the community policy decides whether to require re-verification or grandfather existing credentials.
+- The subject can get re-verified by a different professional. The old credential remains as a historical record.
+
+### The Cumulative Cost of Corruption
+
+A corrupt professional in this system must:
+
+1. Be genuinely registered with a professional body (or be caught instantly by registry check)
+2. Convince professionals in *other* fields to vouch for them (cross-profession requirement)
+3. Keep issuance volume low enough to avoid anomaly detection (limits the profit from corruption)
+4. Risk losing their Lightning bond (direct financial cost)
+5. Risk community reporting, public revocation, and permanent reputation damage on Nostr
+6. Accept that every fake credential they ever issued is permanently traceable back to them
+
+Compare this to centralised identity verification: a company scans your ID, stores it in a database that gets breached, and has no accountability when it fails. Signet doesn't prevent all corruption — nothing does — but it makes corruption more expensive and more detectable than any centralised alternative.
+
+---
+
+## 8. Event Kinds
+
+**Note:** Kind numbers are placeholders pending NIP allocation.
+
+### Kind 30470 — Verification Credential
+
+A replaceable event published by a verifier attesting to a subject's verification status.
+
+```jsonc
+{
+  "kind": 30470,
+  "pubkey": "<verifier_pubkey>",
+  "tags": [
+    ["d", "<subject_pubkey>"],           // who is being verified
+    ["p", "<subject_pubkey>"],           // for queryability
+    ["tier", "3"],                        // 1, 2, 3, or 4
+    ["type", "professional"],            // "self", "peer", "professional"
+    ["scope", "adult"],                  // "adult" or "adult+child"
+    ["age-range", "8-12"],              // only for tier 4 (child age range)
+    ["method", "in-person-id"],          // verification method
+    ["profession", "solicitor"],         // verifier's profession
+    ["jurisdiction", "UK"],              // legal jurisdiction
+    ["expires", "<unix_timestamp>"],     // credential expiry
+    ["L", "signet"],                     // protocol namespace label
+    ["l", "verification", "signet"]      // protocol label
+  ],
+  "content": "<zkp_proof_blob>"          // the actual zero-knowledge proof
+}
+```
+
+### Kind 30471 — Vouch Attestation
+
+A replaceable event published by a peer vouching for another user.
+
+```jsonc
+{
+  "kind": 30471,
+  "pubkey": "<voucher_pubkey>",
+  "tags": [
+    ["d", "<subject_pubkey>"],           // who is being vouched for
+    ["p", "<subject_pubkey>"],
+    ["method", "in-person"],             // "in-person" or "online"
+    ["context", "bitcoin-meetup"],       // optional: where/how they met
+    ["voucher-tier", "3"],               // voucher's own tier at time of vouch
+    ["voucher-score", "87"],             // voucher's own score at time of vouch
+    ["L", "signet"],
+    ["l", "vouch", "signet"]
+  ],
+  "content": ""                          // no personal data
+}
+```
+
+### Kind 30472 — Community Verification Policy
+
+A replaceable event published by a community operator defining minimum verification requirements.
+
+```jsonc
+{
+  "kind": 30472,
+  "pubkey": "<community_operator_pubkey>",
+  "tags": [
+    ["d", "<community_identifier>"],
+    ["adult-min-tier", "2"],
+    ["child-min-tier", "3"],
+    ["min-score", "50"],                 // optional minimum score
+    ["mod-min-tier", "3"],               // optional moderator requirement
+    ["enforcement", "client"],           // "client", "relay", or "both"
+    ["verifier-bond", "100000"],         // optional: min sats bond for verifiers
+    ["revocation-threshold", "5"],       // optional: confirmations needed to revoke
+    ["L", "signet"],
+    ["l", "policy", "signet"]
+  ],
+  "content": "<human-readable policy description>"
+}
+```
+
+### Kind 30473 — Verifier Credential
+
+A replaceable event published by a professional declaring their verifier status.
+
+```jsonc
+{
+  "kind": 30473,
+  "pubkey": "<verifier_pubkey>",
+  "tags": [
+    ["d", "verifier-credential"],
+    ["profession", "solicitor"],
+    ["jurisdiction", "UK"],
+    ["licence", "<encrypted_or_hashed_licence_number>"],
+    ["body", "Law Society of England and Wales"],
+    ["L", "signet"],
+    ["l", "verifier", "signet"]
+    // Cross-verification vouches from other professionals
+    // are separate kind 30471 events pointing at this pubkey
+  ],
+  "content": "<optional: public statement about verification services>"
+}
+```
+
+### Kind 30474 — Verifier Challenge
+
+A regular event published by anyone challenging a verifier's legitimacy. Triggers community review.
+
+```jsonc
+{
+  "kind": 30474,
+  "pubkey": "<reporter_pubkey>",
+  "tags": [
+    ["d", "<verifier_pubkey>"],            // who is being challenged
+    ["p", "<verifier_pubkey>"],
+    ["reason", "anomalous-volume"],        // "anomalous-volume", "registry-mismatch",
+                                           // "fraudulent-attestation", "licence-revoked",
+                                           // "other"
+    ["evidence-type", "registry-screenshot"], // type of evidence provided
+    ["reporter-tier", "3"],                // reporter's own tier
+    ["L", "signet"],
+    ["l", "challenge", "signet"]
+  ],
+  "content": "<detailed evidence and explanation>"
+}
+```
+
+### Kind 30475 — Verifier Revocation
+
+A replaceable event published when a community confirms a challenge. Supersedes the verifier's kind 30473 credential.
+
+```jsonc
+{
+  "kind": 30475,
+  "pubkey": "<revoking_authority_pubkey>",  // community operator or threshold of Tier 3+ accounts
+  "tags": [
+    ["d", "<verifier_pubkey>"],             // whose credential is revoked
+    ["p", "<verifier_pubkey>"],
+    ["challenge", "<kind_30474_event_id>"], // the challenge that triggered this
+    ["confirmations", "7"],                 // number of Tier 3+ accounts that confirmed
+    ["bond-action", "slashed"],             // "slashed", "returned", "held"
+    ["scope", "full"],                      // "full" = all credentials flagged,
+                                            // "partial" = specific credentials flagged
+    ["effective", "<unix_timestamp>"],      // when revocation takes effect
+    ["L", "signet"],
+    ["l", "revocation", "signet"]
+  ],
+  "content": "<summary of findings>"
+}
+```
+
+**Client behaviour on kind 30475:**
+
+1. Display a warning on all kind 30470 credentials issued by the revoked verifier
+2. Reduce the trust score contribution of those credentials to zero
+3. Notify affected users that re-verification is recommended
+4. Do not automatically invalidate credentials — the community policy decides whether to require re-verification or grandfather existing ones
+
+---
+
+## 9. Cryptographic Stack
+
+The protocol design (tiers, scores, event kinds, policies) is specified independently of the ZKP implementation. The credential format works regardless of which cryptographic library backs the proofs. This section specifies the recommended architecture.
+
+### Recommended Architecture: Hybrid Layers
+
+```
+Layer 1: Schnorr — the base (zero new dependencies)
+│
+├─ Credential issuance & verification
+│   Verifier signs kind 30470 event with their Nostr key.
+│   Any client verifies with schnorr.verify().
+│
+├─ Selective disclosure via Merkle trees
+│   Credential attributes as Merkle leaves, sign root.
+│   Holder reveals chosen attributes + sibling paths.
+│   @noble/secp256k1 + @noble/hashes (already in every Nostr client).
+│
+├─ Ring signatures for issuer privacy (Tier 3/4)
+│   SAG: "one of these N professionals verified this"
+│   without revealing which one.
+│   Stays on secp256k1.
+│
+├─ MuSig2 for multi-verifier co-signing
+│   Multiple professionals co-sign → single aggregated Schnorr sig.
+│
+└─ Trust score computation
+    Pure client-side math. Count vouches, weight by voucher score.
+    No crypto needed.
+
+Layer 2: Bulletproofs — targeted addition (for Tier 4 age proofs)
+│
+└─ Age range proofs
+    "This child is in age range [8, 12]" without revealing exact age.
+    Pedersen commitment + Bulletproof range proof on secp256k1.
+    ~700 byte proofs. No trusted setup. No new curve.
+
+Layer 3: General-purpose ZK (future, if needed)
+│
+├─ Complex threshold proofs
+│   "I have N vouches from tier 2+ accounts" via recursive composition.
+│
+├─ Credential binding proofs
+│   Prove credential ownership + attribute predicate in one proof.
+│
+└─ Unlinkable presentations (if required)
+    Re-randomisable proofs. For when threat model evolves.
+```
+
+### What Each Tier Needs
+
+| Tier | Crypto Required | New Dependencies |
+|------|----------------|------------------|
+| **Tier 1** (self-declared) | Standard Nostr event signing | None (already present) |
+| **Tier 2** (web-of-trust) | Vouch events + score calculation | None |
+| **Tier 3** (professional, adult) | Ring signature on credential | Ring signature library (secp256k1-based) |
+| **Tier 4** (professional, adult+child) | Ring sig + age range proof | Ring sig + Bulletproofs library |
+| **Blue checkmark / score** | Read existing events, compute score | None |
+
+### The Credential Signing Decision
+
+Verifiers sign credentials with their **Nostr key** (secp256k1 Schnorr). No second keypair required.
+
+| Approach | Pro | Con | Decision |
+|----------|-----|-----|----------|
+| **Nostr key only** | One identity, Nostr-native, no extra keys | Expensive to prove inside ZK circuits if needed later | **Use this.** |
+| ZK-friendly curve (Baby Jubjub) | Cheap to prove in ZK circuits | Verifiers need a second keypair | Defer unless ZK circuit proofs become essential. |
+
+Ring signatures handle issuer privacy without ZK circuits. Bulletproofs handle age range proofs without leaving secp256k1. The ZK-friendly signature question only arises if the protocol needs to prove "this Nostr key signed this credential" inside a zero-knowledge circuit — and the current design avoids that need.
+
+### Reference Libraries
+
+| Library | Purpose | Notes |
+|---------|---------|-------|
+| `@noble/secp256k1` | Core Schnorr sign/verify | Stable, audited, 4.94KB gzipped |
+| `@noble/hashes` | SHA-256 for Merkle trees | Stable, audited |
+| Ring signature lib (e.g. Nostringer) | SAG on Nostr pubkeys | Experimental — needs audit before production |
+| MuSig2 lib | Multi-party signing | Functional, BIP-327 |
+| Bulletproofs lib | Range proofs on secp256k1 | Needs audit before production |
+
+### Open Implementation Questions
+
+1. **Ring signature audit.** Ring signatures are critical for Tier 3/4 issuer privacy. The SAG math is sound (used by Monero for years) but JS implementations need audit.
+2. **Bulletproofs library choice.** Pure JS (slower, easier to audit) vs WASM (faster, harder to audit the C layer).
+3. **Ring size.** How many professional verifiers form the anonymity set? Target: 20-50 verifiers per profession per jurisdiction.
+4. **Credential expiry.** Verification credentials should expire (recommended: 1-2 years) and be renewable.
+5. **Revocation propagation.** NIP-09 deletion requests are advisory only. The kind 30474/30475 challenge-revocation mechanism handles this at the protocol level.
+
+---
+
+## 10. Social Proof — The Blue Checkmark
+
+The verification system is not limited to child safety. It is a general-purpose Nostr identity layer.
+
+### For Users Who Won't Show Documents
+
+They can still build trust through:
+
+- Peer vouches from verified users
+- In-person key signings at meetups and conferences
+- Account age and consistent behaviour
+- Online vouches from high-score accounts
+
+This gives them a visible trust score and a checkmark — weaker than professional verification, but more than nothing. And nothing is what everyone on Nostr has today.
+
+### For Public Figures
+
+Already-doxed individuals (podcasters, conference speakers, known community members) can leverage their public identity. Their checkmark is backed by the fact that hundreds of people have met them and can vouch. They become trust anchors for their communities.
+
+### For Creators
+
+A verified creator can prove they're real without revealing their legal name. Content gated by verification tiers becomes more valuable when the creator has a verified identity backing it.
+
+### Checkmark Display
+
+| Display | Meaning |
+|---------|---------|
+| No mark | Unverified (Tier 1) |
+| ✓ | Web-of-trust vouched (Tier 2) |
+| ✓✓ | Professional verified, adult (Tier 3) |
+| ✓✓✓ | Professional verified, adult + child (Tier 4) |
+| Score % | Continuous reputation visible on drill-down |
+
+---
+
+## 11. Alignment with Existing Standards
+
+| Standard | Relevance |
+|----------|-----------|
+| **NIP-58** (Badges, kind 30009/8) | Existing attestation system on Nostr. Signet credentials extend this pattern with cryptographic proofs. |
+| **NIP-101** (proposed) | Decentralised trust system integrating W3C VC format with Nostr. Signet is complementary — simpler, Nostr-native, focused on progressive tiers. |
+| **Nostr DID method** (`did:nostr:<hex_pubkey>`) | Enables Nostr keys to participate in W3C DID/VC ecosystem. Signet credentials could be wrapped as W3C VCs for interop. |
+| **SchnorrSecp256k1Signature2019** (DIF) | Proposed proof type for W3C VCs using Schnorr over secp256k1. Would let Signet events be treated as standards-compliant W3C VCs. |
+| **ISO/IEC 27566-1:2025** | Age assurance standard. Signet's architecture is compatible with the outcomes-based framework (effectiveness, privacy, security, acceptability). |
+| **UK DIATF** | Digital Identity and Attributes Trust Framework. Signet's Tier 3/4 architecture aligns. Not yet certified. Certification path exists. |
+| **EU eIDAS 2.0** | European digital identity framework. Signet's selective disclosure via Merkle trees and ZKP proofs aligns with eIDAS requirements for minimal disclosure. |
+
+---
+
+## 12. Regulatory Compatibility
+
+Signet is designed to satisfy identity verification requirements across multiple jurisdictions without centralised data collection.
+
+| Regulation | How Signet Addresses It |
+|------------|------------------------|
+| **UK Online Safety Act** (ss.9, 11, 12) | Tier 4 provides "highly effective age assurance" via professional in-person verification. Exceeds Ofcom's accepted methods. No centralised ID scanning. |
+| **COPPA / COPPA 2.0** (US) | Cryptographic proof of parental consent via Tier 3/4 credential. Exceeds current parental consent mechanisms. The FTC's March 2026 policy statement permits data collection solely for age verification with robust deletion — Signet goes further by collecting no personal data at all. The ZKP proof contains zero PII. |
+| **EU eIDAS 2.0** | Credential format compatible with eIDAS selective disclosure direction. Could accept EU digital identity wallet credentials as Tier 3 input. |
+| **France SREN law** | ZKP-based age verification is explicitly what the law requires. |
+| **Australia under-16 ban** | Tier 4 proves child's age range without central verification. |
+| **ISO/IEC 27566-1:2025** | Protocol design is compatible with the outcomes-based framework. |
+
+### The FTC's New Position and Signet
+
+In March 2026, the FTC issued a policy statement signalling flexibility on COPPA age checks: it will not take enforcement action where personal data is collected solely for age verification purposes, provided the data is robustly deleted and clear notice is given to parents and children.
+
+This is significant because it removes a major blocker — platforms were previously reluctant to implement age verification for fear of COPPA liability for collecting the verification data itself. The FTC is now saying: verify ages, just delete the data.
+
+Signet leapfrogs this entirely:
+
+| FTC Requirement | Signet's Position |
+|----------------|-------------------|
+| Data collected solely for age verification | No data collected — ZKP proves age range without transmitting personal data |
+| Robust data deletion | Nothing to delete — no PII ever enters any system |
+| Clear notice to parents/children | Parent initiates the entire verification process and holds all keys |
+| Don't use data for other purposes | Cryptographically impossible — the proof contains no personal data to repurpose |
+
+The FTC lowered the bar. Signet doesn't need the bar — it flies over it.
+
+### The Privacy Argument
+
+Every other approach to age verification involves a trade-off: privacy vs safety, user experience vs verification rigour, centralised control vs accountability. Signet is designed to avoid that trade-off:
+
+- Professional verifies in person → ZKP credential
+- Credential proves age range without revealing personal data
+- No personal data stored centrally — no database to breach
+- Anti-corruption layers on verifier network
+- Audit trail on Nostr relays
+
+---
+
+## 13. Limitations
+
+| Limitation | Why It's Acceptable |
+|------------|---------------------|
+| **A verified parent can still be a bad parent** | True of all systems. The protocol proves identity, not character. But it creates accountability — the parent's verified identity is cryptographically linked. |
+| **Professional verifiers could collude** | Possible but career-ending. Cross-verification and professional body oversight mitigate this. Same risk exists in the existing notary/legal system. |
+| **Doesn't prevent all predators** | A determined predator with a real child could still misuse the system. But they can no longer be anonymous — their Tier 4 credential links back to a professional who verified them in person. |
+| **ZKP crypto is complex** | Implementation risk. Mitigated by using proven libraries and by designing the protocol independently of the crypto stack. |
+| **Adoption requires verifiers** | Chicken-and-egg: users need verifiers, verifiers need users. Mitigated by the web-of-trust tier (no professionals needed) and by starting with existing professional networks. |
+
+---
+
+## 14. Reference Implementation
+
+The first reference implementation of Signet is being built within [Fathom](https://github.com/decented/decented), a sovereign learning and family management app built on Nostr. Fathom's implementation integrates Signet credentials with:
+
+- Parent-controlled vault tiers (cryptographic access control)
+- Child account protection (NIP-26 delegation)
+- Community verification policies for home-education groups
+- Age-based permission defaults
+
+Signet is designed as a standalone NIP. Any Nostr client can implement it independently. The protocol does not depend on Fathom or any specific client.
+
+### Contributing
+
+Signet is open source. Contributions, feedback, and NIP discussion are welcome.
+
+- Protocol specification: this document
+- Reference implementation: [Fathom](https://github.com/decented/decented)
+- NIP proposal: pending (kind numbers are placeholders)
+
+---
+
+*This specification is a living document. It will evolve through community feedback and implementation experience.*
