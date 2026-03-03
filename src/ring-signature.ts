@@ -1,0 +1,222 @@
+// SAG Ring Signatures on secp256k1
+// Proves "one of N public keys signed this message" without revealing which one.
+// Used for Tier 3/4 issuer privacy: "a professional verified this" without revealing which professional.
+
+import { secp256k1 } from '@noble/curves/secp256k1';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex, hexToBytes, utf8ToBytes, concatBytes } from '@noble/hashes/utils';
+
+const Point = secp256k1.ProjectivePoint;
+const N = secp256k1.CURVE.n;
+type ProjectivePoint = typeof Point.BASE;
+
+/** A ring signature: starting challenge + response scalars */
+export interface RingSignature {
+  /** The ring of public keys (x-only hex, 32 bytes each) */
+  ring: string[];
+  /** Starting challenge c_0 */
+  c0: string;
+  /** Response scalars s_0 ... s_{n-1} */
+  responses: string[];
+  /** The signed message hash */
+  message: string;
+}
+
+/** Convert a scalar bigint to 32-byte hex */
+function scalarToHex(s: bigint): string {
+  return s.toString(16).padStart(64, '0');
+}
+
+/** Convert hex to bigint scalar */
+function hexToScalar(hex: string): bigint {
+  return BigInt('0x' + hex);
+}
+
+/** Modular arithmetic helpers */
+function mod(a: bigint, m: bigint = N): bigint {
+  const result = a % m;
+  return result >= 0n ? result : result + m;
+}
+
+/** Hash to scalar: SHA-256 of concatenated data, reduced mod N */
+function hashToScalar(...parts: Uint8Array[]): bigint {
+  const data = concatBytes(...parts);
+  const h = sha256(data);
+  return mod(BigInt('0x' + bytesToHex(h)));
+}
+
+/** Load a public key from x-only hex (32 bytes) to a curve point.
+ *  Assumes even y-coordinate (BIP-340 convention). */
+function pubkeyToPoint(pubkeyHex: string): ProjectivePoint {
+  // x-only pubkey: prepend 02 for even y
+  return Point.fromHex('02' + pubkeyHex);
+}
+
+/** Generate a random scalar in [1, N-1] */
+function randomScalar(): bigint {
+  const bytes = secp256k1.utils.randomPrivateKey();
+  return mod(BigInt('0x' + bytesToHex(bytes)));
+}
+
+/** Safe scalar multiplication — handles 0n (which noble/curves rejects) */
+function safeMultiply(point: ProjectivePoint, scalar: bigint): ProjectivePoint {
+  const s = mod(scalar);
+  if (s === 0n) return Point.ZERO;
+  return point.multiply(s);
+}
+
+/**
+ * Sign a message with a ring signature.
+ *
+ * @param message - The message to sign (will be hashed)
+ * @param ring - Array of x-only public keys (hex) forming the anonymity set
+ * @param signerIndex - Index of the actual signer in the ring
+ * @param privateKey - Signer's private key (hex)
+ * @returns A ring signature
+ */
+export function ringSign(
+  message: string,
+  ring: string[],
+  signerIndex: number,
+  privateKey: string
+): RingSignature {
+  if (ring.length < 2) throw new Error('Ring must have at least 2 members');
+  if (signerIndex < 0 || signerIndex >= ring.length) throw new Error('Signer index out of range');
+
+  const n = ring.length;
+  const pi = signerIndex;
+  let x = hexToScalar(privateKey);
+  const msgBytes = utf8ToBytes(message);
+
+  // Load ring public keys as curve points
+  const ringPoints = ring.map(pubkeyToPoint);
+
+  // BIP-340 parity fix: pubkeyToPoint always uses even y ('02' prefix).
+  // If x*G has odd y, negate x so that x*G matches the even-y point.
+  const P = Point.BASE.multiply(x);
+  const pAffine = P.toAffine();
+  if (pAffine.y % 2n !== 0n) {
+    x = mod(N - x);
+  }
+
+  // Step 1: Random nonce
+  const k = randomScalar();
+  const kG = Point.BASE.multiply(k);
+
+  // Step 2: Compute c_{pi+1}
+  const challenges: bigint[] = new Array(n);
+  const responses: bigint[] = new Array(n);
+
+  const nextIdx = (pi + 1) % n;
+  challenges[nextIdx] = hashToScalar(
+    msgBytes,
+    utf8ToBytes(ring.join(',')),
+    kG.toRawBytes(true)
+  );
+
+  // Step 3: For i = pi+1, pi+2, ..., pi-1 (mod n): fill in random responses and compute challenges
+  for (let j = 1; j < n; j++) {
+    const i = (pi + j) % n;
+    const iNext = (i + 1) % n;
+
+    responses[i] = randomScalar();
+
+    // R_i = s_i * G + c_i * P_i
+    const sG = safeMultiply(Point.BASE, responses[i]);
+    const cP = safeMultiply(ringPoints[i], challenges[i]);
+    const R = sG.add(cP);
+
+    if (iNext !== nextIdx || j < n - 1) {
+      challenges[iNext] = hashToScalar(
+        msgBytes,
+        utf8ToBytes(ring.join(',')),
+        R.toRawBytes(true)
+      );
+    }
+  }
+
+  // Step 4: Compute s_pi = k - c_pi * x (mod N)
+  responses[pi] = mod(k - mod(challenges[pi] * x));
+
+  return {
+    ring,
+    c0: scalarToHex(challenges[0]),
+    responses: responses.map(scalarToHex),
+    message,
+  };
+}
+
+/**
+ * Verify a ring signature.
+ *
+ * @param sig - The ring signature to verify
+ * @returns true if the signature is valid
+ */
+export function ringVerify(sig: RingSignature): boolean {
+  try {
+    const { ring, c0, responses, message } = sig;
+    if (ring.length < 2) return false;
+    if (responses.length !== ring.length) return false;
+
+    const n = ring.length;
+    const msgBytes = utf8ToBytes(message);
+    const ringPoints = ring.map(pubkeyToPoint);
+
+    let c = hexToScalar(c0);
+
+    for (let i = 0; i < n; i++) {
+      const s = hexToScalar(responses[i]);
+
+      // R_i = s_i * G + c_i * P_i
+      const sG = safeMultiply(Point.BASE, s);
+      const cP = safeMultiply(ringPoints[i], c);
+      const R = sG.add(cP);
+
+      // c_{i+1} = H(msg, ring, R_i)
+      c = hashToScalar(
+        msgBytes,
+        utf8ToBytes(ring.join(',')),
+        R.toRawBytes(true)
+      );
+    }
+
+    // Check: computed c_n wraps around to c_0
+    return c === hexToScalar(c0);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Create a ring signature for a Signet credential.
+ * Wraps ringSign with credential-specific message construction.
+ *
+ * @param credentialEventId - The event ID of the credential being signed
+ * @param subjectPubkey - The pubkey of the person being verified
+ * @param ring - Array of verifier pubkeys forming the anonymity set
+ * @param signerIndex - Index of the actual signing verifier
+ * @param privateKey - Signing verifier's private key
+ */
+export function signCredentialRing(
+  credentialEventId: string,
+  subjectPubkey: string,
+  ring: string[],
+  signerIndex: number,
+  privateKey: string
+): RingSignature {
+  const message = `signet:credential:${credentialEventId}:${subjectPubkey}`;
+  return ringSign(message, ring, signerIndex, privateKey);
+}
+
+/**
+ * Verify a ring signature on a Signet credential.
+ */
+export function verifyCredentialRing(
+  sig: RingSignature,
+  credentialEventId: string,
+  subjectPubkey: string
+): boolean {
+  const expectedMessage = `signet:credential:${credentialEventId}:${subjectPubkey}`;
+  if (sig.message !== expectedMessage) return false;
+  return ringVerify(sig);
+}
