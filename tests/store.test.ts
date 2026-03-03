@@ -1,0 +1,183 @@
+import { describe, it, expect } from 'vitest';
+import { generateKeyPair, signEvent } from '../src/crypto.js';
+import { SignetStore } from '../src/store.js';
+import { SIGNET_KINDS } from '../src/constants.js';
+import {
+  createSelfDeclaredCredential,
+  createProfessionalCredential,
+  createVouch,
+  createPolicy,
+  createVerifierCredential,
+} from '../src/index.js';
+
+describe('SignetStore', () => {
+  it('adds and retrieves events', async () => {
+    const store = new SignetStore();
+    const kp = generateKeyPair();
+    const cred = await createSelfDeclaredCredential(kp.privateKey);
+
+    expect(store.add(cred)).toBe(true);
+    expect(store.size).toBe(1);
+    expect(store.get(cred.id)).toEqual(cred);
+  });
+
+  it('deduplicates by event ID', async () => {
+    const store = new SignetStore();
+    const kp = generateKeyPair();
+    const cred = await createSelfDeclaredCredential(kp.privateKey);
+
+    expect(store.add(cred)).toBe(true);
+    expect(store.add(cred)).toBe(false);
+    expect(store.size).toBe(1);
+  });
+
+  it('handles replaceable events (newer replaces older)', async () => {
+    const store = new SignetStore();
+    const kp = generateKeyPair();
+
+    // Create first credential
+    const cred1 = await createSelfDeclaredCredential(kp.privateKey);
+
+    // Create second credential with a later timestamp, then re-sign so the ID is correct
+    const { id: _id, sig: _sig, ...unsigned } = cred1;
+    const cred2 = await signEvent(
+      { ...unsigned, created_at: cred1.created_at + 1 },
+      kp.privateKey
+    );
+
+    store.add(cred1);
+    store.add(cred2);
+
+    // Should keep only the newer one
+    expect(store.size).toBe(1);
+    expect(store.has(cred1.id)).toBe(false);
+    expect(store.has(cred2.id)).toBe(true);
+  });
+
+  it('queries by kind', async () => {
+    const store = new SignetStore();
+    const kp = generateKeyPair();
+    const subject = generateKeyPair();
+
+    const cred = await createSelfDeclaredCredential(kp.privateKey);
+    const vouch = await createVouch(kp.privateKey, {
+      subjectPubkey: subject.publicKey,
+      method: 'in-person',
+      voucherTier: 2,
+      voucherScore: 50,
+    });
+
+    store.add(cred);
+    store.add(vouch);
+
+    const creds = store.query({ kinds: [SIGNET_KINDS.CREDENTIAL] });
+    expect(creds).toHaveLength(1);
+
+    const vouches = store.query({ kinds: [SIGNET_KINDS.VOUCH] });
+    expect(vouches).toHaveLength(1);
+  });
+
+  it('queries by author', async () => {
+    const store = new SignetStore();
+    const kp1 = generateKeyPair();
+    const kp2 = generateKeyPair();
+
+    store.add(await createSelfDeclaredCredential(kp1.privateKey));
+    store.add(await createSelfDeclaredCredential(kp2.privateKey));
+
+    const results = store.query({ authors: [kp1.publicKey] });
+    expect(results).toHaveLength(1);
+    expect(results[0].pubkey).toBe(kp1.publicKey);
+  });
+
+  it('queries by subject', async () => {
+    const store = new SignetStore();
+    const verifier = generateKeyPair();
+    const subject = generateKeyPair();
+    const other = generateKeyPair();
+
+    store.add(await createProfessionalCredential(verifier.privateKey, subject.publicKey, {
+      profession: 'solicitor', jurisdiction: 'UK',
+    }));
+    store.add(await createProfessionalCredential(verifier.privateKey, other.publicKey, {
+      profession: 'solicitor', jurisdiction: 'UK',
+    }));
+
+    const results = store.query({ subjects: [subject.publicKey] });
+    expect(results).toHaveLength(1);
+  });
+
+  describe('convenience methods', () => {
+    it('getCredentials returns credentials for a subject', async () => {
+      const store = new SignetStore();
+      const verifier = generateKeyPair();
+      const subject = generateKeyPair();
+
+      store.add(await createProfessionalCredential(verifier.privateKey, subject.publicKey, {
+        profession: 'solicitor', jurisdiction: 'UK',
+      }));
+
+      const creds = store.getCredentials(subject.publicKey);
+      expect(creds).toHaveLength(1);
+    });
+
+    it('getHighestCredential returns the highest tier', async () => {
+      const store = new SignetStore();
+      const subject = generateKeyPair();
+      const verifier = generateKeyPair();
+
+      store.add(await createSelfDeclaredCredential(subject.privateKey));
+      store.add(await createProfessionalCredential(verifier.privateKey, subject.publicKey, {
+        profession: 'solicitor', jurisdiction: 'UK',
+      }));
+
+      const highest = store.getHighestCredential(subject.publicKey);
+      expect(highest).not.toBeNull();
+      expect(highest!.tier).toBe(3);
+    });
+
+    it('getVouches returns vouches for a subject', async () => {
+      const store = new SignetStore();
+      const v1 = generateKeyPair();
+      const v2 = generateKeyPair();
+      const subject = generateKeyPair();
+
+      store.add(await createVouch(v1.privateKey, {
+        subjectPubkey: subject.publicKey, method: 'in-person', voucherTier: 2, voucherScore: 50,
+      }));
+      store.add(await createVouch(v2.privateKey, {
+        subjectPubkey: subject.publicKey, method: 'online', voucherTier: 2, voucherScore: 40,
+      }));
+
+      expect(store.getVouches(subject.publicKey)).toHaveLength(2);
+    });
+  });
+
+  describe('serialization', () => {
+    it('exports and imports events', async () => {
+      const store = new SignetStore();
+      const kp = generateKeyPair();
+
+      store.add(await createSelfDeclaredCredential(kp.privateKey));
+      store.add(await createVouch(kp.privateKey, {
+        subjectPubkey: generateKeyPair().publicKey,
+        method: 'online', voucherTier: 2, voucherScore: 50,
+      }));
+
+      const json = store.export();
+
+      const store2 = new SignetStore();
+      const imported = store2.import(json);
+      expect(imported).toBe(2);
+      expect(store2.size).toBe(2);
+    });
+  });
+
+  it('clears all events', async () => {
+    const store = new SignetStore();
+    store.add(await createSelfDeclaredCredential(generateKeyPair().privateKey));
+    expect(store.size).toBe(1);
+    store.clear();
+    expect(store.size).toBe(0);
+  });
+});

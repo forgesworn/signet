@@ -35,6 +35,7 @@ The protocol defines four verification tiers, a continuous trust score, a verifi
 12. [Regulatory Compatibility](#12-regulatory-compatibility)
 13. [Limitations](#13-limitations)
 14. [Reference Implementation](#14-reference-implementation)
+15. [Identity Management & Peer Verification](#15-identity-management--peer-verification)
 
 ---
 
@@ -779,6 +780,186 @@ Signet is open source. Contributions, feedback, and NIP discussion are welcome.
 - Protocol specification: this document
 - Reference implementation: [Fathom](https://github.com/decented/decented)
 - NIP proposal: pending (kind numbers are placeholders)
+
+---
+
+## 15. Identity Management & Peer Verification
+
+### 15.1 Profile Creation (BIP-39 / NIP-06)
+
+Signet identities are derived from a 12-word BIP-39 mnemonic phrase. This is the industry standard used across Bitcoin and Nostr — the same 12 words can recover the identity on any compatible app.
+
+**Creation flow:**
+
+```
+1. Generate 128 bits of cryptographic entropy
+2. SHA-256 hash → take first 4 bits as checksum
+3. 132 bits → 12 groups of 11 bits → 12 BIP-39 English words
+4. PBKDF2-SHA512(mnemonic, "mnemonic" + passphrase, 2048 iterations) → 64-byte seed
+5. BIP-32 HD derivation at path m/44'/1237'/0'/0/0 (NIP-06) → Nostr private key
+6. Schnorr x-only public key derived from private key → Nostr identity
+```
+
+The 12 words **are** the identity. The user writes them down and stores them securely. An optional passphrase adds a second factor (the "25th word").
+
+**Child accounts** can be derived at different account indices on the same HD path: `m/44'/1237'/{index}'/0/0`. A parent's mnemonic can deterministically generate keys for all their children's accounts, keeping the family's key management under one recovery phrase.
+
+### 15.2 Shared Backup (Shamir's Secret Sharing)
+
+Writing down 12 words creates a single point of failure. Shamir's Secret Sharing solves this by splitting the entropy into N shares where any M can reconstruct it.
+
+**Scheme:** GF(256) polynomial interpolation (same field used by AES).
+
+**Default:** 2-of-3 — keep one share, give two to trusted people. Any two of the three shares reconstruct the original entropy. No individual share reveals anything about the secret.
+
+**Share encoding:** Each share is encoded as BIP-39 words (same wordlist, same format) so they look and feel familiar. A share holder sees 12 words that look like a normal mnemonic — but they are mathematically useless without a second share.
+
+```
+Original:  [12-word mnemonic] ← derives the Nostr private key
+                │
+        Shamir's 2-of-3 split
+                │
+    ┌───────────┼───────────┐
+    │           │           │
+Share 1     Share 2     Share 3
+(12 words)  (12 words)  (12 words)
+Keep this   Give to     Give to
+yourself    friend A    friend B
+
+Any 2 shares → reconstruct → original mnemonic → private key
+```
+
+**Parameters:**
+- Threshold (M): minimum 2, configurable
+- Shares (N): minimum M, maximum 255, configurable
+- Practical recommendation: 2-of-3 for personal use, 3-of-5 for high-value keys
+
+### 15.3 Peer Connections
+
+When two Signet users meet in person, they establish a cryptographic connection by exchanging QR codes.
+
+**Connection flow:**
+
+```
+Alice's phone                          Bob's phone
+─────────────                          ──────────
+1. Shows QR code containing:           1. Shows QR code containing:
+   - Alice's public key                   - Bob's public key
+   - Random nonce                         - Random nonce
+   - Selected contact info                - Selected contact info
+     (name, mobile, etc.)                   (name, mobile, etc.)
+
+2. Scans Bob's QR                      2. Scans Alice's QR
+
+3. Computes:                           3. Computes:
+   ECDH(alice_priv, bob_pub)              ECDH(bob_priv, alice_pub)
+        │                                      │
+        └──── Same shared secret S ────────────┘
+
+4. Stores:                             4. Stores:
+   - Bob's pubkey                         - Alice's pubkey
+   - Shared secret S                      - Shared secret S
+   - Bob's shared info                    - Alice's shared info
+   - What Alice shared                    - What Bob shared
+```
+
+**ECDH shared secret derivation:**
+- Nostr public keys are x-only (32 bytes). Prepend `02` to assume even y-coordinate.
+- Multiply the full point by the other party's private key scalar.
+- SHA-256 hash the x-coordinate of the resulting point → 32-byte shared secret.
+- The result is symmetric: `ECDH(A_priv, B_pub) === ECDH(B_priv, A_pub)`.
+
+**Contact info selection:** During the QR exchange, each user selects what to share:
+- Name
+- Mobile number
+- Email
+- Home address
+- Children's public keys (for families whose kids play together)
+
+This data is stored **locally only** — never published to relays. The QR exchange happens entirely in person.
+
+**Automatic vouch:** The connection optionally triggers a mutual in-person vouch (kind 30471), contributing to both users' Tier 2 web-of-trust and trust scores.
+
+### 15.4 Signet Verification Words ("Signet Me")
+
+The core peer-to-peer identity verification feature. Given a connection with a shared secret, both parties can independently compute the same 3 words at any time — proving they hold the keys that established the connection.
+
+**The problem:** Your friend calls, panicked, asking you to send money to a new bank account. It sounds like him — social cues are right, he drops the kids' names. But is it really him?
+
+**The solution:** "Signet me." Both users open each other's profiles. Both see the same 3 words. The caller reads them out. Match → it's really them.
+
+**Algorithm:**
+
+```
+Inputs:
+  S  = shared secret (32 bytes, from ECDH at connection time)
+  t  = current Unix timestamp in milliseconds
+
+Epoch:
+  E = floor(t / 30000)           // words rotate every 30 seconds
+
+Derivation:
+  H = HMAC-SHA256(S, E.toString())   // 32-byte MAC
+
+Word extraction (33 bits → 3 × 11-bit indices):
+  word1 = ((H[0] << 3) | (H[1] >> 5)) & 0x7FF   // bits 0-10
+  word2 = ((H[1] << 6) | (H[2] >> 2)) & 0x7FF   // bits 11-21
+  word3 = ((H[2] << 9) | (H[3] << 1) | (H[4] >> 7)) & 0x7FF  // bits 22-32
+
+Output:
+  [BIP39_WORDLIST[word1], BIP39_WORDLIST[word2], BIP39_WORDLIST[word3]]
+```
+
+**Properties:**
+- **Symmetric:** Both parties compute the same words from the same shared secret.
+- **Rotating:** Words change every 30 seconds. Stale words cannot be replayed.
+- **Tolerant:** Verification accepts current epoch ±1 (90-second window) to accommodate phone call lag.
+- **Offline:** No server, no relay, no network needed. Pure local computation.
+- **Strong:** 3 words from a 2048-word list = 2048³ ≈ 8.6 billion combinations. With a 30-second window, an attacker gets exactly one guess at 0.000000012% odds.
+
+**Use cases:**
+
+| Scenario | Flow |
+|----------|------|
+| **Friend asks for money** | "Signet me." Both open the app. Words match → send it. |
+| **Bank calls about suspicious activity** | "Read me my signet." Agent checks your profile → reads the 3 words. |
+| **You call the bank** | "What's my signet?" You verify they have access to the bank's private key. |
+| **Family emergency contact** | Relative calls claiming to be with your child. "Signet me first." |
+| **Business verification** | Supplier calls to change payment details. "Signet me before I update anything." |
+
+**Display:**
+
+```
+┌──────────────────────────────────────┐
+│  Bob's Profile                       │
+│                                      │
+│  My Signet:                          │
+│                                      │
+│     ocean · tiger · marble           │
+│                                      │
+│  ████████████░░░░  18s               │
+│                                      │
+│  Tap to verify words read to you     │
+└──────────────────────────────────────┘
+```
+
+The progress bar shows time until the next word rotation. The user sees the words update in real time.
+
+### 15.5 Security Considerations
+
+**Key management:**
+- The 12-word mnemonic must be stored offline (paper, metal backup). It is the master secret.
+- The optional passphrase adds plausible deniability (different passphrase → different identity).
+- Shamir shares should be distributed to people in different locations.
+
+**Shared secrets:**
+- ECDH shared secrets are derived from the connection and stored locally. They never leave the device.
+- If a device is compromised, all shared secrets on that device are compromised. Users should re-establish connections from a new device.
+
+**Signet words:**
+- The 30-second epoch prevents replay beyond the tolerance window.
+- An attacker who compromises one party's device gains their shared secrets and can generate words. This is equivalent to compromising their private key — the defence is device security, not protocol design.
+- For high-value transactions, combine signet words with other verification (video call, previously agreed code phrase).
 
 ---
 
