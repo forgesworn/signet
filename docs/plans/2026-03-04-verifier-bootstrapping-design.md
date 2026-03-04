@@ -707,6 +707,89 @@ When the child turns 18 (or the age of majority in their jurisdiction):
 | 16-17 | 4 or 3 | Jurisdiction-dependent | Required: "16-17" or "18+" depending on jurisdiction | Some jurisdictions treat 16+ as near-adult |
 | 18+ | 3 | No | Required: "18+" | All adults carry age-range proof — proves adulthood without revealing exact age |
 
+#### 10.4.5 Family Structures: Guardianship, Delegation, and Permissions
+
+Family structures are complex — single parents, divorced parents, step-parents, new partners, estranged parents. Signet handles this through three distinct layers:
+
+**Layer 1: Guardian Tags (Protocol — Credential Level)**
+
+The `["guardian", "<pubkey>"]` tag on a child's credential reflects **legal parental responsibility** — not who the child lives with, not who they call "mum." This is set by a professional based on legal documents and can only change via a superseding credential with a new court order or legal document.
+
+| Family situation | Guardian tags on credential | How it changes |
+|---|---|---|
+| **Single parent** | 1 guardian tag | Add second via court order (PR agreement, adoption) |
+| **Married/together parents** | 2 guardian tags | N/A — both have PR by default |
+| **Divorced, joint custody** | 2 guardian tags (both remain) | Both retain PR unless court removes it |
+| **Divorced, sole custody** | 1 guardian tag (court order) | Professional issues superseding credential based on court order |
+| **Remarried** | Original guardian tags unchanged | Step-parent gets guardian tag ONLY if they obtain PR (court order, PR agreement, or adoption) |
+| **New partner (unmarried)** | Original guardian tags unchanged | Same — partnership doesn't grant PR |
+| **Estranged parent** | Guardian tag REMAINS | Cannot be removed by the other parent unilaterally — requires court order |
+| **Foster care** | Local authority + foster carer tags | Based on care order |
+| **Adoption** | Adoptive parents replace birth parents | Based on adoption order |
+
+**Critical rules:**
+- A resident parent CANNOT unilaterally remove an estranged parent's guardian tag. This protects the non-resident parent's legal rights. Only a court order (via professional re-verification) can change guardian tags.
+- A step-parent does NOT automatically get a guardian tag. In UK law, a step-parent can gain parental responsibility via: (a) parental responsibility agreement signed by all existing PR holders, (b) court order, or (c) adoption. The professional verifies the relevant document before adding the tag.
+- Multiple guardian tags are supported: joint custody, blended families with multiple PR holders.
+
+**Layer 2: Delegated Authority (Protocol — Kind 30477 Delegation)**
+
+This is where day-to-day family life meets the protocol. A guardian can delegate specific permissions to trusted adults WITHOUT making them a legal guardian. This uses the existing kind 30477 (Agent Delegation) mechanism, extended for guardian delegation:
+
+```jsonc
+// Guardian delegates "approve child activities" to step-parent
+{
+  "kind": 30477,
+  "tags": [
+    ["p", "<step_parent_pubkey>"],
+    ["delegation-type", "guardian-delegate"],
+    ["child", "<child_pubkey>"],
+    ["scope", "activity-approval"],  // what they can approve
+    ["expires", "<timestamp>"]       // time-limited
+  ],
+  "pubkey": "<guardian_pubkey>"      // signed by the guardian
+}
+```
+
+| Who | How they get authority | What they can do | Revocation |
+|---|---|---|---|
+| Legal guardian (Layer 1) | Professional verification + documents | Everything — full parental authority | Court order only |
+| Step-parent (delegated) | Guardian issues kind 30477 | Specified scope (activity approval, content, contacts) | Guardian revokes at will |
+| Grandparent (delegated) | Guardian issues kind 30477 | Specified scope (e.g. babysitting hours) | Guardian revokes at will |
+| Au pair / nanny (delegated) | Guardian issues kind 30477 | Specified scope + time-limited | Auto-expires or guardian revokes |
+| Teacher (delegated) | Guardian issues kind 30477 | School-related scope only | Guardian revokes or term-limited |
+
+**Key properties of delegation:**
+- Only a guardian (Layer 1) can issue delegations for their child
+- Delegations are revocable by the issuing guardian at any time
+- Delegations can be time-limited (auto-expire)
+- Delegations can be scope-limited (only certain types of approval)
+- A delegation does NOT give the delegate authority to create further delegations (no transitive delegation)
+- Both guardians can independently issue delegations — a resident parent can delegate to their new partner without the other parent's consent (this mirrors real-world behaviour: you don't need your ex's permission to let your partner babysit)
+
+**Layer 3: Client-Level Permissions (Vaulstr / Application)**
+
+Day-to-day operational questions: "Can my child play this game?" "Can they access this community?" "Screen time limits?" — these are **application-layer concerns**, not protocol-level.
+
+The protocol provides the identity data (guardian tags, delegations, age-range proofs). The client/Vaulstr uses this data to enforce permissions:
+
+| Function | Layer | Example |
+|---|---|---|
+| "Who is this child's legal guardian?" | Signet (credential) | Guardian tags on kind 30470 |
+| "Can this step-parent approve activities?" | Signet (delegation) | Kind 30477 delegation from guardian |
+| "Approve this specific game for my child" | Client/Vaulstr | App reads delegation, allows step-parent to approve |
+| "Set screen time to 2 hours" | Client/Vaulstr | App-specific setting, stored locally or in Vaulstr |
+| "Block this contact for my child" | Client/Vaulstr | App enforces, using guardian credential for authority |
+| "What content rating is appropriate?" | Client/Vaulstr | Based on age-range proof from credential |
+
+**The boundary:** Signet answers "who has authority over this child?" Vaulstr/client answers "what do they choose to allow?" This separation means the protocol doesn't need to know about games, screen time, or content ratings — it just provides the trust infrastructure that apps build on.
+
+**Divorce conflict scenario:** Both parents have guardian tags. Parent A blocks a game. Parent B approves it. What happens?
+- This is a client-level policy decision, not a protocol question
+- Possible approaches: most restrictive wins, last action wins, require both to agree for sensitive content
+- The protocol provides the DATA (both are guardians, both have valid credentials). The CLIENT decides the POLICY.
+- This mirrors real life: co-parenting disagreements are resolved through communication or courts, not through technology
+
 ### 10.5 Document Renewal
 
 **The problem:** Passport expires → new passport number → new nullifier → old and new credentials look like different people.
