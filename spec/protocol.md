@@ -13,7 +13,9 @@
 
 Signet is an open protocol for decentralised identity verification on Nostr. It enables users to prove claims about their identity — age, parenthood, professional status — using zero-knowledge proofs, without revealing personal data or relying on a central authority.
 
-The protocol defines four verification tiers, nine entity types, a continuous trust score, a verifier accountability framework, and eight Nostr event kinds (30470–30477). Any Nostr client can implement Signet. Any community can set verification policies. Any licensed professional can become a verifier.
+The protocol defines four verification tiers, nine entity types, a continuous trust score, a verifier accountability framework, and eleven Nostr event kinds (30470–30480, including the voting extension). Every professionally verified person receives two credentials — a Natural Person (real identity with Merkle-bound attributes and document nullifier) and a Persona (anonymous alias with age-range proof only). This two-credential model makes privacy a first-class design goal.
+
+Any Nostr client can implement Signet. Any community can set verification policies. Any licensed professional can become a verifier.
 
 **Child safety is the killer app. Social proof (blue checkmarks) drives adoption across all of Nostr.**
 
@@ -40,6 +42,10 @@ The protocol defines four verification tiers, nine entity types, a continuous tr
 17. [Entity Type Classification](#17-entity-type-classification)
 18. [Adversarial Resilience](#18-adversarial-resilience)
 19. [Civic Identity](#19-civic-identity)
+20. [Two-Credential Verification](#20-two-credential-verification)
+21. [Credential Lifecycle](#21-credential-lifecycle)
+22. [Child Online Safety](#22-child-online-safety)
+23. [Inclusivity](#23-inclusivity)
 
 ---
 
@@ -1418,5 +1424,355 @@ For civic identity to function as described, enabling legislation MUST ensure:
 4. **Credential plurality** — citizens may hold credentials from multiple issuers; no single government credential may be made a prerequisite for participation in civil society
 5. **Algorithmic audit** — any government systems that process Signet credentials must be subject to independent audit
 6. **Sunset and review** — civic identity legislation must include mandatory review periods to assess whether the system is being used as intended
+
+---
+
+## 20. Two-Credential Verification
+
+### 20.1 Design Principle
+
+Anonymity is a first-class design goal, not an afterthought. Every person verified through Signet receives **two** credentials on **two** separate keypairs:
+
+- **Keypair A (Natural Person):** Real identity — name, nationality, document hash, nullifier
+- **Keypair B (Persona):** Anonymous identity — inherits only the age-range proof and guardian tags (if child)
+
+The professional verifier sees both keypairs and issues both credentials in a single ceremony. The link between keypairs is known only to the subject and the verifier (protected by professional confidentiality — solicitor-client privilege, notary secrecy, medical confidentiality).
+
+### 20.2 The Ceremony
+
+The two-credential ceremony follows these steps:
+
+1. Subject presents two Nostr pubkeys (keypair A and keypair B) to the verifier
+2. Subject presents identity documents (passport, national ID, birth certificate)
+3. Verifier examines documents and confirms identity of the person present
+4. Verifier builds a Merkle tree from verified attributes (name, nationality, document type, DOB, nullifier)
+5. Verifier computes nullifier: `H(document_type || country_code || document_number || "signet-uniqueness-v1")`
+6. Verifier generates Bulletproof age-range proof from date of birth
+7. Verifier issues Natural Person credential (keypair A) with: entity-type, merkle-root, nullifier, age-range, guardian tags (if child)
+8. Verifier issues Persona credential (keypair B) with: entity-type=persona, age-range (same proof), guardian tags (if child), NO nullifier, NO merkle-root
+
+### 20.3 On-Chain vs Private Data
+
+| Data | On-chain (public) | Private (Merkle leaf only) |
+|------|-------------------|---------------------------|
+| Entity type | Yes | — |
+| Age range (e.g., "18+") | Yes (ZKP) | — |
+| Merkle root | Yes (NP only) | — |
+| Nullifier hash | Yes (NP only) | — |
+| Guardian pubkey(s) | Yes (if child) | — |
+| Full name | — | Yes |
+| Nationality | — | Yes |
+| Date of birth | — | Yes |
+| Document type | — | Yes |
+| Document number | — | — (used in nullifier, then discarded) |
+
+### 20.4 Date of Birth and Age-Range Proofs
+
+All tiers carry age-range proofs when issued by a professional:
+
+- **Tier 1 (self-declared):** No age-range proof (self-declaration is not verification)
+- **Tier 2 (peer-vouched):** No age-range proof (peers cannot verify DOB)
+- **Tier 3 (professional, adult):** Age-range proof "18+" from verified DOB
+- **Tier 4 (professional, adult+child):** Age-range proof with specific range (e.g., "8-12", "13-17")
+
+Age ranges for children:
+
+| Age | Range tag | Tier | Scope |
+|-----|-----------|------|-------|
+| 0-3 | `0-3` | 4 | adult+child |
+| 4-7 | `4-7` | 4 | adult+child |
+| 8-12 | `8-12` | 4 | adult+child |
+| 13-17 | `13-17` | 4 | adult+child |
+| 18+ | `18+` | 3 | adult |
+
+The DOB is NEVER published on-chain. Only the zero-knowledge age-range proof appears. The Bulletproof proves "this person's age falls within [min, max]" without revealing the exact age or DOB.
+
+### 20.5 Merkle-Bound Name Verification
+
+The Natural Person credential includes a `merkle-root` tag. The Merkle tree contains verified attributes as leaves:
+
+```
+Merkle Root
+├── H("dateOfBirth:1990-05-15")
+├── H("documentType:passport")
+├── H("name:Alice Smith")
+├── H("nationality:GB")
+└── H("nullifier:<hash>")
+```
+
+Selective disclosure: The subject can reveal any attribute by providing the leaf value and its Merkle proof (sibling hashes). The verifier (or any party) can verify the proof against the published Merkle root without seeing the other attributes.
+
+Use cases for selective disclosure:
+- Prove name to a bank without revealing nationality
+- Prove nationality for a community policy without revealing name
+- Prove document type for a regulatory check without revealing anything else
+
+### 20.6 Entity Type as Immutable Differentiator
+
+The `entity-type` tag is set at credential issuance and cannot be changed without a new credential:
+
+| Entity type | Display | Can hold nullifier? | Can hold merkle-root? |
+|-------------|---------|--------------------|-----------------------|
+| natural_person | Person | Yes | Yes |
+| persona | Alias | No | No |
+
+Clients MUST display the entity type. A Persona MUST NOT be displayed as a verified person. The entity type is the primary signal for "is this a real identity or an alias?"
+
+### 20.7 Document-Based Nullifiers
+
+Nullifiers prevent duplicate identity creation. The nullifier is computed as:
+
+```
+nullifier = SHA-256(document_type || "||" || country_code || "||" || document_number || "||" || "signet-uniqueness-v1")
+```
+
+Properties:
+- **Deterministic:** Same document always produces the same nullifier
+- **One-way:** Cannot recover document details from the nullifier
+- **Collision-resistant:** Different documents produce different nullifiers
+- **Cross-verifier consistent:** Any verifier with the same document computes the same nullifier
+
+When a verifier encounters a nullifier that already exists on a relay, this indicates either:
+1. The same person is getting re-verified (legitimate — supersede the old credential)
+2. Two different people presented the same document (fraud — flag for investigation)
+
+### 20.8 Nullifier Weaknesses and Mitigations
+
+| Weakness | Mitigation |
+|----------|------------|
+| Document shared between family members | Nullifier collision detected; professional investigates |
+| Document number guessable (sequential) | Hash includes document type + country; brute-force requires knowing all three components |
+| Multiple documents (passport + national ID) | Each document type produces a different nullifier; cross-reference is a client-level concern |
+| Country changes document format | Salt version ("signet-uniqueness-v1") allows migration to new formula |
+| Verifier collusion (issue without real document) | Anti-corruption framework (§7) applies; nullifier without document is detectable via anomaly patterns |
+
+---
+
+## 21. Credential Lifecycle
+
+### 21.1 Credential Chains
+
+When a credential needs updating (name change, document renewal, tier upgrade), a new credential is issued with a `["supersedes", "<old_event_id>"]` tag. The old credential receives a `["superseded-by", "<new_event_id>"]` tag.
+
+```
+Credential v1 (original)
+  ├── superseded-by: <v2_id>
+  └── [still on relay, but clients show as superseded]
+
+Credential v2 (current)
+  ├── supersedes: <v1_id>
+  └── [active, displayed by clients]
+```
+
+Rules:
+- Only a professional verifier can issue a superseding credential
+- The superseding credential MUST reference the old credential's event ID
+- Clients MUST follow the chain and display only the current (non-superseded) credential
+- The chain is append-only — superseded credentials cannot be un-superseded
+
+### 21.2 Name Changes
+
+When a subject's legal name changes (marriage, divorce, deed poll, court order):
+
+1. Subject presents new legal documents to a professional verifier
+2. Verifier builds new Merkle tree with updated name
+3. Verifier issues new Natural Person credential with `["supersedes", "<old_id>"]`
+4. Persona credential is UNAFFECTED (it carries no name)
+
+### 21.3 Titles and Qualifications
+
+Professional titles (PhD, Dr., KC/QC, Prof.) are NOT name changes. They are separate credentials issued by awarding bodies or verified by professionals, linked to the same pubkey. The Natural Person credential reflects the legal name only.
+
+### 21.4 Children
+
+#### 21.4.1 Child Credential Requirements
+
+Foundational rule: child credentials MUST be sub-accounts of a verified parent or guardian.
+
+The ceremony requires:
+- Parent/guardian with Tier 3+ Signet credential (mandatory)
+- Child's birth certificate or passport (DOB mandatory)
+- Professional verifies parental authority (birth certificate name match, court order if applicable)
+- Professional generates Bulletproof age-range proof from DOB
+- Issues Natural Person + Persona credentials, both with age-range proof and `["guardian", "<parent_pubkey>"]` tag
+- Child's real name NEVER published — only in private Merkle leaves
+
+#### 21.4.2 Guardian Link
+
+The `["guardian", "<parent_pubkey>"]` tag is:
+- Set by the professional verifier at issuance
+- Immutable — cannot be changed without a new credential issued by a professional
+- Multiple guardians supported (joint custody): multiple `["guardian", ...]` tags
+- Present on BOTH Natural Person and Persona credentials
+
+#### 21.4.3 Child to Adult Transition
+
+When a child turns 18:
+1. Subject visits a professional verifier with current identity documents
+2. Verifier issues new Tier 3 credential with `["age-range", "18+"]` and `["supersedes", "<child_credential_id>"]`
+3. New credential has NO guardian tag
+4. Same keypair preserved — all history and connections maintained
+5. Persona credential also superseded with updated age-range and no guardian tag
+
+#### 21.4.4 Age-Appropriate Tiers
+
+| Age range | Tier | Guardian required? | Typical capabilities |
+|-----------|------|--------------------|---------------------|
+| 0-7 | 4 | Yes (mandatory) | Guardian-managed account, no direct messaging |
+| 8-12 | 4 | Yes (mandatory) | Limited messaging with guardian approval |
+| 13-17 | 4 | Yes (mandatory) | More autonomy, guardian notification |
+| 18+ | 3 | No | Full adult account |
+
+#### 21.4.5 Family Structures
+
+Three distinct layers handle the complexity of real families:
+
+**Layer 1 — Credential level (immutable, set by professional):**
+Guardian tags reflect legal parental responsibility. Only changeable via court order + new credential from a professional.
+
+**Layer 2 — Delegation level (flexible, set by guardian):**
+Guardians delegate specific permissions to step-parents, grandparents, teachers, or other trusted adults via kind 30477 guardian delegation events. Delegations are:
+- Time-limited (expiry tag)
+- Scope-limited: `full`, `activity-approval`, `content-management`, `contact-approval`
+- Revocable by the guardian at any time
+
+**Layer 3 — Client level (app-specific, enforced locally):**
+Applications enforce permissions based on Layer 1 and Layer 2 data: screen time limits, content filtering, activity approval workflows, contact restrictions.
+
+### 21.5 Document Renewal
+
+When a document expires and is renewed (new passport number):
+1. New nullifier computed from new document details
+2. `["nullifier-chain", "<old_nullifier>"]` tag links old and new
+3. New credential supersedes old
+4. Continuity of identity maintained despite new document
+
+### 21.6 Death, Key Compromise, Incapacitation
+
+**Death:** A professional issues a kind 30475 revocation with reason "death." All credentials for the pubkey are considered revoked.
+
+**Key compromise:** Subject visits a professional with identity documents. Professional revokes all old credentials and issues new ones on a new keypair. Existing vouches are lost (deliberate security measure — prevents an attacker who compromised the key from retaining social trust).
+
+**Incapacitation:** Court-appointed guardian added via guardian tag on a superseding credential, issued by a professional with the court order.
+
+### 21.7 Nostr Early Adopter Migration
+
+Existing Nostr users can integrate with Signet without losing their established identity:
+
+**Path 1 — Sign existing keypair:**
+The user's existing npub becomes their Natural Person identity. They visit a professional for verification. All followers, NIP-05, zaps, and reputation are preserved.
+
+**Path 2 — Existing npub becomes Persona:**
+The user creates a new keypair for their Natural Person identity and uses their existing npub as their Persona. An identity bridge (kind 30476) links them with ring-signature privacy.
+
+Both paths use existing mechanisms (NIP-05, identity bridges, credential chains). No automatic trust transfer between keypairs (prevents impersonation).
+
+---
+
+## 22. Child Online Safety
+
+### 22.1 Grooming Prevention
+
+The primary defence against grooming is the combination of age-range proofs and in-person professional verification:
+
+1. **Unverified accounts cannot enter child spaces.** Communities require Tier 4 + age-range proof. An unverified account is rejected.
+2. **Peer vouching cannot produce age-range proofs.** Only professionals who see the person and their documents can issue age-range proofs. A Tier 2 vouch carries no age verification.
+3. **Professionals see the actual person.** AI can generate convincing documents, but a 40-year-old cannot present as a 14-year-old in person. Professionals verify documents daily as part of their existing practice.
+4. **Guardian notifications.** When a child's account receives contact from an unknown adult, the guardian is notified. Contact requires guardian approval in strict mode.
+5. **"Signet me" challenges.** Time-based word verification proves the current device holder matches the credential. Detects proxy use and reveals age gaps.
+
+### 22.2 Age Bypass Prevention
+
+Preventing children from accessing adult-only spaces:
+
+1. **Adult spaces require Tier 3+ with "18+" age-range proof.** Self-declaration ("I am 18") is not sufficient.
+2. **Nullifiers prevent second keypairs.** A child cannot create an additional keypair without age-range proof — the deterministic nullifier from their document will match their existing child credential.
+3. **Persona credentials carry age-range.** The Persona issued during the two-credential ceremony MUST carry the same age-range proof as the Natural Person credential. A child's Persona is still identifiable as a child's Persona.
+4. **Identity bridges inherit age-range.** Any identity bridge created from a child credential carries the source credential's age-range constraint.
+
+### 22.3 Client Display Requirements
+
+Clients implementing Signet MUST display:
+
+| Element | Display |
+|---------|---------|
+| Unverified account | "Unverified" label, no trust indicators |
+| Tier 4 child (0-12) | "Verified Child" + age range badge |
+| Tier 4 teen (13-17) | "Verified Teen" + age range badge |
+| Tier 3 adult (18+) | "Verified Adult" badge |
+| Guardian link | "Guardian: [name/pubkey]" on child profiles |
+| Age-gap contact | Warning to child + guardian notification |
+| Missing age proof | "Age not verified" warning |
+
+### 22.4 Guardian Controls
+
+Guardian accounts (pubkeys listed in a child's guardian tags) have access to:
+
+- **DM policy:** Block all / approve-only / notify / allow
+- **Content filtering:** Strict / moderate / off
+- **Contact restrictions:** Whitelist / blacklist / open with notifications
+- **Meeting detection:** "Signet me" required for first real-world contact
+- **Delegation:** Grant specific permissions to trusted adults (step-parent, grandparent, teacher)
+
+These controls are enforced at the client level (Layer 3 of the family structure model, §21.4.5).
+
+### 22.5 Community Policy Templates
+
+Communities can adopt pre-defined safety policies:
+
+| Template | Min tier | Age range | Guardian required? | DM policy |
+|----------|----------|-----------|-------------------|-----------|
+| Child-safe (under-13) | 4 | 0-12 | Yes | Guardian-approved only |
+| Teen (13-17) | 4 | 13-17 | Yes (notify) | Open with logging |
+| Adult-only (18+) | 3 | 18+ | No | Open |
+| Mixed-age | 3 (adults) / 4 (children) | All | Per age group | Age-appropriate |
+
+---
+
+## 23. Inclusivity
+
+### 23.1 Tier System as Safety Net
+
+The four-tier system ensures that lack of documents does not mean exclusion:
+
+- **Tier 1 (self-declared):** Anyone can create an account. No documents required. Zero barrier to entry.
+- **Tier 2 (peer-vouched):** Real-world connections can vouch. No professional or document needed.
+- **Tier 3 (professional, adult):** Requires documents and professional verification.
+- **Tier 4 (professional, adult+child):** Requires documents, professional, and guardian.
+
+Every person starts at Tier 1. The system provides *degrees of confidence*, not binary access.
+
+### 23.2 Expanded Document Types
+
+Professional verifiers can accept a range of identity documents beyond passports and national IDs:
+
+- UNHCR refugee travel documents
+- Stateless person travel documents (1954 Convention)
+- Temporary residence permits
+- Birth certificates (for children)
+- Court-issued identity documents
+- Religious community attestations (with professional co-signing)
+- Employer attestations (for jurisdiction-specific contexts)
+
+The verifier's professional judgement determines which documents are sufficient. The credential records the document type used, allowing communities to set their own acceptance thresholds.
+
+### 23.3 The "Down and Out" Path
+
+For people with no documents at all (homeless, displaced, stateless):
+
+1. **Tier 1** — immediate access. Create a keypair, start participating.
+2. **Tier 2** — community vouching. Local people who know the person can vouch.
+3. **Support pathway** — NGOs, shelters, legal aid organisations can help obtain documents over time
+4. **Tier 3** — when documents are eventually obtained, professional verification upgrades the credential
+
+The system never requires documents as a prerequisite for basic participation. Documents unlock higher tiers, which unlock access to communities with stricter policies — but Tier 1 and Tier 2 are always available.
+
+### 23.4 Degrees of Confidence, Not Binary Access
+
+Communities choose their own verification thresholds. A community for casual conversation might accept Tier 1. A community for financial advice might require Tier 3. A community for children requires Tier 4.
+
+This is not gatekeeping — it is informed choice. Each community publishes its policy (kind 30472). Users can see what is required before joining. No central authority decides who can participate where.
+
+The goal is that every person, regardless of documentation status, has a path to meaningful participation — while communities retain the right to set appropriate safety standards for their members.
 
 *This specification is a living document. It will evolve through community feedback and implementation experience.*
