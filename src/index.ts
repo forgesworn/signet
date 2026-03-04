@@ -36,6 +36,14 @@ export type {
   ParsedRevocation,
   ParsedDelegation,
   ParsedIdentityBridge,
+  ElectionScale,
+  ReVotePolicy,
+  ElectionParams,
+  ParsedElection,
+  BallotParams,
+  ParsedBallot,
+  ElectionResultParams,
+  ParsedElectionResult,
 } from './types.js';
 
 // Constants

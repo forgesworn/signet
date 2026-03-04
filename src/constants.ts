@@ -10,6 +10,10 @@ export const SIGNET_KINDS = {
   REVOCATION: 30475,
   IDENTITY_BRIDGE: 30476,
   DELEGATION: 30477,
+  // Voting extension (spec/voting.md)
+  ELECTION: 30478,
+  BALLOT: 30479,
+  ELECTION_RESULT: 30480,
 } as const;
 
 /** Protocol namespace label */

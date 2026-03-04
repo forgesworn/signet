@@ -1,5 +1,5 @@
 // Signet Protocol Types
-// All TypeScript interfaces for the 7 Nostr event kinds and supporting structures
+// All TypeScript interfaces for the 8 core Nostr event kinds, voting extension kinds, and supporting structures
 
 /** Verification tier levels */
 export type SignetTier = 1 | 2 | 3 | 4;
@@ -255,6 +255,91 @@ export interface ParsedDelegation {
   entityType: 'personal_agent' | 'free_personal_agent' | 'organised_agent' | 'free_organised_agent';
   ownerPubkey: string;
   expiresAt?: number;
+}
+
+// --- Voting Extension (spec/voting.md) ---
+
+/** Election scale */
+export type ElectionScale = 'organisational' | 'community' | 'national';
+
+/** Re-vote policy */
+export type ReVotePolicy = 'allowed' | 'denied';
+
+/** Kind 30478: Election Definition */
+export interface ElectionParams {
+  electionId: string;
+  title: string;
+  description?: string;
+  options: string[];
+  scale: ElectionScale;
+  eligibleEntityTypes: EntityType[];
+  eligibleMinTier: SignetTier;
+  eligibleCommunity?: string;
+  opens: number;
+  closes: number;
+  reVote: ReVotePolicy;
+  tallyPubkeys: string[];
+  tallyThreshold?: [m: number, n: number];
+  ringSize?: number;
+}
+
+export interface ParsedElection {
+  electionId: string;
+  title: string;
+  description?: string;
+  options: string[];
+  scale: ElectionScale;
+  eligibleEntityTypes: EntityType[];
+  eligibleMinTier: SignetTier;
+  eligibleCommunity?: string;
+  opens: number;
+  closes: number;
+  reVote: ReVotePolicy;
+  tallyPubkeys: string[];
+  tallyThreshold?: [m: number, n: number];
+  ringSize?: number;
+  authorityPubkey: string;
+}
+
+/** Kind 30479: Ballot */
+export interface BallotParams {
+  electionId: string;
+  electionEventId: string;
+  keyImage: string;
+  ringSig: string;
+  encryptedVote: string;
+}
+
+export interface ParsedBallot {
+  electionId: string;
+  electionEventId: string;
+  keyImage: string;
+  ringSig: string;
+  encryptedVote: string;
+  ephemeralPubkey: string;
+  timestamp: number;
+}
+
+/** Kind 30480: Election Result */
+export interface ElectionResultParams {
+  electionId: string;
+  electionEventId: string;
+  results: Array<{ option: string; count: number }>;
+  totalBallots: number;
+  totalEligible: number;
+  totalInvalid?: number;
+  tallyProof?: string;
+}
+
+export interface ParsedElectionResult {
+  electionId: string;
+  electionEventId: string;
+  results: Array<{ option: string; count: number }>;
+  totalBallots: number;
+  totalEligible: number;
+  totalInvalid: number;
+  tallyProof?: string;
+  tallierPubkey: string;
 }
 
 // --- Kind 30476: Identity Bridge ---

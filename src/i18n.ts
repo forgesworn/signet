@@ -83,6 +83,17 @@ export interface TranslationStrings {
   scope_child: string;
   scope_adult_child: string;
 
+  // --- Entity Types ---
+  entity_natural_person: string;
+  entity_persona: string;
+  entity_personal_agent: string;
+  entity_free_personal_agent: string;
+  entity_juridical_person: string;
+  entity_juridical_persona: string;
+  entity_organised_agent: string;
+  entity_free_organised_agent: string;
+  entity_free_agent: string;
+
   // --- Error Messages ---
   error_invalid_jurisdiction: string;
   error_profession_not_regulated: string;
@@ -162,6 +173,16 @@ const en: TranslationStrings = {
   scope_child: 'Child Verification',
   scope_adult_child: 'Adult + Child Verification',
 
+  entity_natural_person: 'Person',
+  entity_persona: 'Alias',
+  entity_personal_agent: 'Personal Agent',
+  entity_free_personal_agent: 'Free Personal Agent',
+  entity_juridical_person: 'Organisation',
+  entity_juridical_persona: 'Org Alias',
+  entity_organised_agent: 'Organised Agent',
+  entity_free_organised_agent: 'Free Org Agent',
+  entity_free_agent: 'Free Agent',
+
   error_invalid_jurisdiction: 'The specified jurisdiction is not recognised.',
   error_profession_not_regulated: 'This profession is not regulated in the specified jurisdiction.',
   error_age_below_minimum: 'The subject does not meet the minimum age requirement.',
@@ -239,6 +260,16 @@ const es: TranslationStrings = {
   scope_adult: 'Verificación de Adulto',
   scope_child: 'Verificación de Menor',
   scope_adult_child: 'Verificación de Adulto + Menor',
+
+  entity_natural_person: 'Persona',
+  entity_persona: 'Alias',
+  entity_personal_agent: 'Agente Personal',
+  entity_free_personal_agent: 'Agente Personal Libre',
+  entity_juridical_person: 'Organización',
+  entity_juridical_persona: 'Alias de Organización',
+  entity_organised_agent: 'Agente Organizado',
+  entity_free_organised_agent: 'Agente de Org Libre',
+  entity_free_agent: 'Agente Libre',
 
   error_invalid_jurisdiction: 'La jurisdicción especificada no es reconocida.',
   error_profession_not_regulated: 'Esta profesión no está regulada en la jurisdicción especificada.',
@@ -318,6 +349,16 @@ const fr: TranslationStrings = {
   scope_child: 'Vérification Enfant',
   scope_adult_child: 'Vérification Adulte + Enfant',
 
+  entity_natural_person: 'Personne',
+  entity_persona: 'Alias',
+  entity_personal_agent: 'Agent Personnel',
+  entity_free_personal_agent: 'Agent Personnel Libre',
+  entity_juridical_person: 'Organisation',
+  entity_juridical_persona: 'Alias d\'Organisation',
+  entity_organised_agent: 'Agent Organisé',
+  entity_free_organised_agent: 'Agent d\'Org Libre',
+  entity_free_agent: 'Agent Libre',
+
   error_invalid_jurisdiction: 'La juridiction spécifiée n\'est pas reconnue.',
   error_profession_not_regulated: 'Cette profession n\'est pas réglementée dans la juridiction spécifiée.',
   error_age_below_minimum: 'Le sujet ne satisfait pas l\'exigence d\'âge minimum.',
@@ -395,6 +436,16 @@ const de: TranslationStrings = {
   scope_adult: 'Erwachsenenverifizierung',
   scope_child: 'Kinderverifizierung',
   scope_adult_child: 'Erwachsenen- + Kinderverifizierung',
+
+  entity_natural_person: 'Person',
+  entity_persona: 'Alias',
+  entity_personal_agent: 'Persönlicher Agent',
+  entity_free_personal_agent: 'Freier Persönlicher Agent',
+  entity_juridical_person: 'Organisation',
+  entity_juridical_persona: 'Org-Alias',
+  entity_organised_agent: 'Organisierter Agent',
+  entity_free_organised_agent: 'Freier Org-Agent',
+  entity_free_agent: 'Freier Agent',
 
   error_invalid_jurisdiction: 'Die angegebene Gerichtsbarkeit wird nicht anerkannt.',
   error_profession_not_regulated: 'Dieser Beruf ist in der angegebenen Gerichtsbarkeit nicht reguliert.',
@@ -474,6 +525,16 @@ const pt: TranslationStrings = {
   scope_child: 'Verificação de Criança',
   scope_adult_child: 'Verificação de Adulto + Criança',
 
+  entity_natural_person: 'Pessoa',
+  entity_persona: 'Alias',
+  entity_personal_agent: 'Agente Pessoal',
+  entity_free_personal_agent: 'Agente Pessoal Livre',
+  entity_juridical_person: 'Organização',
+  entity_juridical_persona: 'Alias de Organização',
+  entity_organised_agent: 'Agente Organizado',
+  entity_free_organised_agent: 'Agente de Org Livre',
+  entity_free_agent: 'Agente Livre',
+
   error_invalid_jurisdiction: 'A jurisdição especificada não é reconhecida.',
   error_profession_not_regulated: 'Esta profissão não é regulamentada na jurisdição especificada.',
   error_age_below_minimum: 'O sujeito não atende ao requisito mínimo de idade.',
@@ -551,6 +612,16 @@ const ja: TranslationStrings = {
   scope_adult: '成人検証',
   scope_child: '児童検証',
   scope_adult_child: '成人＋児童検証',
+
+  entity_natural_person: '個人',
+  entity_persona: 'エイリアス',
+  entity_personal_agent: '個人エージェント',
+  entity_free_personal_agent: 'フリー個人エージェント',
+  entity_juridical_person: '組織',
+  entity_juridical_persona: '組織エイリアス',
+  entity_organised_agent: '組織エージェント',
+  entity_free_organised_agent: 'フリー組織エージェント',
+  entity_free_agent: 'フリーエージェント',
 
   error_invalid_jurisdiction: '指定された管轄区域は認識されていません。',
   error_profession_not_regulated: 'この職業は指定された管轄区域で規制されていません。',
@@ -630,6 +701,16 @@ const ko: TranslationStrings = {
   scope_child: '아동 검증',
   scope_adult_child: '성인 + 아동 검증',
 
+  entity_natural_person: '개인',
+  entity_persona: '별칭',
+  entity_personal_agent: '개인 에이전트',
+  entity_free_personal_agent: '자유 개인 에이전트',
+  entity_juridical_person: '조직',
+  entity_juridical_persona: '조직 별칭',
+  entity_organised_agent: '조직 에이전트',
+  entity_free_organised_agent: '자유 조직 에이전트',
+  entity_free_agent: '자유 에이전트',
+
   error_invalid_jurisdiction: '지정된 관할권이 인식되지 않습니다.',
   error_profession_not_regulated: '이 직업은 지정된 관할권에서 규제되지 않습니다.',
   error_age_below_minimum: '대상자가 최소 연령 요건을 충족하지 않습니다.',
@@ -707,6 +788,16 @@ const zh: TranslationStrings = {
   scope_adult: '成人验证',
   scope_child: '儿童验证',
   scope_adult_child: '成人+儿童验证',
+
+  entity_natural_person: '个人',
+  entity_persona: '别名',
+  entity_personal_agent: '个人代理',
+  entity_free_personal_agent: '自由个人代理',
+  entity_juridical_person: '组织',
+  entity_juridical_persona: '组织别名',
+  entity_organised_agent: '组织代理',
+  entity_free_organised_agent: '自由组织代理',
+  entity_free_agent: '自由代理',
 
   error_invalid_jurisdiction: '指定的司法管辖区未被识别。',
   error_profession_not_regulated: '该职业在指定的司法管辖区不受监管。',
@@ -786,6 +877,16 @@ const ar: TranslationStrings = {
   scope_child: 'التحقق من الأطفال',
   scope_adult_child: 'التحقق من البالغين + الأطفال',
 
+  entity_natural_person: 'شخص',
+  entity_persona: 'اسم مستعار',
+  entity_personal_agent: 'وكيل شخصي',
+  entity_free_personal_agent: 'وكيل شخصي حر',
+  entity_juridical_person: 'مؤسسة',
+  entity_juridical_persona: 'اسم مستعار للمؤسسة',
+  entity_organised_agent: 'وكيل منظم',
+  entity_free_organised_agent: 'وكيل مؤسسة حر',
+  entity_free_agent: 'وكيل حر',
+
   error_invalid_jurisdiction: 'الولاية القضائية المحددة غير معترف بها.',
   error_profession_not_regulated: 'هذه المهنة غير منظمة في الولاية القضائية المحددة.',
   error_age_below_minimum: 'الشخص لا يستوفي الحد الأدنى لمتطلبات العمر.',
@@ -864,6 +965,16 @@ const hi: TranslationStrings = {
   scope_child: 'बाल सत्यापन',
   scope_adult_child: 'वयस्क + बाल सत्यापन',
 
+  entity_natural_person: 'व्यक्ति',
+  entity_persona: 'उपनाम',
+  entity_personal_agent: 'व्यक्तिगत एजेंट',
+  entity_free_personal_agent: 'मुक्त व्यक्तिगत एजेंट',
+  entity_juridical_person: 'संगठन',
+  entity_juridical_persona: 'संगठन उपनाम',
+  entity_organised_agent: 'संगठित एजेंट',
+  entity_free_organised_agent: 'मुक्त संगठन एजेंट',
+  entity_free_agent: 'मुक्त एजेंट',
+
   error_invalid_jurisdiction: 'निर्दिष्ट अधिकार क्षेत्र मान्यता प्राप्त नहीं है।',
   error_profession_not_regulated: 'यह पेशा निर्दिष्ट अधिकार क्षेत्र में विनियमित नहीं है।',
   error_age_below_minimum: 'विषय न्यूनतम आयु आवश्यकता को पूरा नहीं करता।',
@@ -910,6 +1021,17 @@ const it: TranslationStrings = {
   legal_cross_border_transfer: 'Trasferimento Transfrontaliero dei Dati',
   legal_data_retention: 'Conservazione dei Dati', legal_breach_notification: 'Notifica di Violazione',
   scope_adult: 'Verifica Adulto', scope_child: 'Verifica Minore', scope_adult_child: 'Verifica Adulto + Minore',
+
+  entity_natural_person: 'Persona',
+  entity_persona: 'Alias',
+  entity_personal_agent: 'Agente Personale',
+  entity_free_personal_agent: 'Agente Personale Libero',
+  entity_juridical_person: 'Organizzazione',
+  entity_juridical_persona: 'Alias di Organizzazione',
+  entity_organised_agent: 'Agente Organizzato',
+  entity_free_organised_agent: 'Agente di Org Libero',
+  entity_free_agent: 'Agente Libero',
+
   error_invalid_jurisdiction: 'La giurisdizione specificata non è riconosciuta.',
   error_profession_not_regulated: 'Questa professione non è regolamentata nella giurisdizione specificata.',
   error_age_below_minimum: 'Il soggetto non soddisfa il requisito di età minima.',
@@ -957,6 +1079,17 @@ const nl: TranslationStrings = {
   legal_data_retention: 'Gegevensbewaring', legal_breach_notification: 'Inbreukmeldingsplicht',
   scope_adult: 'Volwassenenverificatie', scope_child: 'Kinderverificatie',
   scope_adult_child: 'Volwassenen- + Kinderverificatie',
+
+  entity_natural_person: 'Persoon',
+  entity_persona: 'Alias',
+  entity_personal_agent: 'Persoonlijke Agent',
+  entity_free_personal_agent: 'Vrije Persoonlijke Agent',
+  entity_juridical_person: 'Organisatie',
+  entity_juridical_persona: 'Org Alias',
+  entity_organised_agent: 'Georganiseerde Agent',
+  entity_free_organised_agent: 'Vrije Org Agent',
+  entity_free_agent: 'Vrije Agent',
+
   error_invalid_jurisdiction: 'Het opgegeven rechtsgebied wordt niet herkend.',
   error_profession_not_regulated: 'Dit beroep is niet gereguleerd in het opgegeven rechtsgebied.',
   error_age_below_minimum: 'Het onderwerp voldoet niet aan de minimale leeftijdseis.',
@@ -1004,6 +1137,17 @@ const tr: TranslationStrings = {
   legal_data_retention: 'Veri Saklama', legal_breach_notification: 'İhlal Bildirimi',
   scope_adult: 'Yetişkin Doğrulaması', scope_child: 'Çocuk Doğrulaması',
   scope_adult_child: 'Yetişkin + Çocuk Doğrulaması',
+
+  entity_natural_person: 'Kişi',
+  entity_persona: 'Takma Ad',
+  entity_personal_agent: 'Kişisel Ajan',
+  entity_free_personal_agent: 'Serbest Kişisel Ajan',
+  entity_juridical_person: 'Kuruluş',
+  entity_juridical_persona: 'Kuruluş Takma Adı',
+  entity_organised_agent: 'Organize Ajan',
+  entity_free_organised_agent: 'Serbest Org Ajanı',
+  entity_free_agent: 'Serbest Ajan',
+
   error_invalid_jurisdiction: 'Belirtilen yargı alanı tanınmamaktadır.',
   error_profession_not_regulated: 'Bu meslek belirtilen yargı alanında düzenlenmemiştir.',
   error_age_below_minimum: 'Kişi asgari yaş şartını karşılamamaktadır.',
@@ -1051,6 +1195,17 @@ const id_lang: TranslationStrings = {
   legal_data_retention: 'Retensi Data', legal_breach_notification: 'Pemberitahuan Pelanggaran',
   scope_adult: 'Verifikasi Dewasa', scope_child: 'Verifikasi Anak',
   scope_adult_child: 'Verifikasi Dewasa + Anak',
+
+  entity_natural_person: 'Orang',
+  entity_persona: 'Alias',
+  entity_personal_agent: 'Agen Pribadi',
+  entity_free_personal_agent: 'Agen Pribadi Bebas',
+  entity_juridical_person: 'Organisasi',
+  entity_juridical_persona: 'Alias Organisasi',
+  entity_organised_agent: 'Agen Terorganisir',
+  entity_free_organised_agent: 'Agen Org Bebas',
+  entity_free_agent: 'Agen Bebas',
+
   error_invalid_jurisdiction: 'Yurisdiksi yang ditentukan tidak diakui.',
   error_profession_not_regulated: 'Profesi ini tidak diatur dalam yurisdiksi yang ditentukan.',
   error_age_below_minimum: 'Subjek tidak memenuhi persyaratan usia minimum.',
@@ -1098,6 +1253,17 @@ const sw: TranslationStrings = {
   legal_data_retention: 'Uhifadhi wa Data', legal_breach_notification: 'Arifa ya Ukiukaji',
   scope_adult: 'Uthibitishaji wa Mtu Mzima', scope_child: 'Uthibitishaji wa Mtoto',
   scope_adult_child: 'Uthibitishaji wa Mtu Mzima + Mtoto',
+
+  entity_natural_person: 'Mtu',
+  entity_persona: 'Jina Bandia',
+  entity_personal_agent: 'Wakala Binafsi',
+  entity_free_personal_agent: 'Wakala Binafsi Huru',
+  entity_juridical_person: 'Shirika',
+  entity_juridical_persona: 'Jina Bandia la Shirika',
+  entity_organised_agent: 'Wakala Rasmi',
+  entity_free_organised_agent: 'Wakala wa Shirika Huru',
+  entity_free_agent: 'Wakala Huru',
+
   error_invalid_jurisdiction: 'Mamlaka iliyoainishwa haitambuliwi.',
   error_profession_not_regulated: 'Taaluma hii haidhibitiwi katika mamlaka iliyoainishwa.',
   error_age_below_minimum: 'Mtu huyu hakidhi mahitaji ya umri wa chini.',
