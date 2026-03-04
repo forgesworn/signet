@@ -758,7 +758,143 @@ Occasionally someone may want to retire one Persona and create a new one while c
 | Key rotation | Yes (new keypair) | Yes (rotated) | No | Partial (re-vouch) | No (new bridge) |
 | Persona migration | Yes (new Persona key) | New bridge | No | **Lost** (on Persona) | Yes (new Persona) |
 
-## 11. Open Questions
+## 11. Inclusivity: Entry Without Standard Documents
+
+The system described so far assumes the subject has a passport (or equivalent government-issued document) for Tier 3+ verification. But many people don't. Signet must work for everyone — not just people with their paperwork in order.
+
+### 11.1 The Tier System Is Already a Safety Net
+
+The existing tier system provides entry points that require **zero documents**:
+
+| Tier | Requirement | Documents needed | Who this serves |
+|---|---|---|---|
+| 1 | Self-declaration | None | Anyone with a device |
+| 2 | Community vouches | None — peers vouch for you | Anyone with social connections |
+| 3 | Professional verification | Government-issued photo ID | People with standard documents |
+| 4 | Professional + child safety | Government-issued photo ID + birth certificate | Children with documented guardians |
+
+**The key insight:** Nobody is locked out. A person with nothing — no passport, no driving licence, no fixed address — can still enter the system at Tier 1 (self-declared) and work their way up to Tier 2 (community-vouched). These tiers are not "lesser" — they're appropriate trust levels for someone whose identity hasn't been formally verified. They can still participate in communities, build reputation, and access services that accept Tier 1-2 credentials.
+
+### 11.2 Who Doesn't Have Standard Documents?
+
+| Situation | Estimated population | Documents available |
+|---|---|---|
+| **Homeless / rough sleepers** | ~650K (US), ~300K (UK) | Often have expired ID, birth certificate, or NHS number. May have **none**. |
+| **Refugees / asylum seekers** | ~36M globally (UNHCR) | UNHCR refugee travel document, asylum registration card, or nothing |
+| **Undocumented migrants** | ~11M (US), ~1.2M (UK est.) | May have home country ID, consular documents, or nothing |
+| **Domestic abuse survivors** | Fleeing without documents | May have been denied access to their own documents by an abuser |
+| **Recently released prisoners** | ~600K/year (US) | Prison release documents, expired pre-imprisonment ID |
+| **Elderly without photo ID** | Significant in UK (no mandatory ID) | Birth certificate, pension letter, utility bills |
+| **Young people (just turned 18)** | N/A | May never have applied for passport or driving licence |
+| **Trans people mid-transition** | N/A | Documents may not match current presentation |
+| **People in crisis** | Variable | House fire, theft, natural disaster — all documents lost |
+
+### 11.3 Expanded Document Types for Nullifiers
+
+The current design uses `H(document_type || country_code || document_number || "signet-uniqueness-v1")` with passports as the primary document. But the nullifier system can accept ANY document with a unique, persistent identifier:
+
+| Document type | Unique identifier | Jurisdictions | Nullifier strength |
+|---|---|---|---|
+| **Passport** | Passport number | Global | Strong — unique, government-issued, photo |
+| **National ID card** | ID number | EU, many countries | Strong — equivalent to passport in issuing countries |
+| **Driving licence** | Licence number | UK, US, EU, etc. | Moderate — widely held, photo, but not universal |
+| **Birth certificate** | Certificate number + district | UK, US, etc. | Moderate — universal at birth, but no photo, easily lost |
+| **NHS number** | 10-digit NHS number | UK | Moderate — unique, persistent, no photo |
+| **Social Security number** | SSN | US | Moderate — unique, persistent, no photo, but privacy-sensitive |
+| **UNHCR travel document** | Document number | Global (for refugees) | Moderate — issued by UNHCR, internationally recognised |
+| **Asylum registration card** | Registration number | Per country | Weak-moderate — valid during claim process |
+| **Consular ID** | ID number | Per issuing country (e.g. Mexican Matrícula Consular) | Moderate — recognised by some but not all institutions |
+| **Prison release document** | Prisoner number | Per jurisdiction | Weak — short-lived, but verifiable |
+
+**Design decision:** The professional verifier decides which document type to accept. The `document_type` field in the nullifier captures what was used. Clients and communities can set minimum document standards via their policies (kind 30472), but the protocol itself is document-agnostic.
+
+### 11.4 The "Down and Out" Path — Re-entry With Nothing
+
+**Scenario:** Someone has lost everything — no ID, no phone, no fixed address, no social connections in the area. How do they enter Signet?
+
+**Step 1: Tier 1 — Self-declaration (immediate)**
+- Borrow or access any device (library computer, shelter phone, donated handset)
+- Create a keypair — you now have a Tier 1 identity
+- This is enough to read content, join public communities, and start building presence
+
+**Step 2: Tier 2 — Community vouching (days to weeks)**
+- Shelter staff, charity workers, social workers, food bank volunteers, religious leaders — anyone with a Tier 2+ identity can vouch for you
+- "I see this person regularly at the shelter, they are who they say they are"
+- Three vouches from Tier 2+ people → you now have a Tier 2 identity
+- This is enough for most community participation
+
+**Step 3: Tier 3 — Professional verification (when documents are available)**
+- Apply for replacement documents:
+  - UK: Emergency passport (£75.50, 1-day), provisional driving licence (£34, weeks), birth certificate copy (£11, 1-2 weeks)
+  - US: Replacement Social Security card (free), state ID (varies, $0-$30)
+- When replacement documents arrive, visit a professional for standard Tier 3 verification
+- The professional can accept whichever document is available (see §11.3)
+
+**The crucial point:** At no stage is the person locked out of the system. They have a usable identity from minute one (Tier 1), a community-validated identity within days (Tier 2), and can work toward full professional verification when they're ready.
+
+### 11.5 Social Worker and Shelter Attestation
+
+Social workers and shelter staff occupy a unique position: they work with undocumented people daily and can attest to identity even without formal documents. Within Signet:
+
+1. **Social workers ARE professionals** — they're registered (e.g. Social Work England, NASW in the US) and can be verified as Signet verifiers through the standard bootstrapping process
+2. A social worker can issue a Tier 3 credential based on their professional assessment, even if the subject only has limited documentation
+3. The credential includes the document type used (or `["document-type", "professional-assessment"]` if no document was available)
+4. The trust score reflects this: a credential backed by professional assessment alone scores lower than one backed by a passport, but it's still professionally verified
+
+**Shelter attestation** (non-professional):
+- Shelter managers who are not registered social workers can still provide **Tier 2 vouches**
+- A vouch from a shelter manager carries more weight than a random online vouch (in-person, repeated contact)
+- Combined with other shelter staff vouches, this gets someone to Tier 2 quickly
+
+### 11.6 Non-Standard Document Acceptance
+
+**The problem:** A refugee presents a UNHCR travel document that doesn't appear on the professional's usual list of accepted documents. What happens?
+
+**Design decision: Accept and record, don't reject.**
+
+1. The professional verifies the document to the best of their ability (UNHCR documents have security features, registration numbers, photos)
+2. The credential includes:
+   ```jsonc
+   ["document-type", "unhcr_travel_document"],
+   ["document-country", "UNHCR"],  // issuing authority
+   ["nullifier", "<hash_of_unhcr_doc_number>"]
+   ```
+3. The nullifier still works — UNHCR document numbers are unique and persistent
+4. Communities can set their own policies:
+   - A refugee support community might accept any UNHCR credential
+   - A financial services community might require passport-grade documents
+   - Neither policy is wrong — they reflect different risk appetites
+
+### 11.7 Key Recovery for People Without Backups
+
+Standard key backup uses Shamir secret sharing across trusted contacts. But what if someone loses their device and has no backup?
+
+**Recovery paths:**
+
+| Path | Requires | Result |
+|---|---|---|
+| **Shamir reconstruction** | K-of-N trusted contacts still have their shares | Full key recovery — all credentials, trust, history preserved |
+| **Mnemonic recovery** | Written-down 12-word mnemonic | Full key recovery |
+| **Professional re-verification** | Visit a professional with documents | New keypair, fresh credentials. Old trust score lost. Nullifier links old and new identities. |
+| **Community re-vouching** | Existing contacts vouch for new keypair | Tier 2 on new keypair quickly, with same social connections |
+
+**For the "down and out" scenario:** If they never set up Shamir backup and lost their mnemonic, the path is: new keypair → Tier 1 → community vouches → Tier 2 → professional verification when documents available → Tier 3. Their old identity exists as an orphan (no one can sign with it), and the nullifier prevents someone else from claiming their documents.
+
+### 11.8 The Principle: Degrees of Confidence, Not Binary Access
+
+Traditional identity systems are binary: you have ID or you don't. You're in the database or you're not. This creates a cliff edge that disproportionately harms vulnerable people.
+
+Signet's tiered model creates a **gradient of confidence**:
+- Tier 1: "Someone claims to be human" (0.1% confidence)
+- Tier 2: "Multiple people who know this person confirm they're real" (moderate confidence)
+- Tier 3: "A professional verified their documents" (high confidence)
+- Tier 4: "A professional verified their documents and confirmed age range" (high confidence + child safety)
+
+**No tier is "wrong" or "lesser" for its purpose.** A Tier 2 identity is perfectly appropriate for joining a community forum, participating in discussions, or building a reputation. Tier 3 is needed when the stakes are higher: financial services, professional attestation, legal proceedings.
+
+The system meets people where they are and provides a path upward as their circumstances improve. A homeless person today can be a fully verified Tier 3 identity holder tomorrow, without starting over — the same keypair, the same social connections, just a new credential from a professional.
+
+## 12. Open Questions
 
 1. **Should domain proof be REQUIRED or just weighted?** If required, it blocks professionals without websites. If optional, the Sybil mesh attack still works for the cross-verification-only path.
 
@@ -776,7 +912,7 @@ Occasionally someone may want to retire one Persona and create a new one while c
 
    **Tentative answer:** Conservative. Flag for human review, don't auto-block. The anomaly signals produce warnings that communities and clients can act on. Better to let a few suspicious verifiers through (with low confidence scores) than to block legitimate professionals.
 
-## 12. Original Adoption Roadmap
+## 13. Original Adoption Roadmap
 
 **Phase 1 (Now — launch):**
 - Domain proof mechanism implemented
@@ -797,7 +933,7 @@ Occasionally someone may want to retire one Persona and create a new one while c
 - Domain proof remains as supplementary signal
 - Advanced graph analysis with historical pattern detection
 
-## 13. Why This Works (Threat Model Revisited)
+## 14. Why This Works (Threat Model Revisited)
 
 **Against simple impersonation:**
 Domain proof raises the cost from "look up a public licence number" to "hack a professional's website." Registry cross-check catches non-existent licence numbers. Body attestation eliminates impersonation entirely.
@@ -813,15 +949,15 @@ Domain proof works without body participation. Cross-jurisdiction verifiers prov
 
 **The key insight:** Each layer doesn't need to be perfect. It needs to make the attack *more expensive* than the alternative (impersonating someone in the physical world, which has its own costs and risks). The goal is not cryptographic certainty — it's economic deterrence through layered defence.
 
-## 14. Professional Directory Verification (Additional Signal)
+## 15. Professional Directory Verification (Additional Signal)
 
-### 14.1 The Opportunity
+### 15.1 The Opportunity
 
 Professionals are already listed in directories that publish their credentials, websites, and affiliations. Many of these directories have editable profile fields where a Nostr pubkey or Signet verification URL could be added. This creates an additional corroboration signal: if a professional's pubkey appears on their listing in an established directory, it's harder to impersonate them.
 
 This is similar to the domain proof (Signal 2) but doesn't require the professional to own a website — just a profile on an existing directory.
 
-### 14.2 Directories With Self-Editable URL Fields
+### 15.2 Directories With Self-Editable URL Fields
 
 **High suitability (free, self-editable, custom URLs confirmed):**
 
@@ -845,7 +981,7 @@ This is similar to the domain proof (Signal 2) but doesn't require the professio
 
 SRA Register, GMC Register, Bar Standards Board Register, AICPA Directory, AMA Profiles — these are compliance records, not marketing profiles. No individual-level URL fields.
 
-### 14.3 The UK Gap
+### 15.3 The UK Gap
 
 UK regulatory bodies (SRA, GMC, ICAEW) maintain compliance registers with no individual-level URL or social media fields. UK professionals would need to rely on:
 - LinkedIn (universally available, cross-profession)
@@ -854,7 +990,7 @@ UK regulatory bodies (SRA, GMC, ICAEW) maintain compliance registers with no ind
 
 This reinforces why domain proof and LinkedIn-style directory proof should both be supported as verification signals.
 
-### 14.4 Directory Proof Mechanism
+### 15.4 Directory Proof Mechanism
 
 A professional adds a URL to their directory profile:
 ```
@@ -871,7 +1007,7 @@ or simply includes their npub in a free-text bio/description field.
 
 This is weaker than domain proof (the professional doesn't control the directory infrastructure) but stronger than nothing (the directory has its own verification of who can edit a profile).
 
-### 14.5 Tag Addition
+### 15.5 Tag Addition
 
 Kind 30473 gains an optional tag:
 ```jsonc
@@ -880,13 +1016,13 @@ Kind 30473 gains an optional tag:
 
 Multiple directory-proof tags may be present (a lawyer on both Avvo and LinkedIn).
 
-## 15. Political and Public Official Adoption
+## 16. Political and Public Official Adoption
 
-### 15.1 We Don't Need 100% — Just Seeds
+### 16.1 We Don't Need 100% — Just Seeds
 
 The entire web-of-trust model works by seeding trust and letting it propagate. A single MP who publishes their Nostr pubkey on their official parliament page becomes a trust anchor that can verify (or be verified by) professionals in their constituency. A few early adopters create the nucleus.
 
-### 15.2 UK Parliament — Technical Feasibility
+### 16.2 UK Parliament — Technical Feasibility
 
 The UK Parliament Members API (`members-api.parliament.uk`) uses a flexible type-based contact system. Social media platforms are stored as contact entries with distinct `typeId` values (e.g., Website = 6, X/Twitter = 7). The system is generic — adding a "Nostr" typeId is architecturally straightforward.
 
@@ -901,7 +1037,7 @@ The UK Parliament Members API (`members-api.parliament.uk`) uses a flexible type
 
 **No MP has published a Nostr pubkey on parliament.uk** (or any official government page anywhere in the world, as of our research). The precedent closest to this is Mastodon handles appearing in the `unitedstates/congress-legislators` community dataset — several US House members have Mastodon accounts listed.
 
-### 15.3 US Congress
+### 16.3 US Congress
 
 **Congress.gov API** — provides `officialUrl` only, no social media fields.
 
@@ -909,17 +1045,17 @@ The UK Parliament Members API (`members-api.parliament.uk`) uses a flexible type
 
 **Individual member pages** (house.gov, senate.gov) are self-managed by each office. An MP/representative could add a Nostr pubkey to their own page at their discretion.
 
-### 15.4 UK Local Councils
+### 16.4 UK Local Councils
 
 Local councils overwhelmingly use **ModernGov** (by GOSS Interactive) for councillor directories. The platform is rigid: name, party, ward, email, phone. No social media, no website, no custom fields. **Not currently viable** for Nostr pubkey publication without platform changes.
 
-### 15.5 Politicians Already on Nostr
+### 16.5 Politicians Already on Nostr
 
 No politicians are confirmed on Nostr with official pubkeys. Notable non-politician public figures on Nostr include Edward Snowden and Jack Dorsey. The platform's user base is concentrated in the Bitcoin/cypherpunk community.
 
 **The Mastodon precedent is instructive:** Several US House members adopted Mastodon, the community dataset added a field for it, and it became a normal part of the political social media landscape. The same path is available for Nostr — it just needs the first adopters.
 
-### 15.6 Strategy: Target Crypto-Friendly Politicians
+### 16.6 Strategy: Target Crypto-Friendly Politicians
 
 Rather than seeking broad political adoption, target politicians who are already aligned:
 - UK: Members of APPG on Blockchain, crypto-friendly MPs
@@ -933,25 +1069,25 @@ A single crypto-friendly MP publishing their Nostr pubkey on parliament.uk creat
 3. Media coverage for Signet/Nostr adoption
 4. A proof point that the parliament.uk system can accommodate cryptographic identity
 
-## 16. Professional Identity Theft — The Advocacy Angle
+## 17. Professional Identity Theft — The Advocacy Angle
 
-### 16.1 Overview
+### 17.1 Overview
 
 Professional identity theft is a growing and underreported problem. Fraudsters impersonate licensed professionals to commit fraud, provide unlicensed services, or establish false credentials. This is the *exact attack* that Signet's verifier bootstrapping must defend against — and it's already happening in the physical world.
 
-### 16.2 Why This Matters for Adoption
+### 17.2 Why This Matters for Adoption
 
 Positioning Signet as a solution to professional identity theft serves two purposes:
 1. **Technical:** It motivates the multi-signal authentication design — the problem is real, not theoretical
 2. **Political:** It gives professional bodies and regulators a reason to adopt Signet — they're already looking for solutions to this problem
 
-### 16.3 Deep Dive Report
+### 17.3 Deep Dive Report
 
 **Completed:** See `docs/reports/2026-03-04-professional-identity-fraud-deep-dive.md`
 
 The report covers statistics, case studies ($47B US identity fraud losses, £11.7M UK conveyancing fraud, 22-year fake NHS doctor), economic losses, regulatory gaps, and how Signet's multi-signal verifier authentication directly addresses the identified threats. Intended as advocacy material for engaging professional bodies and regulators.
 
-## 17. Updated Adoption Roadmap (Revised)
+## 18. Updated Adoption Roadmap (Revised)
 
 **Phase 1 (Now — launch):**
 - Domain proof mechanism (`.well-known/signet.json`)
