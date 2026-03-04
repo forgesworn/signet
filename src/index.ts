@@ -335,6 +335,7 @@ export {
   SIGNET_EPOCH_SECONDS,
   SIGNET_WORD_COUNT,
   SIGNET_TOLERANCE,
+  MAX_WORD_COUNT,
   getEpoch,
   deriveWords,
   getSignetWords,
@@ -342,3 +343,5 @@ export {
   formatSignetWords,
   getSignetDisplay,
 } from './signet-words.js';
+
+export type { SignetWordsConfig } from './signet-words.js';
