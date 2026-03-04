@@ -6,6 +6,7 @@ Signet is an open-source identity verification protocol for Nostr. It uses zero-
 
 This repo contains:
 - `spec/protocol.md` — the full protocol specification
+- `spec/voting.md` — voting extension specification (linkable ring signatures, elections)
 - `src/` — TypeScript protocol library (npm publishable)
 - `app/` — Reference web app (React + Vite, imports the protocol library)
 - `examples/` — example event payloads and flows
@@ -15,7 +16,8 @@ This repo contains:
 ## Key Concepts
 
 - **4 verification tiers**: Tier 1 (self-declared) → Tier 2 (web-of-trust) → Tier 3 (professional adult) → Tier 4 (professional adult+child)
-- **7 event kinds**: 30470 (credential), 30471 (vouch), 30472 (policy), 30473 (verifier), 30474 (challenge), 30475 (revocation), 30476 (identity bridge), 30477 (delegation)
+- **8 core event kinds** (30470-30477): credential, vouch, policy, verifier, challenge, revocation, identity bridge, delegation
+- **3 voting extension event kinds** (30478-30480): election, ballot, election result
 - **9 entity types**: Natural Person, Persona, Personal Agent, Free Personal Agent, Juridical Person, Juridical Persona, Organised Agent, Free Organised Agent, Free Agent
 - **Crypto stack**: Schnorr (secp256k1 base) + Bulletproofs (age range proofs) + future ZK layer
 - **No central authority**: professional bodies (Law Society, medical boards, notary commissions) are the trust anchors
