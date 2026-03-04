@@ -384,3 +384,176 @@ Network position analysis detects isolated clusters. Trust anchor propagation as
 Domain proof works without body participation. Cross-jurisdiction verifiers provide independent trust paths. Multiple signals mean no single institution can gatekeep. This directly supports the adversarial resilience principles in §18.
 
 **The key insight:** Each layer doesn't need to be perfect. It needs to make the attack *more expensive* than the alternative (impersonating someone in the physical world, which has its own costs and risks). The goal is not cryptographic certainty — it's economic deterrence through layered defence.
+
+## 12. Professional Directory Verification (Additional Signal)
+
+### 12.1 The Opportunity
+
+Professionals are already listed in directories that publish their credentials, websites, and affiliations. Many of these directories have editable profile fields where a Nostr pubkey or Signet verification URL could be added. This creates an additional corroboration signal: if a professional's pubkey appears on their listing in an established directory, it's harder to impersonate them.
+
+This is similar to the domain proof (Signal 2) but doesn't require the professional to own a website — just a profile on an existing directory.
+
+### 12.2 Directories With Self-Editable URL Fields
+
+**High suitability (free, self-editable, custom URLs confirmed):**
+
+| Directory | Profession | Editable Field | Coverage |
+|---|---|---|---|
+| **Avvo** | Lawyers (US) | 4-5 custom URLs with labels | Major US directory |
+| **Justia** | Lawyers (US) | Websites and social media | Free, fully editable |
+| **Doximity** | Physicians (US) | "Links" section — arbitrary URLs | ~50% of US physicians |
+| **LinkedIn** | All professions | Up to 3 website URLs with "Other" label | Global, cross-profession |
+
+**Moderate suitability (paid or limited):**
+
+| Directory | Profession | Notes |
+|---|---|---|
+| Martindale-Hubbell | Lawyers (US/intl) | Full edit at ~$399/mo; free tier is request-based |
+| Healthgrades | Physicians (US) | Website link is paid tier; free-text description exists |
+| Zocdoc | Physicians (US) | Website URL field; primarily a booking platform |
+| FindLaw | Lawyers (US) | Website link in listing; depth of customization unclear |
+
+**Not suitable (regulatory registers, no editable URL):**
+
+SRA Register, GMC Register, Bar Standards Board Register, AICPA Directory, AMA Profiles — these are compliance records, not marketing profiles. No individual-level URL fields.
+
+### 12.3 The UK Gap
+
+UK regulatory bodies (SRA, GMC, ICAEW) maintain compliance registers with no individual-level URL or social media fields. UK professionals would need to rely on:
+- LinkedIn (universally available, cross-profession)
+- Their firm's website (domain proof)
+- Consumer-facing directories with UK coverage (limited)
+
+This reinforces why domain proof and LinkedIn-style directory proof should both be supported as verification signals.
+
+### 12.4 Directory Proof Mechanism
+
+A professional adds a URL to their directory profile:
+```
+https://signet.example/verify/npub1abc...
+```
+or simply includes their npub in a free-text bio/description field.
+
+**Automated audit:** A Signet client or auditing service can:
+1. Fetch the verifier's kind 30473 event
+2. Check the `["directory-proof", "<directory_url>"]` tag
+3. Fetch the directory profile page
+4. Verify the pubkey or verification URL appears on the page
+5. Record the result as a verification signal
+
+This is weaker than domain proof (the professional doesn't control the directory infrastructure) but stronger than nothing (the directory has its own verification of who can edit a profile).
+
+### 12.5 Tag Addition
+
+Kind 30473 gains an optional tag:
+```jsonc
+["directory-proof", "<url_to_directory_profile>"]
+```
+
+Multiple directory-proof tags may be present (a lawyer on both Avvo and LinkedIn).
+
+## 13. Political and Public Official Adoption
+
+### 13.1 We Don't Need 100% — Just Seeds
+
+The entire web-of-trust model works by seeding trust and letting it propagate. A single MP who publishes their Nostr pubkey on their official parliament page becomes a trust anchor that can verify (or be verified by) professionals in their constituency. A few early adopters create the nucleus.
+
+### 13.2 UK Parliament — Technical Feasibility
+
+The UK Parliament Members API (`members-api.parliament.uk`) uses a flexible type-based contact system. Social media platforms are stored as contact entries with distinct `typeId` values (e.g., Website = 6, X/Twitter = 7). The system is generic — adding a "Nostr" typeId is architecturally straightforward.
+
+**Current fields available per MP:**
+- Parliamentary office (address, phone, email)
+- Website URL
+- X (formerly Twitter)
+- Additional social media (Instagram, Facebook, YouTube — typeId values vary by member)
+- `notes` field per contact entry
+
+**What would be needed:** A new `typeId` for Nostr (or a generic "Cryptographic Identity" type). This is an administrative change, not a technical one. An MP could also use their existing Website field to link to a page containing their pubkey.
+
+**No MP has published a Nostr pubkey on parliament.uk** (or any official government page anywhere in the world, as of our research). The precedent closest to this is Mastodon handles appearing in the `unitedstates/congress-legislators` community dataset — several US House members have Mastodon accounts listed.
+
+### 13.3 US Congress
+
+**Congress.gov API** — provides `officialUrl` only, no social media fields.
+
+**`unitedstates/congress-legislators`** (community-maintained GitHub dataset) — tracks Twitter, Facebook, YouTube, Instagram, and **Mastodon** for current legislators. No `nostr` field exists yet. Adding one would be a simple PR to the repository (YAML schema change + population as members adopt).
+
+**Individual member pages** (house.gov, senate.gov) are self-managed by each office. An MP/representative could add a Nostr pubkey to their own page at their discretion.
+
+### 13.4 UK Local Councils
+
+Local councils overwhelmingly use **ModernGov** (by GOSS Interactive) for councillor directories. The platform is rigid: name, party, ward, email, phone. No social media, no website, no custom fields. **Not currently viable** for Nostr pubkey publication without platform changes.
+
+### 13.5 Politicians Already on Nostr
+
+No politicians are confirmed on Nostr with official pubkeys. Notable non-politician public figures on Nostr include Edward Snowden and Jack Dorsey. The platform's user base is concentrated in the Bitcoin/cypherpunk community.
+
+**The Mastodon precedent is instructive:** Several US House members adopted Mastodon, the community dataset added a field for it, and it became a normal part of the political social media landscape. The same path is available for Nostr — it just needs the first adopters.
+
+### 13.6 Strategy: Target Crypto-Friendly Politicians
+
+Rather than seeking broad political adoption, target politicians who are already aligned:
+- UK: Members of APPG on Blockchain, crypto-friendly MPs
+- US: Sen. Cynthia Lummis (WY), Rep. Tom Emmer (MN), members of the Congressional Blockchain Caucus
+- El Salvador: Government officials involved in Bitcoin legal tender implementation
+- EU: MEPs involved in MiCA regulation who understand digital identity
+
+A single crypto-friendly MP publishing their Nostr pubkey on parliament.uk creates:
+1. A trust anchor for their constituency
+2. A precedent for other MPs
+3. Media coverage for Signet/Nostr adoption
+4. A proof point that the parliament.uk system can accommodate cryptographic identity
+
+## 14. Professional Identity Theft — The Advocacy Angle
+
+### 14.1 Overview
+
+Professional identity theft is a growing and underreported problem. Fraudsters impersonate licensed professionals to commit fraud, provide unlicensed services, or establish false credentials. This is the *exact attack* that Signet's verifier bootstrapping must defend against — and it's already happening in the physical world.
+
+### 14.2 Why This Matters for Adoption
+
+Positioning Signet as a solution to professional identity theft serves two purposes:
+1. **Technical:** It motivates the multi-signal authentication design — the problem is real, not theoretical
+2. **Political:** It gives professional bodies and regulators a reason to adopt Signet — they're already looking for solutions to this problem
+
+### 14.3 Deep Dive Report (To Be Produced)
+
+A separate report should be produced covering:
+- **Statistics:** Frequency and cost of professional identity impersonation across professions (legal, medical, accounting, engineering)
+- **Case studies:** Notable cases of professional identity theft (fake doctors, fake lawyers, fake engineers) and their consequences
+- **Economic losses:** Direct fraud losses, insurance costs, regulatory enforcement costs, reputational damage to professional bodies
+- **Industry responses:** What professional bodies are currently doing (or failing to do) to prevent identity theft, and where they've publicly called for better solutions
+- **Regulatory gaps:** Where current law fails to prevent professional identity theft, and how digital verification could fill those gaps
+- **The Signet proposition:** How multi-signal verifier authentication, domain proof, and professional body attestation directly address the identified threats
+
+This report would serve as advocacy material for engaging professional bodies and regulators. **Action: produce this report when requested.**
+
+## 15. Updated Adoption Roadmap (Revised)
+
+**Phase 1 (Now — launch):**
+- Domain proof mechanism (`.well-known/signet.json`)
+- Directory proof mechanism (Avvo, LinkedIn, Doximity, Justia)
+- Cross-verification + at least one additional signal for activation
+- Registry cross-check where APIs exist (SRA, NPPES)
+- Founding verifier ceremony protocol
+- Basic Sybil detection
+
+**Phase 2 (3-6 months):**
+- Target crypto-friendly politicians for early pubkey publication
+- Produce professional identity theft report for advocacy
+- PR to `unitedstates/congress-legislators` to add `nostr` field
+- Outreach to Avvo/Justia/Doximity for potential Signet integration
+- Enhanced Sybil detection (trust propagation, geographic analysis)
+
+**Phase 3 (6-12 months):**
+- Professional body outreach with identity theft report as ammunition
+- Community-maintained list of verified body pubkeys
+- Cross-jurisdiction bootstrap ceremonies
+- Parliament.uk engagement for Nostr typeId addition
+
+**Phase 4 (12-24 months):**
+- eIDAS 2.0 QEAA integration (authentic source APIs mandatory by December 2026)
+- Professional body attestation as primary signal
+- National-scale verifier network with graph analysis
+- Political adoption creating trust anchors across jurisdictions
