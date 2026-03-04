@@ -355,8 +355,11 @@ When a person visits a professional for verification, the ceremony produces **tw
    - Leaf 1: `nationality` = "GB"
    - Leaf 2: `document_type` = "passport"
    - Leaf 3: `nullifier` = `H("passport" || "GB" || "123456789" || "signet-uniqueness-v1")`
+   - Leaf 4: `dob` = "1990-03-15" (date of birth — NEVER published, only used to generate age-range proof)
 
-5. **Professional issues two kind 30470 credentials:**
+5. **Professional generates a Bulletproof age-range proof** from the DOB. For adults, this proves `age >= 18` without revealing the actual age. The proof is bound to the credential pubkey so it cannot be transplanted.
+
+6. **Professional issues two kind 30470 credentials:**
 
    **Credential 1 — Natural Person (keypair A):**
    ```jsonc
@@ -367,6 +370,7 @@ When a person visits a professional for verification, the ceremony produces **tw
        ["entity-type", "natural_person"],
        ["merkle-root", "<root_of_verified_attributes>"],
        ["nullifier", "<hex_encoded_nullifier>"],
+       ["age-range", "18+"],  // Bulletproof proof: age >= 18
        ["tier", "3"],
        // ... other standard tags
      ]
@@ -380,6 +384,7 @@ When a person visits a professional for verification, the ceremony produces **tw
      "tags": [
        ["p", "<keypair_B_pubkey>"],
        ["entity-type", "persona"],
+       ["age-range", "18+"],  // SAME age proof — Persona inherits age range
        ["tier", "3"],
        // ... other standard tags
        // NO nullifier — Persona is anonymous
@@ -388,9 +393,9 @@ When a person visits a professional for verification, the ceremony produces **tw
    }
    ```
 
-6. **Professional gives the subject** the Merkle leaves and proofs privately (for selective disclosure later)
+7. **Professional gives the subject** the Merkle leaves and proofs privately (for selective disclosure later). The DOB leaf is held by the subject — they can generate additional age-range proofs for specific services (e.g., "age >= 25" for car rental) without revisiting a professional.
 
-7. **Professional records both pubkeys** in their client file (same record-keeping obligation they already have for witnessing documents)
+8. **Professional records both pubkeys** in their client file (same record-keeping obligation they already have for witnessing documents). The DOB is in the professional's records but NEVER appears on-chain — only the zero-knowledge age-range proof is published.
 
 ### 9.3 What Goes On-Chain vs What Stays Private
 
@@ -401,11 +406,41 @@ When a person visits a professional for verification, the ceremony produces **tw
 | Entity type (`natural_person` / `persona`) | Yes (in credential, signed by professional) | Public |
 | Nullifier hash | Yes (on Natural Person credential only) | Public, but not reversible |
 | Merkle root of verified attributes | Yes (on Natural Person credential only) | Public, but reveals nothing without leaves |
+| Age-range proof ("18+" or "8-12") | Yes (Bulletproof ZKP on BOTH credentials) | Public — but only reveals range, not exact age |
 | Verified name, nationality, document details | **No** — private Merkle leaves | Subject + professional only |
+| Date of birth | **No** — private Merkle leaf, consumed to generate age-range proof | Subject + professional only |
 | Passport number | **No** — consumed to compute nullifier, then discarded | Professional's private records |
 | Link between keypair A and keypair B | **No** | Subject + professional only |
 
-### 9.4 Merkle-Bound Name Verification
+### 9.4 Date of Birth and Age-Range Proofs
+
+**Design decision: DOB is captured for ALL professionally verified identities (adults and children). It is NEVER published. It is used ONLY to generate zero-knowledge age-range proofs.**
+
+**Why adults need DOB:**
+- Proves "18+" without revealing whether you're 19 or 91
+- Enables future age-gated services: "25+" (car rental), "65+" (senior discount), "21+" (US alcohol)
+- The professional already sees the DOB on the passport — capturing it in the Merkle tree simply formalises what's already verified
+- The Bulletproof proof can be regenerated for different ranges from the same DOB leaf without revisiting a professional
+- **Consistency:** Every Tier 3+ credential — adult or child — carries an age-range proof. This makes policy enforcement uniform.
+
+**DOB privacy guarantees:**
+- DOB is stored as a private Merkle leaf — the subject holds it, the professional has it in their records
+- The on-chain credential contains ONLY the age-range proof (a ZKP that reveals nothing beyond the range)
+- Even the age RANGE is privacy-preserving: "18+" reveals nothing about whether you're 20, 40, or 80
+- The subject can choose to generate more specific proofs from their DOB leaf: "25-34" for a dating app, "65+" for a senior discount — each one is a separate Bulletproof proof generated from the same private data
+- **No one — not the government, not the relay operator, not other users — can derive the DOB from the age-range proof.** This is a fundamental property of Bulletproof range proofs.
+
+**Age-range proof format on credentials:**
+
+| Identity type | Age-range value | Meaning |
+|---|---|---|
+| Adult Natural Person | `"18+"` | Verified adult |
+| Adult Persona | `"18+"` | Same — Persona inherits age range |
+| Child Natural Person | `"8-12"` or `"13-17"` | Specific child age bracket |
+| Child Persona | `"8-12"` or `"13-17"` | Same — child Persona carries age range |
+| Tier 1-2 (unverified) | None | No age proof — not professionally verified |
+
+### 9.5 Merkle-Bound Name Verification
 
 The Natural Person credential contains a Merkle root of verified attributes, signed by the professional. This root is **immutable** — the subject cannot change it.
 
@@ -420,7 +455,7 @@ If "John Smith" changes his kind 0 profile name to "Dr. James Wilson":
 - Any client that requests name disclosure will see the mismatch
 - If the subject refuses disclosure, the client flags: "verified identity, name unconfirmed"
 
-### 9.5 Entity Type as Immutable Differentiator
+### 9.6 Entity Type as Immutable Differentiator
 
 The `entity-type` tag is in the credential, signed by the professional. **The subject cannot change it.** This is the primary defence against a Persona impersonating a Natural Person.
 
@@ -445,7 +480,7 @@ The `entity-type` tag is in the credential, signed by the professional. **The su
 
 The visual distinction between "Verified Person" and "Verified Alias" must be unmistakable — different colours, different icons, different badge shapes. Think of it as a cryptographically enforced version of Twitter's verification, except the badge can't be bought and the type can't be faked.
 
-### 9.6 Document-Based Nullifiers
+### 9.7 Document-Based Nullifiers
 
 The nullifier prevents one person from obtaining multiple Natural Person credentials:
 
@@ -463,7 +498,7 @@ nullifier = H(document_type || country_code || document_number || "signet-unique
 
 **Government mass computation:** Yes, a government with a database of all passport numbers could compute all nullifiers and match them to Natural Person pubkeys. But governments already have this information — the nullifier doesn't give them anything new about your real identity. What matters is that your *Persona* has no nullifier and cannot be linked to your Natural Person credential by anyone except you and the issuing professional.
 
-### 9.7 Nullifier Weaknesses and Mitigations
+### 9.8 Nullifier Weaknesses and Mitigations
 
 | Attack | Mitigation |
 |---|---|
@@ -472,7 +507,7 @@ nullifier = H(document_type || country_code || document_number || "signet-unique
 | Professional doesn't compute nullifier | Clients flag credentials without nullifiers as lower confidence |
 | Government computes nullifiers for all citizens | Only links to Natural Person pubkey — Persona remains unlinkable |
 
-### 9.8 The Link Between Keypair A and Keypair B
+### 9.9 The Link Between Keypair A and Keypair B
 
 The professional knows both pubkeys (from the verification ceremony). This is the same trust model as solicitor-client confidentiality or doctor-patient privilege. Breaking it is professional misconduct and potentially criminal.
 
@@ -480,7 +515,7 @@ The professional knows both pubkeys (from the verification ceremony). This is th
 
 This is already supported by the existing identity bridge mechanism in the spec.
 
-### 9.9 Social Constraints (Defence in Depth)
+### 9.10 Social Constraints (Defence in Depth)
 
 Nullifiers and Merkle-bound names catch the primary attacks. Social constraints make residual attacks economically unattractive:
 
@@ -494,7 +529,7 @@ Nullifiers and Merkle-bound names catch the primary attacks. Social constraints 
 
 5. **Credential provenance:** Every credential traces to its issuer. Fraud → investigation → issuing professional → their records.
 
-### 9.10 Why This Is Better Than Government Digital ID
+### 9.11 Why This Is Better Than Government Digital ID
 
 | | Government Digital ID | Signet |
 |---|---|---|
@@ -508,7 +543,7 @@ Nullifiers and Merkle-bound names catch the primary attacks. Social constraints 
 | **Name binding** | Government-issued, government-controlled | Merkle-bound, professionally verified, you control disclosure |
 | **Anonymous but verified** | Not possible | Default — every person gets a Persona |
 
-### 9.11 Honest Assessment
+### 9.12 Honest Assessment
 
 This won't prevent a determined, well-funded attacker from creating duplicate identities. No decentralised system can guarantee one-person-one-identity without biometrics or a central registry.
 
@@ -586,21 +621,36 @@ When a professional is struck off the register, the professional body (if they'r
 
 **The challenge:** Children are Natural Persons but cannot independently consent to verification. The existing Tier 4 (Professional + Child Safety) with Bulletproof age range proofs handles the crypto. The questions are about ceremony, guardianship, and transition to adulthood.
 
+**Foundational rule: A child credential is ALWAYS a sub-account of a verified parent/guardian.** A child cannot exist in Signet without a guardian link. There is no path to a child credential that bypasses a verified adult. This is non-negotiable.
+
 #### 10.4.1 Child Verification Ceremony
 
+**Requirements — ALL mandatory, no exceptions:**
+- Parent/guardian MUST be present
+- Parent/guardian MUST have a verified Signet credential (Tier 3+ Natural Person) — not just a passport, an active Signet identity
+- Child's birth certificate or passport MUST be presented (DOB is essential — the age-range proof cannot be generated without it)
+- Professional MUST verify parental authority (birth certificate names the parent, court order for non-birth-parent guardians)
+
+**Process:**
+
 1. **Parent/guardian brings the child** to a professional (typically a doctor or social worker — the same professionals who already certify children's identities for passport applications)
-2. **Professional verifies:**
-   - Child's birth certificate or passport
-   - Parent/guardian's identity (their own Signet Natural Person credential, or passport)
-   - Parental authority (birth certificate, court order, adoption certificate)
-3. **Professional issues credentials to the child's keypair:**
+2. **Professional verifies the parent FIRST:**
+   - Parent presents their Signet Natural Person credential (the professional verifies it on-chain)
+   - If parent does not have a Signet credential, parent must be verified first (can be done in the same appointment)
+   - The parent's pubkey will become the guardian tag on the child's credential
+3. **Professional verifies the child:**
+   - Child's birth certificate or passport — **DOB is mandatory** (required to generate the age-range proof)
+   - Parental authority: birth certificate (parent's name appears), court order, adoption certificate, or fostering agreement
+   - Physical presence of the child (the professional sees the child matches the document)
+4. **Professional generates the child's age-range proof** from the DOB on the birth certificate/passport. The Bulletproof proof attests to a range (e.g., "8-12"), not the exact date.
+5. **Professional issues credentials to the child's keypair:**
 
    **Natural Person credential:**
    ```jsonc
    ["entity-type", "natural_person"],
    ["tier", "4"],
-   ["age-range", "8-12"],  // Bulletproof range proof, not exact age
-   ["guardian", "<parent_pubkey>"],
+   ["age-range", "8-12"],  // Bulletproof range proof from DOB
+   ["guardian", "<parent_pubkey>"],  // MANDATORY — links to parent's verified identity
    ["nullifier", "<child_document_nullifier>"]
    ```
 
@@ -608,11 +658,15 @@ When a professional is struck off the register, the professional body (if they'r
    ```jsonc
    ["entity-type", "persona"],
    ["tier", "4"],
-   ["age-range", "8-12"],
+   ["age-range", "8-12"],  // SAME age range — mandatory on child Personas
+   ["guardian", "<parent_pubkey>"],  // Guardian tag on Persona too
    // NO nullifier, NO verified name — child protection
    ```
 
-4. **The child's real name is NEVER published on-chain.** It exists only in the Merkle tree leaves, held by the child (or parent on their behalf) and the professional. Child protection takes priority.
+6. **The child's real name is NEVER published on-chain.** It exists only in the Merkle tree leaves, held by the parent (on the child's behalf) and the professional. Child protection takes priority.
+7. **The parent receives the child's Merkle leaves and recovery information.** For young children, the parent holds the mnemonic/Shamir shares. For teenagers, the child may hold their own keys with the parent retaining a backup.
+
+**Why the parent must be verified first:** If anyone could walk in claiming to be a parent, an abductor or trafficker could register a child under their control. The guardian link must point to a VERIFIED adult identity — creating accountability. If the "parent" turns out to be a trafficker, their verified identity is on record.
 
 #### 10.4.2 Guardian Link
 
@@ -631,25 +685,27 @@ The `["guardian", "<parent_pubkey>"]` tag on the child's credential:
 When the child turns 18 (or the age of majority in their jurisdiction):
 
 1. The age range proof in the existing credential expires naturally — the Bulletproof proof that "age is in range 8-12" is no longer valid when they're 18
-2. The young adult visits a professional **independently** (no parent required)
-3. Professional issues a new credential:
+2. The young adult visits a professional **independently** (no parent required — this is the first time they interact with the system without a guardian)
+3. Professional verifies their passport or ID (which now shows they're 18+) and generates a new age-range proof: `["age-range", "18+"]`
+4. Professional issues a new credential:
    - `["tier", "3"]` (adult, no longer child safety tier)
-   - No `["guardian", "..."]` tag
-   - No `["age-range", "..."]` tag
+   - `["age-range", "18+"]` — adult age-range proof (all adults carry this)
+   - No `["guardian", "..."]` tag — they are now independent
    - `["supersedes", "<child_credential_id>"]`
-4. The young adult now has a standard adult Natural Person credential
-5. They keep the same keypair — all trust, vouches, and connections built during childhood carry forward
+5. The young adult now has a standard adult Natural Person credential with adult age-range proof
+6. They keep the same keypair — all trust, vouches, and connections built during childhood carry forward
+7. Their Persona also gets an updated credential: age-range changes from "13-17" to "18+", guardian tag removed
 
-**The Persona carries through seamlessly.** A teenager's Persona identity — their online reputation, their connections, their creative work — survives the transition to adulthood without interruption.
+**The Persona carries through seamlessly.** A teenager's Persona identity — their online reputation, their connections, their creative work — survives the transition to adulthood without interruption. The only visible change is that "Verified Teen" becomes "Verified Adult."
 
 #### 10.4.4 Age-Appropriate Tiers
 
 | Age | Tier | Guardian Required | Age Range Proof | Notes |
 |---|---|---|---|---|
-| 0-12 | 4 | Yes | Required | Full child protection |
-| 13-15 | 4 | Yes (but child can consent to some things depending on jurisdiction) | Required | Digital consent age varies: 13 (US COPPA), 16 (UK GDPR) |
-| 16-17 | 4 or 3 | Jurisdiction-dependent | Optional | Some jurisdictions treat 16+ as near-adult |
-| 18+ | 3 | No | No | Standard adult credential |
+| 0-12 | 4 | Yes (parent must be Tier 3+ verified) | Required: exact child range (e.g. "8-12") | Full child protection, parent holds keys |
+| 13-15 | 4 | Yes (but child can consent to some things depending on jurisdiction) | Required: exact child range (e.g. "13-15") | Digital consent age varies: 13 (US COPPA), 16 (UK GDPR) |
+| 16-17 | 4 or 3 | Jurisdiction-dependent | Required: "16-17" or "18+" depending on jurisdiction | Some jurisdictions treat 16+ as near-adult |
+| 18+ | 3 | No | Required: "18+" | All adults carry age-range proof — proves adulthood without revealing exact age |
 
 ### 10.5 Document Renewal
 
@@ -666,7 +722,7 @@ When the child turns 18 (or the age of majority in their jurisdiction):
 
 **The `nullifier-chain` tag** creates a verifiable link between old and new nullifiers. Anyone scanning for duplicates can follow the chain: "these two nullifiers belong to the same person because a professional attested to the continuity."
 
-**This is distinct from the duplicate attack** (§9.6) because:
+**This is distinct from the duplicate attack** (§9.7) because:
 - The old credential is superseded (inactive)
 - Only one active credential exists at any time
 - The chain is attested by a professional, not self-declared
