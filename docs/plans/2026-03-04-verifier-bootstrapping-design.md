@@ -330,7 +330,90 @@ Optional. When present, clients SHOULD fetch and verify the proof.
 
 All changes use existing event kinds. The domain proof is off-chain (HTTP). The confidence score is computed client-side. Professional body attestation uses existing kind 30470.
 
-## 9. Open Questions
+## 9. One-Person-One-Identity: The Duplicate Account Problem
+
+### 9.1 The Attack
+
+A person can generate multiple keypairs and get each one independently verified by different professionals:
+
+1. Generate keypair A → visit Doctor Smith → show passport → Tier 3 credential on keypair A
+2. Generate keypair B → visit Lawyer Jones in another city → show same passport → Tier 3 credential on keypair B
+3. Keep keypair A as personal identity, sell keypair B
+
+Both credentials are legitimately issued by real professionals who correctly verified a real passport. No existing mechanism detects the duplicate.
+
+This is distinct from the verifier bootstrapping problem (§1-4). This is about *subjects* creating multiple verified identities, not about verifiers being fake.
+
+### 9.2 The Fundamental Tension
+
+Perfect one-person-one-identity requires either:
+- **Biometrics** (iris scan, fingerprint) — privacy nightmare, central database
+- **Central registry** — "has this person been verified before?" — defeats decentralisation
+
+Neither is acceptable for Signet. The protocol must find a middle ground: good enough uniqueness with good enough privacy.
+
+### 9.3 Document-Based Nullifiers
+
+When a professional verifies someone, they compute a deterministic, privacy-preserving identifier from the person's government document:
+
+```
+nullifier = H(document_type || country_code || document_number || "signet-uniqueness-v1")
+```
+
+This nullifier is included as a tag on the kind 30470 credential:
+```jsonc
+["nullifier", "<hex_encoded_nullifier>"]
+```
+
+**Properties:**
+- **Deterministic:** Same passport → same nullifier, every time, regardless of which professional computes it
+- **Privacy-preserving:** The nullifier reveals nothing about the person unless you already know their document number (in which case you already know who they are)
+- **Decentralised detection:** Anyone can scan the credential set for duplicate nullifiers — no central registry needed
+- **No biometrics:** Derived from the document number, not the person's body
+
+**Detection:** If two kind 30470 credentials on different pubkeys share a nullifier, the duplicate is visible to the entire network. Clients flag it. The later credential is suspect.
+
+### 9.4 Nullifier Weaknesses and Mitigations
+
+| Attack | Mitigation |
+|---|---|
+| Use different document types (passport for one, driving licence for another) | Require passport as primary document; compute nullifiers for ALL documents presented |
+| Dual citizenship, two passports | Rarer and more expensive; cross-reference nationality nullifiers |
+| Professional doesn't compute nullifier | Clients flag credentials without nullifiers as lower confidence |
+| Someone who knows your passport number computes your nullifier and searches for your credential | Acceptable privacy trade-off: if they know your passport number, they already know who you are |
+
+### 9.5 Social Constraints (Defence in Depth)
+
+Nullifiers catch the easy case. Social constraints make the residual attack economically unattractive:
+
+1. **Empty social graph:** A sold identity has no organic vouches — no one who actually knows the buyer has vouched for them. Clients can display "0 vouches, 0 connections" alongside the Tier 3 badge.
+
+2. **"Signet me" fails:** The time-based word verification requires real-time presence. The buyer can't pass this test with anyone who knows the original person, or with anyone who subsequently meets the real person.
+
+3. **Trust score is low:** A fresh Tier 3 with no vouches, no identity bridges, no account age scores very low on the trust score (the professional verification weight is 40/100, but all other signals are zero).
+
+4. **Professional liability:** Verifying the same passport for two different pubkeys is professional misconduct. Professionals are legally required to keep records. If caught, they face disciplinary action and licence revocation.
+
+5. **Credential provenance:** Every credential traces to its issuer. If a sold identity is used for fraud, investigators can trace back to the issuing professional and examine their records.
+
+### 9.6 Honest Assessment
+
+This won't prevent a determined, well-funded attacker from creating duplicate identities. No decentralised system can guarantee one-person-one-identity without biometrics or a central registry.
+
+But Signet doesn't need to be perfect — it needs to be *better than the status quo*. Currently:
+- Fake IDs cost $50-500 on the dark web
+- Stolen identities are traded in bulk
+- There is no duplicate detection across services
+
+With Signet:
+- Duplicate detection via nullifiers catches the common case
+- The cost of a duplicate is real (professional fees + travel + risk)
+- A sold identity is worth much less (no social graph, fails "Signet me", low trust score)
+- The audit trail is permanent and public
+
+The goal is economic deterrence, not cryptographic impossibility.
+
+## 10. Open Questions (Revised)
 
 1. **Should domain proof be REQUIRED or just weighted?** If required, it blocks professionals without websites. If optional, the Sybil mesh attack still works for the cross-verification-only path.
 
@@ -348,7 +431,7 @@ All changes use existing event kinds. The domain proof is off-chain (HTTP). The 
 
    **Tentative answer:** Conservative. Flag for human review, don't auto-block. The anomaly signals produce warnings that communities and clients can act on. Better to let a few suspicious verifiers through (with low confidence scores) than to block legitimate professionals.
 
-## 10. Adoption Roadmap
+## 11. Original Adoption Roadmap
 
 **Phase 1 (Now — launch):**
 - Domain proof mechanism implemented
@@ -369,7 +452,7 @@ All changes use existing event kinds. The domain proof is off-chain (HTTP). The 
 - Domain proof remains as supplementary signal
 - Advanced graph analysis with historical pattern detection
 
-## 11. Why This Works (Threat Model Revisited)
+## 12. Why This Works (Threat Model Revisited)
 
 **Against simple impersonation:**
 Domain proof raises the cost from "look up a public licence number" to "hack a professional's website." Registry cross-check catches non-existent licence numbers. Body attestation eliminates impersonation entirely.
@@ -385,15 +468,15 @@ Domain proof works without body participation. Cross-jurisdiction verifiers prov
 
 **The key insight:** Each layer doesn't need to be perfect. It needs to make the attack *more expensive* than the alternative (impersonating someone in the physical world, which has its own costs and risks). The goal is not cryptographic certainty — it's economic deterrence through layered defence.
 
-## 12. Professional Directory Verification (Additional Signal)
+## 13. Professional Directory Verification (Additional Signal)
 
-### 12.1 The Opportunity
+### 13.1 The Opportunity
 
 Professionals are already listed in directories that publish their credentials, websites, and affiliations. Many of these directories have editable profile fields where a Nostr pubkey or Signet verification URL could be added. This creates an additional corroboration signal: if a professional's pubkey appears on their listing in an established directory, it's harder to impersonate them.
 
 This is similar to the domain proof (Signal 2) but doesn't require the professional to own a website — just a profile on an existing directory.
 
-### 12.2 Directories With Self-Editable URL Fields
+### 13.2 Directories With Self-Editable URL Fields
 
 **High suitability (free, self-editable, custom URLs confirmed):**
 
@@ -417,7 +500,7 @@ This is similar to the domain proof (Signal 2) but doesn't require the professio
 
 SRA Register, GMC Register, Bar Standards Board Register, AICPA Directory, AMA Profiles — these are compliance records, not marketing profiles. No individual-level URL fields.
 
-### 12.3 The UK Gap
+### 13.3 The UK Gap
 
 UK regulatory bodies (SRA, GMC, ICAEW) maintain compliance registers with no individual-level URL or social media fields. UK professionals would need to rely on:
 - LinkedIn (universally available, cross-profession)
@@ -426,7 +509,7 @@ UK regulatory bodies (SRA, GMC, ICAEW) maintain compliance registers with no ind
 
 This reinforces why domain proof and LinkedIn-style directory proof should both be supported as verification signals.
 
-### 12.4 Directory Proof Mechanism
+### 13.4 Directory Proof Mechanism
 
 A professional adds a URL to their directory profile:
 ```
@@ -443,7 +526,7 @@ or simply includes their npub in a free-text bio/description field.
 
 This is weaker than domain proof (the professional doesn't control the directory infrastructure) but stronger than nothing (the directory has its own verification of who can edit a profile).
 
-### 12.5 Tag Addition
+### 13.5 Tag Addition
 
 Kind 30473 gains an optional tag:
 ```jsonc
@@ -452,13 +535,13 @@ Kind 30473 gains an optional tag:
 
 Multiple directory-proof tags may be present (a lawyer on both Avvo and LinkedIn).
 
-## 13. Political and Public Official Adoption
+## 14. Political and Public Official Adoption
 
-### 13.1 We Don't Need 100% — Just Seeds
+### 14.1 We Don't Need 100% — Just Seeds
 
 The entire web-of-trust model works by seeding trust and letting it propagate. A single MP who publishes their Nostr pubkey on their official parliament page becomes a trust anchor that can verify (or be verified by) professionals in their constituency. A few early adopters create the nucleus.
 
-### 13.2 UK Parliament — Technical Feasibility
+### 14.2 UK Parliament — Technical Feasibility
 
 The UK Parliament Members API (`members-api.parliament.uk`) uses a flexible type-based contact system. Social media platforms are stored as contact entries with distinct `typeId` values (e.g., Website = 6, X/Twitter = 7). The system is generic — adding a "Nostr" typeId is architecturally straightforward.
 
@@ -473,7 +556,7 @@ The UK Parliament Members API (`members-api.parliament.uk`) uses a flexible type
 
 **No MP has published a Nostr pubkey on parliament.uk** (or any official government page anywhere in the world, as of our research). The precedent closest to this is Mastodon handles appearing in the `unitedstates/congress-legislators` community dataset — several US House members have Mastodon accounts listed.
 
-### 13.3 US Congress
+### 14.3 US Congress
 
 **Congress.gov API** — provides `officialUrl` only, no social media fields.
 
@@ -481,17 +564,17 @@ The UK Parliament Members API (`members-api.parliament.uk`) uses a flexible type
 
 **Individual member pages** (house.gov, senate.gov) are self-managed by each office. An MP/representative could add a Nostr pubkey to their own page at their discretion.
 
-### 13.4 UK Local Councils
+### 14.4 UK Local Councils
 
 Local councils overwhelmingly use **ModernGov** (by GOSS Interactive) for councillor directories. The platform is rigid: name, party, ward, email, phone. No social media, no website, no custom fields. **Not currently viable** for Nostr pubkey publication without platform changes.
 
-### 13.5 Politicians Already on Nostr
+### 14.5 Politicians Already on Nostr
 
 No politicians are confirmed on Nostr with official pubkeys. Notable non-politician public figures on Nostr include Edward Snowden and Jack Dorsey. The platform's user base is concentrated in the Bitcoin/cypherpunk community.
 
 **The Mastodon precedent is instructive:** Several US House members adopted Mastodon, the community dataset added a field for it, and it became a normal part of the political social media landscape. The same path is available for Nostr — it just needs the first adopters.
 
-### 13.6 Strategy: Target Crypto-Friendly Politicians
+### 14.6 Strategy: Target Crypto-Friendly Politicians
 
 Rather than seeking broad political adoption, target politicians who are already aligned:
 - UK: Members of APPG on Blockchain, crypto-friendly MPs
@@ -505,19 +588,19 @@ A single crypto-friendly MP publishing their Nostr pubkey on parliament.uk creat
 3. Media coverage for Signet/Nostr adoption
 4. A proof point that the parliament.uk system can accommodate cryptographic identity
 
-## 14. Professional Identity Theft — The Advocacy Angle
+## 15. Professional Identity Theft — The Advocacy Angle
 
-### 14.1 Overview
+### 15.1 Overview
 
 Professional identity theft is a growing and underreported problem. Fraudsters impersonate licensed professionals to commit fraud, provide unlicensed services, or establish false credentials. This is the *exact attack* that Signet's verifier bootstrapping must defend against — and it's already happening in the physical world.
 
-### 14.2 Why This Matters for Adoption
+### 15.2 Why This Matters for Adoption
 
 Positioning Signet as a solution to professional identity theft serves two purposes:
 1. **Technical:** It motivates the multi-signal authentication design — the problem is real, not theoretical
 2. **Political:** It gives professional bodies and regulators a reason to adopt Signet — they're already looking for solutions to this problem
 
-### 14.3 Deep Dive Report (To Be Produced)
+### 15.3 Deep Dive Report (To Be Produced)
 
 A separate report should be produced covering:
 - **Statistics:** Frequency and cost of professional identity impersonation across professions (legal, medical, accounting, engineering)
@@ -529,7 +612,7 @@ A separate report should be produced covering:
 
 This report would serve as advocacy material for engaging professional bodies and regulators. **Action: produce this report when requested.**
 
-## 15. Updated Adoption Roadmap (Revised)
+## 16. Updated Adoption Roadmap (Revised)
 
 **Phase 1 (Now — launch):**
 - Domain proof mechanism (`.well-known/signet.json`)
