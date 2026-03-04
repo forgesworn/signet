@@ -15,10 +15,11 @@ This repo contains:
 ## Key Concepts
 
 - **4 verification tiers**: Tier 1 (self-declared) → Tier 2 (web-of-trust) → Tier 3 (professional adult) → Tier 4 (professional adult+child)
-- **6 event kinds**: 30470 (credential), 30471 (vouch), 30472 (policy), 30473 (verifier), 30474 (challenge), 30475 (revocation)
+- **7 event kinds**: 30470 (credential), 30471 (vouch), 30472 (policy), 30473 (verifier), 30474 (challenge), 30475 (revocation), 30476 (identity bridge), 30477 (delegation)
+- **9 entity types**: Natural Person, Persona, Personal Agent, Free Personal Agent, Juridical Person, Juridical Persona, Organised Agent, Free Organised Agent, Free Agent
 - **Crypto stack**: Schnorr (secp256k1 base) + Bulletproofs (age range proofs) + future ZK layer
 - **No central authority**: professional bodies (Law Society, medical boards, notary commissions) are the trust anchors
-- **"Signet me"**: Time-based 3-word verification for peer-to-peer identity proof over untrusted channels
+- **"Signet me"**: Time-based word verification (configurable 1-23 words, default 3) for peer-to-peer identity proof over untrusted channels
 - **BIP-39 / NIP-06**: Identity derived from 12-word mnemonic, Shamir backup supported
 
 ## Relationship to Fathom
@@ -36,6 +37,16 @@ Fathom (https://github.com/decented/decented) is the first reference implementat
 5. **Push** to remote
 
 Never claim work is complete without fresh test output confirming it passes. Evidence before assertions.
+
+### Pacing and Accuracy
+
+This is a protocol that others will build on. Correctness matters more than speed. Follow these rules:
+
+1. **Verify before presenting.** When building analysis tables, mappings, or logical arguments, re-read each row/cell and confirm it's correct before showing it to the user. Don't rush tables — wrong analysis is worse than slow analysis.
+2. **Re-read the user's words.** When the user proposes options (A, B, C), re-read their exact descriptions before summarising or mapping them. Don't paraphrase from memory — go back to what they actually said.
+3. **Check assumptions in tests.** When writing tests with hardcoded values, verify the arithmetic (e.g., does this timestamp actually fall where I think it does in the epoch?).
+4. **Say "I'm not sure" when you're not sure.** This is a protocol with legal, cryptographic, and social implications. Confident-sounding wrong answers are dangerous. If a claim needs verification, say so.
+5. **Slow down during brainstorming.** Design discussions set the foundation for everything built on top. Take time to reason carefully about edge cases, naming, and category boundaries. Getting the model right matters more than getting it fast.
 
 ### Spec-First Development
 
