@@ -937,11 +937,11 @@ This data is stored **locally only** — never published to relays. The QR excha
 
 ### 15.4 Signet Verification Words ("Signet Me")
 
-The core peer-to-peer identity verification feature. Given a connection with a shared secret, both parties can independently compute the same 3 words at any time — proving they hold the keys that established the connection.
+The core peer-to-peer identity verification feature. Given a connection with a shared secret, both parties can independently compute the same words at any time — proving they hold the keys that established the connection.
 
 **The problem:** Your friend calls, panicked, asking you to send money to a new bank account. It sounds like him — social cues are right, he drops the kids' names. But is it really him?
 
-**The solution:** "Signet me." Both users open each other's profiles. Both see the same 3 words. The caller reads them out. Match → it's really them.
+**The solution:** "Signet me." Both users open each other's profiles. Both see the same words. The caller reads them out. Match → it's really them.
 
 **Algorithm:**
 
@@ -949,28 +949,56 @@ The core peer-to-peer identity verification feature. Given a connection with a s
 Inputs:
   S  = shared secret (32 bytes, from ECDH at connection time)
   t  = current Unix timestamp in milliseconds
+  N  = word count (1-23, default: 3)
+  I  = epoch interval in seconds (default: 30)
+  T  = tolerance in epochs (default: 1)
 
 Epoch:
-  E = floor(t / 30000)           // words rotate every 30 seconds
+  E = floor(t / (I × 1000))
 
 Derivation:
   H = HMAC-SHA256(S, E.toString())   // 32-byte MAC
 
-Word extraction (33 bits → 3 × 11-bit indices):
-  word1 = ((H[0] << 3) | (H[1] >> 5)) & 0x7FF   // bits 0-10
-  word2 = ((H[1] << 6) | (H[2] >> 2)) & 0x7FF   // bits 11-21
-  word3 = ((H[2] << 9) | (H[3] << 1) | (H[4] >> 7)) & 0x7FF  // bits 22-32
-
-Output:
-  [BIP39_WORDLIST[word1], BIP39_WORDLIST[word2], BIP39_WORDLIST[word3]]
+Word extraction (N × 11-bit indices from H):
+  For i = 0 to N-1:
+    bitOffset = i × 11
+    byteIndex = floor(bitOffset / 8)
+    bitShift  = bitOffset mod 8
+    twoBytes  = (H[byteIndex] << 8) | H[byteIndex + 1]
+    index     = (twoBytes >> (5 - bitShift)) & 0x7FF
+    word[i]   = BIP39_WORDLIST[index]
 ```
+
+**Defaults:** 3 words, 30-second epoch, ±1 tolerance. These are the recommended settings for in-person and phone verification. Implementations MAY allow configuration of all three parameters for different use cases.
+
+**Configuration guidelines:**
+
+| Use Case | Words | Epoch | Tolerance | Effective Window |
+|----------|-------|-------|-----------|-----------------|
+| In-person verification | 3 | 30s | ±1 | 90 seconds |
+| Phone call | 3 | 30s | ±1 | 90 seconds |
+| Quick in-room check | 1 | 30s | ±1 | 90 seconds |
+| Async/text channel | 3 | 300s | ±1 | 15 minutes |
+| High-security | 4 | 30s | 0 | 30 seconds |
+
+**Entropy by word count:**
+
+| Words | Entropy | Combinations |
+|-------|---------|-------------|
+| 1 | 11 bits | 2,048 |
+| 2 | 22 bits | ~4 million |
+| 3 | 33 bits | ~8.6 billion |
+| 4 | 44 bits | ~17.6 trillion |
+
+**Maximum word count:** 23 (253 bits from 32 bytes of HMAC-SHA256 output).
 
 **Properties:**
 - **Symmetric:** Both parties compute the same words from the same shared secret.
-- **Rotating:** Words change every 30 seconds. Stale words cannot be replayed.
-- **Tolerant:** Verification accepts current epoch ±1 (90-second window) to accommodate phone call lag.
+- **Rotating:** Words change every epoch. Stale words cannot be replayed.
+- **Tolerant:** Verification accepts current epoch ±T (default: ±1, giving a 3× epoch window) to accommodate lag.
 - **Offline:** No server, no relay, no network needed. Pure local computation.
-- **Strong:** 3 words from a 2048-word list = 2048³ ≈ 8.6 billion combinations. With a 30-second window, an attacker gets exactly one guess at 0.000000012% odds.
+- **Configurable:** Word count, epoch interval, and tolerance are adjustable for different security/usability trade-offs.
+- **Consistent prefix:** The first N words are always the same regardless of the total word count requested. Asking for 4 words gives the same first 3 as asking for 3.
 
 **Use cases:**
 
@@ -1012,9 +1040,11 @@ The progress bar shows time until the next word rotation. The user sees the word
 - If a device is compromised, all shared secrets on that device are compromised. Users should re-establish connections from a new device.
 
 **Signet words:**
-- The 30-second epoch prevents replay beyond the tolerance window.
+- The epoch interval prevents replay beyond the tolerance window.
 - An attacker who compromises one party's device gains their shared secrets and can generate words. This is equivalent to compromising their private key — the defence is device security, not protocol design.
-- For high-value transactions, combine signet words with other verification (video call, previously agreed code phrase).
+- For high-value transactions, use 4+ words with tight tolerance (0), and combine with other verification (video call, previously agreed code phrase).
+- Using 1 word (1-in-2,048) is acceptable only for low-stakes, physical-proximity scenarios where the threat model is impersonation, not brute force.
+- Both parties MUST agree on the same configuration (word count, epoch, tolerance) for verification to succeed. Mismatched config will always fail.
 
 ---
 
