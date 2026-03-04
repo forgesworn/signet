@@ -600,17 +600,11 @@ Positioning Signet as a solution to professional identity theft serves two purpo
 1. **Technical:** It motivates the multi-signal authentication design — the problem is real, not theoretical
 2. **Political:** It gives professional bodies and regulators a reason to adopt Signet — they're already looking for solutions to this problem
 
-### 15.3 Deep Dive Report (To Be Produced)
+### 15.3 Deep Dive Report
 
-A separate report should be produced covering:
-- **Statistics:** Frequency and cost of professional identity impersonation across professions (legal, medical, accounting, engineering)
-- **Case studies:** Notable cases of professional identity theft (fake doctors, fake lawyers, fake engineers) and their consequences
-- **Economic losses:** Direct fraud losses, insurance costs, regulatory enforcement costs, reputational damage to professional bodies
-- **Industry responses:** What professional bodies are currently doing (or failing to do) to prevent identity theft, and where they've publicly called for better solutions
-- **Regulatory gaps:** Where current law fails to prevent professional identity theft, and how digital verification could fill those gaps
-- **The Signet proposition:** How multi-signal verifier authentication, domain proof, and professional body attestation directly address the identified threats
+**Completed:** See `docs/reports/2026-03-04-professional-identity-fraud-deep-dive.md`
 
-This report would serve as advocacy material for engaging professional bodies and regulators. **Action: produce this report when requested.**
+The report covers statistics, case studies ($47B US identity fraud losses, £11.7M UK conveyancing fraud, 22-year fake NHS doctor), economic losses, regulatory gaps, and how Signet's multi-signal verifier authentication directly addresses the identified threats. Intended as advocacy material for engaging professional bodies and regulators.
 
 ## 16. Updated Adoption Roadmap (Revised)
 
