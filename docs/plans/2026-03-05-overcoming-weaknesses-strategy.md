@@ -85,7 +85,7 @@ Protocol complexity is not the same as implementation complexity. Identity IS co
 
 **Level 1 — "Read Trust Badges" (a weekend of work)**
 - Read 2 event kinds (30470 credential, 30471 vouch)
-- Compute basic trust score
+- Compute basic Signet IQ
 - Display tier badges on profiles
 - Zero crypto beyond Schnorr signature verification
 - This is the NIP-05 equivalent
@@ -118,7 +118,7 @@ Protocol complexity is not the same as implementation complexity. Identity IS co
 | **Critical** | Ring signatures (`src/ring-signature.ts`) | Issuer privacy broken | $15-25K |
 | **Critical** | Nullifier computation | Duplicate prevention fails | $10-15K |
 | **Critical** | Bulletproofs age-range binding | Age verification broken | $15-25K |
-| Important | Trust score computation | Gameable but not catastrophic | $10K |
+| Important | Signet IQ computation | Gameable but not catastrophic | $10K |
 | Deferrable | Anomaly detection | Client-side heuristics | $5K |
 | Deferrable | Voting extension | Not needed for core identity | $20K |
 
@@ -128,7 +128,7 @@ Protocol complexity is not the same as implementation complexity. Identity IS co
 
 1. **OpenSats / HRF grants** — both fund privacy tech and Nostr infrastructure. Child safety angle strengthens the application.
 2. **Regulatory co-funding** — UK's ICO and Ofcom have innovation sandboxes. A ZKP age verification system is exactly what they want.
-3. **Bug bounty** — Launch immediately on GitHub. $1K-$10K per finding for ring signature bypass, nullifier collision, age proof transplant, trust score inflation.
+3. **Bug bounty** — Launch immediately on GitHub. $1K-$10K per finding for ring signature bypass, nullifier collision, age proof transplant, Signet IQ inflation.
 
 ---
 

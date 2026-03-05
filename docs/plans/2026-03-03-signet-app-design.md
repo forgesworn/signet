@@ -49,7 +49,7 @@ The user's identity card:
 - Public key (truncated, tap to copy)
 - QR code of their pubkey (for others to scan)
 - Tier badge (no mark / ✓ / ✓✓ / ✓✓✓)
-- Trust score with breakdown (expandable)
+- Signet IQ with breakdown (expandable)
 - "Share my QR" button
 
 ### 3. Connections Screen

@@ -144,8 +144,8 @@ async function main() {
   console.log(`Verordnung: ${retention.regulation}`);
   console.log();
 
-  // --- 9. Trust score (German output) ---
-  console.log(`--- ${t('msg_trust_score')} ---`);
+  // --- 9. Signet IQ (German output) ---
+  console.log(`--- ${t('msg_signet_iq')} ---`);
   const trustScore = computeTrustScore(
     patient.publicKey,
     [credential],

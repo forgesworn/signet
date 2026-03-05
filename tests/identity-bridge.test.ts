@@ -203,8 +203,8 @@ describe('parseIdentityBridge', () => {
   });
 });
 
-describe('trust score integration', () => {
-  it('includes bridge weight in trust score', async () => {
+describe('Signet IQ integration', () => {
+  it('includes bridge weight in Signet IQ', async () => {
     const anon = generateKeyPair();
     const real = generateKeyPair();
     const decoys = generateKeypairs(MIN_BRIDGE_RING_SIZE - 1);

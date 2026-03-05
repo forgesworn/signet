@@ -254,7 +254,7 @@ Start from known-good nodes (founding verifiers, body-attested verifiers) and pr
 2. At each step, each node distributes its trust equally to nodes it has vouched for, with a damping factor (0.85)
 3. After convergence, nodes reachable only through very few edges from the honest network will have low propagated trust
 
-This is similar to Google's PageRank but personalised to the trust anchors. Sybil clusters that connect to the honest network through few attack edges will have low trust scores regardless of their internal structure.
+This is similar to Google's PageRank but personalised to the trust anchors. Sybil clusters that connect to the honest network through few attack edges will have low Signet IQ regardless of their internal structure.
 
 ### 6.3 Anomaly Signals
 
@@ -321,10 +321,10 @@ Optional. When present, clients SHOULD fetch and verify the proof.
 
 ### 8.4 Code Changes
 
-- New: `src/verifier-auth.ts` — domain proof verification, registry cross-check, confidence score computation
-- Modify: `src/verifiers.ts` — update `checkCrossVerification` to return confidence score
-- New: `tests/verifier-auth.test.ts`
-- Modify: `src/i18n.ts` — add verifier confidence level labels
+- New: `src/verifier-auth.ts` — domain proof verification, registry cross-check, confidence score computation *(not yet implemented — core verifier logic lives in `src/verifiers.ts`)*
+- Modify: `src/verifiers.ts` — update `checkCrossVerification` to return confidence score *(partial — cross-verification implemented, confidence scoring TBD)*
+- New: `tests/verifier-auth.test.ts` *(not yet created)*
+- Modify: `src/i18n.ts` — add verifier confidence level labels *(not yet added)*
 
 ### 8.5 No New Event Kinds
 
@@ -523,7 +523,7 @@ Nullifiers and Merkle-bound names catch the primary attacks. Social constraints 
 
 2. **"Signet me" fails:** Time-based word verification requires real-time presence. The buyer can't pass this test with anyone who knows the original person.
 
-3. **Trust score is low:** A fresh Tier 3 with no vouches, no identity bridges, no account age scores low (professional verification weight is 40/100, but all other signals are zero).
+3. **Signet IQ is low:** A fresh Tier 3 with no vouches, no identity bridges, no account age scores low (professional verification weight is 80/200, but all other signals are zero).
 
 4. **Professional liability:** Verifying the same passport for two different Natural Person pubkeys is professional misconduct. Professionals keep records. If caught, they face disciplinary action and licence revocation.
 
@@ -551,7 +551,7 @@ But Signet doesn't need to be perfect — it needs to be *better than the status
 - Fake IDs cost $50-500 on the dark web; with Signet, duplicates require visiting a real professional, paying real fees, and risking a nullifier collision
 - Currently there is no duplicate detection across services; with Signet, nullifiers catch the common case
 - Currently there is no anonymous-but-verified identity; with Signet, everyone gets one by default
-- A sold identity is worth much less: no social graph, fails "Signet me", low trust score
+- A sold identity is worth much less: no social graph, fails "Signet me", low Signet IQ
 - The audit trail is permanent and public
 
 The goal is economic deterrence, not cryptographic impossibility. And the real win is the Persona layer — verified anonymity that governments cannot provide and cannot easily surveil.
@@ -560,7 +560,7 @@ The goal is economic deterrence, not cryptographic impossibility. And the real w
 
 ### 10.1 Core Mechanism — Credential Chains
 
-When real-world attributes change, a professional issues a NEW credential that **supersedes** the old one. The pubkey stays the same — all vouches, trust score, and social graph carry forward. Only the attestation changes.
+When real-world attributes change, a professional issues a NEW credential that **supersedes** the old one. The pubkey stays the same — all vouches, Signet IQ, and social graph carry forward. Only the attestation changes.
 
 ```jsonc
 // New credential includes:
@@ -828,7 +828,7 @@ If someone's private key is stolen:
 5. New credential includes `["replaces-compromised", "<old_pubkey>"]`
 6. Nullifier stays the same (same passport) — ensuring the new credential is recognised as the same person
 
-**Vouches and trust score are lost** — this is a deliberate security property. If the attacker could transfer trust to a new key, they could steal someone's reputation. The subject must rebuild their web of trust. This is painful but safe.
+**Vouches and Signet IQ are lost** — this is a deliberate security property. If the attacker could transfer trust to a new key, they could steal someone's reputation. The subject must rebuild their web of trust. This is painful but safe.
 
 ### 10.8 Incapacitation / Guardianship
 
@@ -854,7 +854,7 @@ When someone gains a professional qualification and moves from Tier 2 (web-of-tr
 1. The newly qualified professional gets verified by a peer professional (as per the standard ceremony)
 2. New Tier 3 credential supersedes the old Tier 2 credential
 3. Same pubkey — all existing trust carries forward
-4. The old Tier 2 vouches remain valid and continue contributing to trust score
+4. The old Tier 2 vouches remain valid and continue contributing to Signet IQ
 
 ### 10.11 Key Rotation (Without Compromise)
 
@@ -932,7 +932,7 @@ Many early adopters have NIP-05 verification (`alice@example.com`). This is iden
 1. **NIP-05 gives a human-readable name** — Signet credentials add cryptographic identity proof behind that name
 2. **No conflict** — NIP-05 and Signet credentials coexist on the same pubkey
 3. **Additive trust signal** — Clients can show both: "alice@example.com (NIP-05) + Verified Person (Signet Tier 3)"
-4. **Long-standing NIP-05** — an account that has had the same NIP-05 for years is itself a trust signal (account age contributes to trust score)
+4. **Long-standing NIP-05** — an account that has had the same NIP-05 for years is itself a trust signal (account age contributes to Signet IQ)
 
 #### 10.13.5 What Early Adopters Keep vs What They Gain
 
@@ -940,7 +940,7 @@ Many early adopters have NIP-05 verification (`alice@example.com`). This is iden
 |---|---|---|
 | Pubkey + followers | Professional verification credential | Nothing |
 | NIP-05 identification | Cryptographic identity proof | Nothing |
-| Social graph (follows/followers) | Trust score based on verification tier | Nothing |
+| Social graph (follows/followers) | Signet IQ based on verification tier | Nothing |
 | Published content (notes, articles) | Merkle-bound verified name (optional disclosure) | Nothing |
 | Relay subscriptions | Selective disclosure of attributes | Nothing |
 | Zap history | Persona credential (anonymous verified identity) | Nothing |
@@ -1048,7 +1048,7 @@ Social workers and shelter staff occupy a unique position: they work with undocu
 1. **Social workers ARE professionals** — they're registered (e.g. Social Work England, NASW in the US) and can be verified as Signet verifiers through the standard bootstrapping process
 2. A social worker can issue a Tier 3 credential based on their professional assessment, even if the subject only has limited documentation
 3. The credential includes the document type used (or `["document-type", "professional-assessment"]` if no document was available)
-4. The trust score reflects this: a credential backed by professional assessment alone scores lower than one backed by a passport, but it's still professionally verified
+4. The Signet IQ reflects this: a credential backed by professional assessment alone scores lower than one backed by a passport, but it's still professionally verified
 
 **Shelter attestation** (non-professional):
 - Shelter managers who are not registered social workers can still provide **Tier 2 vouches**
@@ -1084,7 +1084,7 @@ Standard key backup uses Shamir secret sharing across trusted contacts. But what
 |---|---|---|
 | **Shamir reconstruction** | K-of-N trusted contacts still have their shares | Full key recovery — all credentials, trust, history preserved |
 | **Mnemonic recovery** | Written-down 12-word mnemonic | Full key recovery |
-| **Professional re-verification** | Visit a professional with documents | New keypair, fresh credentials. Old trust score lost. Nullifier links old and new identities. |
+| **Professional re-verification** | Visit a professional with documents | New keypair, fresh credentials. Old Signet IQ lost. Nullifier links old and new identities. |
 | **Community re-vouching** | Existing contacts vouch for new keypair | Tier 2 on new keypair quickly, with same social connections |
 
 **For the "down and out" scenario:** If they never set up Shamir backup and lost their mnemonic, the path is: new keypair → Tier 1 → community vouches → Tier 2 → professional verification when documents available → Tier 3. Their old identity exists as an orphan (no one can sign with it), and the nullifier prevents someone else from claiming their documents.

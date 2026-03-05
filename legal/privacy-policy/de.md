@@ -51,7 +51,7 @@ Das Signet-Protokoll ist so konzipiert, dass die Datenerhebung minimiert wird. D
 | **Bürgschaftsaufzeichnungen** | Ereignisse des Typs 30471 für Vertrauensnetzwerk-Befürwortungen | Von bürgenden Parteien erstellt | Nostr-Relais (dezentral) |
 | **Richtlinienereignisse** | Ereignisse des Typs 30472 mit Anforderungen der vertrauenden Parteien | Von vertrauenden Parteien erstellt | Nostr-Relais (dezentral) |
 | **Verifizierer-Registrierung** | Ereignisse des Typs 30473 zur Identifizierung professioneller Verifizierer | Von Verifizierern erstellt | Nostr-Relais (dezentral) |
-| **Herausforderungs-/Antwortdaten** | Ereignisse des Typs 30474 für interaktive Verifizierung | Bei der Verifizierung generiert | Nostr-Relais (dezentral) |
+| **Herausforderungs-/Antwortdaten** | Ereignisse des Typs 30474 für Herausforderungen zur Legitimität von Verifizierern | Bei der Verifizierung generiert | Nostr-Relais (dezentral) |
 | **Widerrufsaufzeichnungen** | Ereignisse des Typs 30475 für den Widerruf von Berechtigungsnachweisen | Bei Widerruf erstellt | Nostr-Relais (dezentral) |
 
 ### 3.2 Daten, die wir NICHT Erheben
@@ -125,7 +125,7 @@ Die Verarbeitung entspricht dem DPDP-Gesetz, einschließlich Einwilligung oder b
 Daten, die über das Signet-Protokoll verarbeitet werden, werden ausschließlich verwendet für:
 
 1. **Ausstellung und Überprüfung von Berechtigungsnachweisen** — Nutzern die Erstellung, Vorlage und Überprüfung von Berechtigungsnachweisen über die vier Verifizierungsstufen hinweg ermöglichen.
-2. **Berechnung der Vertrauensbewertung** — Berechnung von Vertrauensbewertungen basierend auf Bürgschaften, Berechtigungsstufen und Verifizierungshistorie.
+2. **Berechnung des Signet IQ** — Berechnung von Signet IQ basierend auf Bürgschaften, Berechtigungsstufen und Verifizierungshistorie.
 3. **Altersbereichsverifikation** — Verwendung von Bulletproofs zum Nachweis, dass ein Nutzer in einem Altersbereich liegt, ohne sein genaues Alter preiszugeben.
 4. **Professionelle Verifikation** — Lizenzierten Fachleuten (Anwälten, Notaren, Medizinern) die Tätigkeit als Verifizierer ermöglichen.
 5. **Widerruf von Berechtigungsnachweisen** — Verarbeitung von Widerrufsereignissen.
@@ -342,9 +342,9 @@ Das Signet-Protokoll verwendet **keine** Cookies, Web-Beacons, Browser-Fingerpri
 
 ## 13. Automatisierte Entscheidungsfindung und Profiling
 
-### 13.1 Berechnung der Vertrauensbewertung
+### 13.1 Berechnung des Signet IQ
 
-Das Protokoll berechnet Vertrauensbewertungen basierend auf Verifizierungsstufe, Bürgschaften, Verifizierer-Qualifikationen und Berechtigungshistorie. Diese stellen keine automatisierte Entscheidungsfindung mit rechtlichen Auswirkungen gemäß Art. 22 DSGVO dar.
+Das Protokoll berechnet den Signet IQ basierend auf Verifizierungsstufe, Bürgschaften, Verifizierer-Qualifikationen und Berechtigungshistorie. Dieser stellt keine automatisierte Entscheidungsfindung mit rechtlichen Auswirkungen gemäß Art. 22 DSGVO dar.
 
 ### 13.2 Kein Profiling zu Marketingzwecken
 

@@ -4,7 +4,7 @@
 
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex, hexToBytes, utf8ToBytes, concatBytes } from '@noble/hashes/utils';
+import { bytesToHex, utf8ToBytes, concatBytes } from '@noble/hashes/utils';
 
 const Point = secp256k1.ProjectivePoint;
 const N = secp256k1.CURVE.n;

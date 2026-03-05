@@ -5,16 +5,9 @@ import { SIGNET_KINDS } from './constants.js';
 import { getTagValue } from './validation.js';
 import type {
   NostrEvent,
-  SignetTier,
   ParsedCredential,
-  ParsedVouch,
-  ParsedPolicy,
-  ParsedVerifier,
 } from './types.js';
 import { parseCredential } from './credentials.js';
-import { parseVouch } from './vouches.js';
-import { parsePolicy } from './policies.js';
-import { parseVerifier } from './verifiers.js';
 
 /** Query options for filtering events */
 export interface StoreQuery {
@@ -44,7 +37,6 @@ export class SignetStore {
     // Check if this is a replaceable event (kind 30000-39999)
     if (event.kind >= 30000 && event.kind < 40000) {
       const dTag = getTagValue(event, 'd');
-      const replaceKey = `${event.kind}:${event.pubkey}:${dTag ?? ''}`;
 
       // Find existing event with same replace key
       for (const [id, existing] of this.events) {

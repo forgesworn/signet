@@ -97,7 +97,7 @@ The Protocol supports the following standard age range proofs:
 ### 5.3 Proof Issuance for Children
 
 For children (under 18):
-1. The age range proof must be created as part of a Tier 4 verification (or, at minimum, with parental/guardian involvement at Tier 2+).
+1. The age range proof must be created as part of a Tier 4 verification.
 2. A licensed professional verifier must confirm the child's age against a valid identity document.
 3. The parent/guardian must be present (in person or through a legally equivalent process) and must provide verifiable consent.
 4. The professional issues two credentials: a Natural Person credential (keypair A) and a Persona credential (keypair B). Both carry the age-range proof and guardian tags (`["guardian", "<parent_pubkey>"]`). The child's real name is stored only as a private Merkle leaf — never published on-chain.
@@ -208,7 +208,7 @@ The following uses of the Protocol in relation to children are **strictly prohib
 4. **Data Monetisation:** Selling, licensing, or otherwise monetising children's credential data or age verification data.
 5. **Automated Decision-Making:** Using children's credential data for automated decisions that produce legal or similarly significant effects.
 6. **Surveillance:** Using the Protocol for ongoing surveillance of children's activities.
-7. **Social Scoring:** Using credential or trust score data to create social scoring systems for children.
+7. **Social Scoring:** Using credential or Signet IQ data to create social scoring systems for children.
 8. **Nudging:** Using design patterns that exploit children's vulnerabilities or manipulate their behaviour.
 9. **Unnecessary Data Collection:** Collecting more data from children than is strictly necessary for the credential verification.
 10. **Sharing Without Consent:** Sharing children's data with third parties without verifiable parental consent.

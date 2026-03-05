@@ -1,5 +1,5 @@
 // Signet Protocol Types
-// All TypeScript interfaces for the 8 core Nostr event kinds, voting extension kinds, and supporting structures
+// All TypeScript interfaces for the 11 Nostr event kinds (8 core + 3 voting extension) and supporting structures
 
 /** Verification tier levels */
 export type SignetTier = 1 | 2 | 3 | 4;
@@ -137,7 +137,7 @@ export interface RevocationParams {
   summary: string;
 }
 
-// --- Trust Score ---
+// --- Signet IQ ---
 
 export interface TrustSignal {
   type: 'professional-verification' | 'in-person-vouch' | 'online-vouch' | 'account-age' | 'identity-bridge';

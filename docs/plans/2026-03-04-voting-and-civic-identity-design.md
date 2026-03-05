@@ -49,27 +49,30 @@ The pragmatic path: start with organisational/community voting. Get it bulletpro
 - Verification tier sets the eligibility floor
 - Community/organisation membership verified via existing vouch/credential events
 
-**Ballot secrecy** — blind signatures:
-1. Voter proves eligibility to an election authority
-2. Authority blind-signs a ballot token — cannot see the vote content, but confirms the voter is eligible and hasn't already received a token
-3. Voter submits the blind-signed ballot anonymously
-4. Anyone can verify: all ballots carry valid blind signatures, tally is correct, no ballot is double-counted
+**Ballot secrecy** — ~~blind signatures~~ **linkable ring signatures** (see architecture note at top):
 
-**One-person-one-vote** — the blind signing authority tracks "has this pubkey received a ballot token for this election?" without knowing what's on the ballot.
+> **Superseded:** The original design below proposed blind signatures. The final implementation uses linkable ring signatures instead — voters sign ballots using a ring of eligible pubkeys, proving membership without revealing identity. Link tags detect double-voting without a central authority. See `spec/voting.md` for the implemented design.
+
+~~1. Voter proves eligibility to an election authority~~
+~~2. Authority blind-signs a ballot token — cannot see the vote content, but confirms the voter is eligible and hasn't already received a token~~
+~~3. Voter submits the blind-signed ballot anonymously~~
+~~4. Anyone can verify: all ballots carry valid blind signatures, tally is correct, no ballot is double-counted~~
+
+**One-person-one-vote** — ~~the blind signing authority tracks "has this pubkey received a ballot token for this election?" without knowing what's on the ballot.~~ linkable ring signatures produce a deterministic link tag per election; duplicate link tags reveal double-voting without revealing the voter.
 
 **Coercion resistance** — re-voting (last vote counts):
 - Voter receives a coerced instruction: "vote X while I watch"
 - Voter complies, submits ballot for X
-- Later, from a safe context, voter re-submits with a new blind-signed token for Y
-- Protocol rule: most recent valid ballot from a given token replaces all previous ones
+- Later, from a safe context, voter re-submits with a new ballot for Y
+- Protocol rule: most recent valid ballot with a given link tag replaces all previous ones
 - Coercer cannot determine whether the voter re-voted
 
 This is not full JCJ-level coercion resistance, but it is practical, simple to implement, and sufficient for organisational/community elections. Full coercion resistance (fake credentials, deniable encryption) can be layered on later for national-scale elections.
 
 **Verifiable tallying:**
-- All blind-signed ballots are published (on Nostr relays)
+- All ring-signed ballots are published (on Nostr relays)
 - Anyone can count them and verify the tally
-- No ballot can be linked to a voter (blind signature breaks the link)
+- No ballot can be linked to a voter (ring signature hides identity within the eligible set)
 - Election authority cannot manipulate results without detection
 
 ### 2.4 Proposed Event Kinds
@@ -277,7 +280,7 @@ The protocol MUST ensure that no single entity — including a nation-state — 
 - Entity type classification (already in spec §17) — needed for voter eligibility
 - Identity bridge (already in spec §16) — needed for anonymous but verified voting
 - Credential revocation (already in spec, Kind 30475) — needed for warrant status
-- Trust score (already in spec §4) — could determine voting eligibility
+- Signet IQ (already in spec §4) — could determine voting eligibility
 - Adversarial resilience principles (§4.2-4.3 above) — should be in core spec as a design philosophy section
 
 ### 5.2 What Could Be a Separate Extension

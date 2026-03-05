@@ -1,5 +1,5 @@
 // Signet Protocol — Full Flow Example
-// Demonstrates all 4 tiers, trust score, policy enforcement, and verifier lifecycle
+// Demonstrates all 4 tiers, Signet IQ, policy enforcement, and verifier lifecycle
 
 import {
   generateKeyPair,
@@ -13,7 +13,7 @@ import {
   // Vouches
   createVouch,
   hasEnoughVouches,
-  // Trust Score
+  // Signet IQ
   computeTrustScore,
   formatTrustDisplay,
   // Policies
@@ -162,8 +162,8 @@ async function main() {
   console.log(`Emma Tier 4: sig=${tier4Result.signatureValid}, valid=${tier4Result.structureValid}`);
   console.log(`  Scope: ${parsed4.scope}, Age range: ${parsed4.ageRange}\n`);
 
-  // --- 6. Trust Score ---
-  console.log('--- Trust Score ---');
+  // --- 6. Signet IQ ---
+  console.log('--- Signet IQ ---');
 
   const oneYearAgo = Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
   const aliceScore = computeTrustScore(

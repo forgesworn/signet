@@ -159,7 +159,7 @@ describe('trust-score', () => {
       const display = formatTrustDisplay(breakdown);
 
       expect(display).toContain('Tier 3');
-      expect(display).toContain('Professional');
+      expect(display).toContain('Verified');
       expect(display).toContain('Prof verified');
     });
   });

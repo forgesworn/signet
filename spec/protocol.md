@@ -196,7 +196,7 @@ Clients MUST respect this ordering. A single professional verification always ou
 
 ```
 ┌───────────────────────────────────┐
-│  Alice ✓✓✓              Tier 3   │
+│  Alice ✓✓               Tier 3   │
 │  Signet IQ: 106                   │
 │                                   │
 │  ● Prof verified (lawyer)         │
@@ -616,11 +616,11 @@ A replaceable event published by an anonymous account to prove it is controlled 
 4. Verify the ring signature (one of the ring members signed the binding message).
 5. Verify ring size >= 5 (anonymity threshold).
 
-**Trust score contribution:**
+**Signet IQ contribution:**
 
-- Base weight: 25 points (between professional verification and in-person vouch).
-- Scaled by ring minimum tier: `weight = 25 × (ringMinTier / 4)`.
-- Tier 3 ring → 18.75 points. Tier 4 ring → 25 points.
+- Base weight: 50 points (between professional verification and in-person vouch).
+- Scaled by ring minimum tier: `weight = 50 × (ringMinTier / 4)`.
+- Tier 3 ring → 37.5 points. Tier 4 ring → 50 points.
 - Only one bridge per account is counted.
 
 **Trust compounding:** When bridged anonymous accounts vouch for each other, each vouch is weighted by the voucher's score (which includes bridge points). This creates natural trust compounding without a special mechanism.
@@ -660,7 +660,7 @@ Layer 1: Schnorr — the base (zero new dependencies)
 ├─ MuSig2 for multi-verifier co-signing
 │   Multiple professionals co-sign → single aggregated Schnorr sig.
 │
-└─ Trust score computation
+└─ Signet IQ computation
     Pure client-side math. Count vouches, weight by voucher score.
     No crypto needed.
 
@@ -755,7 +755,7 @@ A verified creator can prove they're real without revealing their legal name. Co
 | ✓ | Web-of-trust vouched (Tier 2) |
 | ✓✓ | Professional verified, adult (Tier 3) |
 | ✓✓✓ | Professional verified, adult + child (Tier 4) |
-| Score % | Continuous reputation visible on drill-down |
+| Signet IQ | Continuous reputation (0–200) visible on drill-down |
 
 ---
 
@@ -1181,7 +1181,7 @@ Entity type is defined by the cryptographic linkage that connects an account to 
 The existing credential event (kind 30470) gains a new tag:
 
 ```jsonc
-["entity_type", "<type_code>"]
+["entity-type", "<type_code>"]
 ```
 
 Where `<type_code>` is one of: `natural_person`, `persona`, `personal_agent`, `free_personal_agent`, `juridical_person`, `juridical_persona`, `organised_agent`, `free_organised_agent`, `free_agent`.
@@ -1199,7 +1199,7 @@ A replaceable event published by an account owner to delegate authority to an ag
   "tags": [
     ["d", "<unique_delegation_id>"],
     ["p", "<agent_pubkey>"],              // the bot/agent being delegated
-    ["entity_type", "<agent_type>"],      // personal_agent, free_personal_agent,
+    ["entity-type", "<agent_type>"],      // personal_agent, free_personal_agent,
                                           // organised_agent, free_organised_agent
     ["expires", "<unix_timestamp>"],      // optional: delegation expiry
     ["L", "signet"],

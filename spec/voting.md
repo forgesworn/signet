@@ -14,7 +14,7 @@
 
 This specification defines a voting extension for the Signet protocol. It enables cryptographically secure elections at organisational, community, and national scale, using linkable ring signatures for ballot secrecy and one-person-one-vote enforcement.
 
-The extension depends on the Signet protocol for identity verification (credential tiers, entity types, trust scores) and adds three new Nostr event kinds: Election Definition (30478), Ballot (30479), and Election Result (30480).
+The extension depends on the Signet protocol for identity verification (credential tiers, entity types, Signet IQ) and adds three new Nostr event kinds: Election Definition (30478), Ballot (30479), and Election Result (30480).
 
 Ballot secrecy is achieved through linkable ring signatures — voters prove membership in an eligible set without revealing which member they are, while key images prevent double voting. Encrypted ballots ensure vote content remains secret until tallying.
 

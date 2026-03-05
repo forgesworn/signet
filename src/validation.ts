@@ -2,7 +2,7 @@
 // Validates structure and required fields for all 6 event kinds
 
 import { SIGNET_KINDS, SIGNET_LABEL } from './constants.js';
-import type { NostrEvent, SignetTier, VerificationType, VerificationScope } from './types.js';
+import type { NostrEvent, SignetTier } from './types.js';
 
 export interface ValidationResult {
   valid: boolean;

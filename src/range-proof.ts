@@ -188,7 +188,6 @@ function proveBit(bit: 0 | 1, blinding: bigint, commitmentPoint: ProjectivePoint
     // Real branch: C - G = r*H, prove knowledge of r
     // Fake branch: C = r'*H (simulate)
     const k = randomScalar();
-    const CminusG = C.add(G.negate());
     const R1 = safeMultiply(H, k); // real commitment
 
     // Simulate branch 0

@@ -7,7 +7,7 @@ Signet is an open protocol that enables users to prove claims about their identi
 ## What It Does
 
 - **4 verification tiers**: self-declared → web-of-trust → professional adult → professional adult+child
-- **Continuous trust score** (0-100%): weighted by professional verification > in-person vouches > online vouches > account age
+- **Signet IQ** (0-200, where 100 = government standard): weighted by professional verification > in-person vouches > online vouches > account age
 - **Verifier anti-corruption**: 6 layers of accountability for professional verifiers
 - **ZKP age proofs**: prove "child aged 8-12" without revealing exact date of birth
 - **Blue checkmarks for Nostr**: decentralised, cryptographic social proof for everyone
@@ -33,6 +33,11 @@ The full specification is at [`spec/protocol.md`](spec/protocol.md).
 | 30473 | Verifier Credential | Professional declares verifier status |
 | 30474 | Verifier Challenge | Challenge a verifier's legitimacy |
 | 30475 | Verifier Revocation | Community confirms challenge, revokes verifier |
+| 30476 | Identity Bridge | Link two keypairs via ring signature |
+| 30477 | Delegation | Guardian or agent delegation with scoped permission |
+| 30478 | Election | Voting extension: define an election |
+| 30479 | Ballot | Voting extension: cast an anonymous ballot |
+| 30480 | Election Result | Voting extension: publish tallied result |
 
 ### Crypto Stack
 
@@ -50,13 +55,18 @@ Layer 3: General-purpose ZK (future, if needed)
 
 ## Status
 
-**Draft v0.1.0** — spec complete, seeking community feedback. No implementation yet.
+**v0.1.0** — spec complete, TypeScript library implemented, reference apps functional. Seeking community feedback.
 
 Kind numbers are placeholders pending NIP allocation.
 
-## Reference Implementation
+## Implementation
 
-The first reference implementation is being built within [Fathom](https://github.com/decented/decented), a sovereign learning and family management app on Nostr.
+This repo includes:
+- `src/` — TypeScript protocol library (`signet-protocol` on npm)
+- `app/` — Reference web app (React + Vite) — full protocol demonstration
+- `family-app/` — My Signet family app (React + Vite) — production-ready, normie-friendly
+
+[Fathom](https://github.com/decented/decented) is the first external reference implementation, a sovereign learning and family management app on Nostr.
 
 ## Regulatory Compatibility
 

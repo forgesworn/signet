@@ -1216,11 +1216,11 @@ export function TrustBar({ score, label }: Props) {
       {label && (
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{label}</span>
-          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{score}%</span>
+          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{score}</span>
         </div>
       )}
       <div className="trust-bar">
-        <div className="trust-bar-fill" style={{ width: `${Math.min(score, 100)}%`, background: color }} />
+        <div className="trust-bar-fill" style={{ width: `${Math.min((score / 200) * 100, 100)}%`, background: color }} />
       </div>
     </div>
   );
@@ -1678,7 +1678,7 @@ export function Home({ identity, familyCount }: Props) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Simple trust score: family members verified = basic trust
+  // Simple Signet IQ: family members verified = basic trust
   const trustScore = Math.min(familyCount * 10 + 10, 100);
 
   return (

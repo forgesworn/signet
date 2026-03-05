@@ -51,7 +51,7 @@ El Protocolo Signet está diseñado para minimizar la recopilación de datos. De
 | **Registros de Avales** | Eventos tipo 30471 que representan respaldos de la red de confianza | Creados por las partes que avalan | Relés de Nostr (descentralizado) |
 | **Eventos de Política** | Eventos tipo 30472 que especifican requisitos de las partes que confían | Creados por las partes que confían | Relés de Nostr (descentralizado) |
 | **Registro de Verificadores** | Eventos tipo 30473 que identifican a los verificadores profesionales | Creados por los verificadores | Relés de Nostr (descentralizado) |
-| **Datos de Desafío/Respuesta** | Eventos tipo 30474 para verificación interactiva | Generados durante la verificación | Relés de Nostr (descentralizado) |
+| **Datos de Desafío/Respuesta** | Eventos tipo 30474 para desafíos de legitimidad de verificadores | Generados durante la verificación | Relés de Nostr (descentralizado) |
 | **Registros de Revocación** | Eventos tipo 30475 para revocación de credenciales | Creados cuando se revocan credenciales | Relés de Nostr (descentralizado) |
 
 ### 3.2 Datos que NO Recopilamos
@@ -143,7 +143,7 @@ El tratamiento cumple con la Ley DPDP, incluyendo:
 Los datos procesados a través del Protocolo Signet se utilizan exclusivamente para:
 
 1. **Emisión y Verificación de Credenciales** — Permitir a los usuarios crear, presentar y verificar credenciales en los cuatro niveles de verificación.
-2. **Cálculo de Puntuación de Confianza** — Calcular puntuaciones de confianza basadas en avales de la red de confianza, niveles de credenciales e historial de verificación.
+2. **Cálculo del Signet IQ** — Calcular el Signet IQ basado en avales de la red de confianza, niveles de credenciales e historial de verificación.
 3. **Verificación de Rango de Edad** — Usar Bulletproofs para demostrar que un usuario se encuentra dentro de un rango de edad sin revelar su edad exacta.
 4. **Verificación Profesional** — Permitir a profesionales con licencia (abogados, notarios, profesionales médicos) actuar como verificadores.
 5. **Revocación de Credenciales** — Procesar eventos de revocación cuando las credenciales son invalidadas.
@@ -428,15 +428,15 @@ Si los servicios auxiliares (como un sitio web de documentación) utilizan cooki
 
 ## 13. Toma de Decisiones Automatizada y Elaboración de Perfiles
 
-### 13.1 Cálculo de Puntuación de Confianza
+### 13.1 Cálculo del Signet IQ
 
-El Protocolo calcula puntuaciones de confianza basadas en:
+El Protocolo calcula el Signet IQ basado en:
 - Nivel de verificación (1–4)
 - Número y calidad de los avales
 - Credenciales y reputación del verificador
 - Antigüedad e historial de las credenciales
 
-Estas puntuaciones de confianza se calculan algorítmicamente y son visibles para las partes que confían. No constituyen toma de decisiones automatizada con efectos legales según el Art. 22 del RGPD, ya que son una entrada entre muchas que las partes que confían pueden considerar.
+El Signet IQ se calcula algorítmicamente y es visible para las partes que confían. No constituye toma de decisiones automatizada con efectos legales según el Art. 22 del RGPD, ya que es una entrada entre muchas que las partes que confían pueden considerar.
 
 ### 13.2 Sin Elaboración de Perfiles para Marketing
 

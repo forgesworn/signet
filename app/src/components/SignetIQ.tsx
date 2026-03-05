@@ -1,5 +1,9 @@
-interface TrustScoreProps {
-  score: number; // 0-200 (Signet IQ)
+import type { TrustScoreBreakdown } from 'signet-protocol';
+
+const TIER_LABELS = ['', 'Self-declared', 'Web-of-trust', 'Verified', 'Verified (Child Safety)'];
+
+interface SignetIQProps {
+  breakdown: TrustScoreBreakdown;
   showBreakdown?: boolean;
 }
 
@@ -9,9 +13,17 @@ function getScoreColor(score: number): string {
   return 'var(--accent)';
 }
 
-export function TrustScore({ score, showBreakdown = false }: TrustScoreProps) {
-  const clampedScore = Math.max(0, Math.min(200, score));
+function formatAge(days: number): string {
+  if (days < 1) return 'New';
+  if (days < 30) return `${days}d`;
+  if (days < 365) return `${Math.floor(days / 30)}mo`;
+  return `${(days / 365).toFixed(1)}y`;
+}
+
+export function SignetIQ({ breakdown, showBreakdown = false }: SignetIQProps) {
+  const clampedScore = Math.max(0, Math.min(200, breakdown.score));
   const barColor = getScoreColor(clampedScore);
+  const vouchCount = breakdown.inPersonVouches + breakdown.onlineVouches;
 
   return (
     <div style={{ width: '100%' }}>
@@ -82,16 +94,22 @@ export function TrustScore({ score, showBreakdown = false }: TrustScoreProps) {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>Verification tier</span>
-            <span style={{ color: 'var(--text-muted)' }}>--</span>
+            <span style={{ color: 'var(--text-muted)' }}>
+              {TIER_LABELS[breakdown.tier] || `Tier ${breakdown.tier}`}
+            </span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>Vouches received</span>
-            <span style={{ color: 'var(--text-muted)' }}>0</span>
+            <span style={{ color: 'var(--text-muted)' }}>{vouchCount}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Connection age</span>
-            <span style={{ color: 'var(--text-muted)' }}>--</span>
-          </div>
+          {breakdown.accountAgeDays > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Account age</span>
+              <span style={{ color: 'var(--text-muted)' }}>
+                {formatAge(breakdown.accountAgeDays)}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

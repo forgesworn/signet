@@ -6,8 +6,6 @@ import {
   getJurisdiction,
   canTransferData,
   isProfessionRegulated,
-  getDigitalConsentAge,
-  getAgeOfMajority,
   type Jurisdiction,
   type ProfessionType,
 } from './jurisdictions.js';

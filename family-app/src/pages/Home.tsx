@@ -25,7 +25,9 @@ export function Home({ identity, familyCount }: Props) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Simple trust score: family members verified = basic trust
+  // Simplified local-only Signet IQ for the family app.
+  // The full protocol uses computeTrustScore() with credentials, vouches, and bridges.
+  // This app is offline-first with no relay, so we approximate from local family count.
   const trustScore = Math.min(familyCount * 10 + 10, 200);
 
   return (

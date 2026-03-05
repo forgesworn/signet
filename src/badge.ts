@@ -32,7 +32,7 @@ export type TrustLevel = 'unverified' | 'self-declared' | 'vouched' | 'professio
 
 const TIER_LABELS: Record<SignetTier, string> = {
   1: 'Self-declared',
-  2: 'Vouched',
+  2: 'Web-of-trust',
   3: 'Verified',
   4: 'Verified (Child Safety)',
 };

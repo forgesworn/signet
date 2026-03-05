@@ -701,13 +701,13 @@ Displays:
 - Public key (truncated, tap to copy to clipboard)
 - QR code of pubkey (using `qrcode` library to render to canvas)
 - Tier badge
-- Trust score bar (expandable breakdown)
+- Signet IQ bar (expandable breakdown)
 
 `QRCode` component: takes a `data` string prop, renders a QR code to a canvas element using the `qrcode` library.
 
 `TierBadge` component: takes a `tier` (1-4), renders the checkmark display (none / ✓ / ✓✓ / ✓✓✓).
 
-`TrustScore` component: takes a score (0-100), renders a horizontal bar with percentage.
+`TrustScore` component: takes a Signet IQ (0-200), renders a horizontal bar.
 
 **Step 1: Build QRCode, TierBadge, TrustScore components**
 **Step 2: Build Home page**

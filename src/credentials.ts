@@ -5,7 +5,7 @@ import { SIGNET_KINDS, SIGNET_LABEL, DEFAULT_CREDENTIAL_EXPIRY_SECONDS } from '.
 import { signEvent, verifyEvent, getPublicKey, hashString } from './crypto.js';
 import { validateCredential, getTagValue, getTagValues } from './validation.js';
 import { ringSign, ringVerify, type RingSignature } from './ring-signature.js';
-import { createAgeRangeProof, verifyAgeRangeProof, serializeRangeProof, deserializeRangeProof, type RangeProof } from './range-proof.js';
+import { createAgeRangeProof, verifyAgeRangeProof, type RangeProof } from './range-proof.js';
 import type {
   NostrEvent,
   UnsignedEvent,

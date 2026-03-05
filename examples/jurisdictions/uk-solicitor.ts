@@ -154,8 +154,8 @@ async function main() {
   }
   console.log();
 
-  // --- 7. Trust score display ---
-  console.log('--- Trust Score ---');
+  // --- 7. Signet IQ display ---
+  console.log('--- Signet IQ ---');
   const trustScore = computeTrustScore(
     subject.publicKey,
     [credential],

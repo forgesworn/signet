@@ -61,7 +61,7 @@ export function parseVouch(event: NostrEvent): ParsedVouch | null {
     method: (getTagValue(event, 'method') || 'online') as VouchMethod,
     context: getTagValue(event, 'context'),
     voucherTier: (tier ? parseInt(tier) : 1) as SignetTier,
-    voucherScore: score ? parseInt(score) : 0,
+    voucherScore: score ? parseInt(score) : 50,
   };
 }
 

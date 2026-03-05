@@ -64,9 +64,9 @@ The Processor processes Personal Data on behalf of the Controller in connection 
 |---------------------|---------|
 | Credential issuance support | Facilitating the creation and signing of Signet credentials (kind 30470) |
 | Verification processing | Supporting identity verification processes across Tiers 1–4 |
-| Trust score computation | Computing and updating trust scores based on vouches and credentials |
+| Signet IQ computation | Computing and updating Signet IQ scores based on vouches and credentials |
 | Revocation processing | Processing and propagating credential revocations (kind 30475) |
-| Challenge/response facilitation | Supporting interactive verification challenges (kind 30474) |
+| Challenge/response facilitation | Processing verifier legitimacy challenges (kind 30474) |
 | Audit and compliance | Maintaining logs and records for regulatory compliance |
 
 ### 2.3 Categories of Data Subjects
@@ -81,9 +81,9 @@ The Processor processes Personal Data on behalf of the Controller in connection 
 - Nostr public keys (npub / secp256k1 public keys)
 - Credential metadata (tier level, issuance date, expiry date, credential type)
 - Zero-knowledge proof outputs (Bulletproofs, ring signatures)
-- Verification event data (kinds 30470–30475)
+- Verification event data (kinds 30470–30477)
 - Verifier registration data (professional credentials, jurisdiction)
-- Trust scores and vouch records
+- Signet IQ scores and vouch records
 - Timestamps and event identifiers
 
 ### 2.5 Duration of Processing
@@ -484,7 +484,7 @@ If any provision of this DPA is found to be invalid or unenforceable, the remain
 | **Nature of processing** | Credential issuance, verification, trust computation, revocation processing, audit logging |
 | **Purpose of processing** | Enabling decentralised identity verification using zero-knowledge proofs and tiered trust |
 | **Categories of Data Subjects** | Protocol users, professional verifiers, vouching parties, relying parties |
-| **Types of Personal Data** | Nostr public keys, credential metadata, ZK proof outputs, verification events, trust scores, timestamps |
+| **Types of Personal Data** | Nostr public keys, credential metadata, ZK proof outputs, verification events, Signet IQ scores, timestamps |
 | **Sensitive data (if any)** | Age range data (processed via ZK proofs only), professional credentials of verifiers |
 | **Frequency of transfers** | Continuous, as Protocol events are published |
 | **Retention period** | Active credentials until expiry/revocation; audit logs for 3 years; legal compliance records as required by law |

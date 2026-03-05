@@ -170,8 +170,8 @@ async function main() {
   console.log(`Regulamento: ${retention.regulation}`);
   console.log();
 
-  // --- 8. Trust score (Portuguese output) ---
-  console.log(`--- ${t('msg_trust_score')} ---`);
+  // --- 8. Signet IQ (Portuguese output) ---
+  console.log(`--- ${t('msg_signet_iq')} ---`);
   const trustScore = computeTrustScore(
     subject.publicKey,
     [credential],

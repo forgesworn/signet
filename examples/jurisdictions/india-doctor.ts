@@ -185,9 +185,9 @@ async function main() {
   console.log(`Data categories: ${consent.dataCategories.join(', ')}`);
   console.log();
 
-  // --- 8. Trust score (bilingual) ---
+  // --- 8. Signet IQ (bilingual) ---
   setLanguage('en');
-  console.log(`--- [English] ${t('msg_trust_score')} ---`);
+  console.log(`--- [English] ${t('msg_signet_iq')} ---`);
   const trustScore = computeTrustScore(
     patient.publicKey,
     [credential],
@@ -198,7 +198,7 @@ async function main() {
   console.log();
 
   setLanguage('hi');
-  console.log(`--- [Hindi] ${t('msg_trust_score')} ---`);
+  console.log(`--- [Hindi] ${t('msg_signet_iq')} ---`);
   console.log(formatLocalizedTrustScore(trustScore.score));
 
   console.log('\n=== Indian Doctor Example Complete ===');
