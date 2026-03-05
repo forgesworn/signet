@@ -15,6 +15,7 @@ import { Verifier } from './pages/Verifier';
 import { Settings } from './pages/Settings';
 import { LinkAccounts } from './pages/LinkAccounts';
 import { GuardianControls } from './pages/GuardianControls';
+import { Follow } from './pages/Follow';
 import { saveIdentity, type StoredIdentity, type StoredConnection } from './lib/db';
 
 export function App() {
@@ -197,6 +198,7 @@ export function App() {
           <Connections
             connections={connections}
             onSelectContact={handleSelectContact}
+            onFollow={() => setActivePage('follow')}
           />
         );
       case 'scan':
@@ -204,6 +206,7 @@ export function App() {
           <Scan
             identity={identity!}
             onConnect={handleConnect}
+            relayUrl={preferences.relayUrl}
           />
         );
       case 'backup':
@@ -246,6 +249,15 @@ export function App() {
             identity={identity!}
             identities={identities}
             onBack={() => handleNavigate('home')}
+          />
+        );
+      case 'follow':
+        return (
+          <Follow
+            identity={activeIdentity!}
+            onConnect={addConnection}
+            onBack={() => setActivePage('connections')}
+            relayUrl={preferences.relayUrl}
           />
         );
       default:
