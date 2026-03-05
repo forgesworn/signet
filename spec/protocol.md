@@ -46,6 +46,8 @@ Any Nostr client can implement Signet. Any community can set verification polici
 21. [Credential Lifecycle](#21-credential-lifecycle)
 22. [Child Online Safety](#22-child-online-safety)
 23. [Inclusivity](#23-inclusivity)
+24. [Jurisdiction Confidence](#24-jurisdiction-confidence)
+25. [Implementation Levels](#25-implementation-levels)
 
 ---
 
@@ -1536,15 +1538,44 @@ When a verifier encounters a nullifier that already exists on a relay, this indi
 1. The same person is getting re-verified (legitimate — supersede the old credential)
 2. Two different people presented the same document (fraud — flag for investigation)
 
-### 20.8 Nullifier Weaknesses and Mitigations
+### 20.8 Multi-Document Nullifier Families
+
+When a subject presents multiple identity documents during a verification ceremony (e.g., passport AND driving licence AND national ID), the verifier SHOULD compute nullifiers for ALL documents, not just the primary. These form a **nullifier family** — a set of nullifiers that all belong to the same person.
+
+```
+nullifier_passport   = SHA-256("passport||GB||123456789||signet-uniqueness-v1")
+nullifier_licence    = SHA-256("driving_licence||GB||SMITH901150J99XX||signet-uniqueness-v1")
+nullifier_national_id = SHA-256("national_id||GB||AB123456C||signet-uniqueness-v1")
+```
+
+The credential event includes:
+- `["nullifier", "<primary_nullifier>"]` — the primary nullifier (backwards compatible)
+- `["nullifier-family", "<nullifier>", "<document_type>"]` — one tag per document in the family
+
+**Collision detection:** When checking for duplicates, clients and relays MUST check ALL nullifiers in the incoming family against ALL nullifiers (both `nullifier` and `nullifier-family` tags) in existing credentials. A collision with ANY nullifier in ANY family indicates the same person has been verified before.
+
+This significantly strengthens duplicate prevention: a person cannot circumvent the system by presenting a different document to a different verifier, because both documents' nullifiers are recorded and cross-checked.
+
+### 20.9 Nullifier Weaknesses and Mitigations
 
 | Weakness | Mitigation |
 |----------|------------|
 | Document shared between family members | Nullifier collision detected; professional investigates |
 | Document number guessable (sequential) | Hash includes document type + country; brute-force requires knowing all three components |
-| Multiple documents (passport + national ID) | Each document type produces a different nullifier; cross-reference is a client-level concern |
+| Multiple documents (passport + national ID) | Multi-document nullifier families (§20.8) — each document produces a nullifier, all are cross-checked |
 | Country changes document format | Salt version ("signet-uniqueness-v1") allows migration to new formula |
 | Verifier collusion (issue without real document) | Anti-corruption framework (§7) applies; nullifier without document is detectable via anomaly patterns |
+| eIDAS wallet credentials | When available, the eIDAS unique person identifier can serve as an additional nullifier source for EU citizens (§20.10) |
+
+### 20.10 eIDAS 2.0 Bridge (Future)
+
+EU eIDAS 2.0 mandates unique person identifiers for ~450M EU citizens by December 2026. When a subject presents an eIDAS wallet credential during a Signet verification ceremony, the verifier MAY use the eIDAS unique person identifier as an additional nullifier source:
+
+```
+nullifier_eidas = SHA-256("eidas||" || eidas_unique_id || "||signet-uniqueness-v1")
+```
+
+This provides a de facto perfect nullifier for EU citizens, as the eIDAS identifier is government-issued, unique, and machine-verifiable. The eIDAS nullifier is included in the nullifier family alongside document-based nullifiers.
 
 ---
 
@@ -1774,5 +1805,81 @@ Communities choose their own verification thresholds. A community for casual con
 This is not gatekeeping — it is informed choice. Each community publishes its policy (kind 30472). Users can see what is required before joining. No central authority decides who can participate where.
 
 The goal is that every person, regardless of documentation status, has a path to meaningful participation — while communities retain the right to set appropriate safety standards for their members.
+
+---
+
+## 24. Jurisdiction Confidence
+
+### 24.1 Overview
+
+Not all jurisdictions provide equal assurance for professional verification. A credential issued by a verifier in a jurisdiction with strong professional regulation, public registries, and digital credential infrastructure carries more weight than one from a jurisdiction with weaker oversight.
+
+### 24.2 Confidence Scoring
+
+The jurisdiction confidence score (0-100) is computed from:
+
+| Factor | Max Points | Description |
+|--------|-----------|-------------|
+| Professional body coverage | 20 | Number of regulated professions (1pt per body, capped at 20) |
+| Public register availability | 20 | Proportion of bodies with queryable public registers |
+| Digital credential issuance | 15 | Proportion of bodies issuing machine-verifiable credentials |
+| Data protection maturity | 15 | Explicit consent, erasure rights, portability, breach notification, cross-border restrictions |
+| Mutual recognition | 10 | Number of mutual recognition partners (1pt per partner, capped at 10) |
+| E-signature recognition | 10 | Whether electronic signatures are legally recognised |
+| Legal system compatibility | 10 | Common-law and civil-law score highest (well-established professional regulation) |
+
+### 24.3 Client Behaviour
+
+Clients MAY use jurisdiction confidence scores to:
+- Weight trust scores from different jurisdictions (a Tier 3 credential from a high-confidence jurisdiction contributes more to the trust score)
+- Display jurisdiction confidence alongside credentials
+- Set minimum jurisdiction confidence in community policies
+
+Clients MUST NOT use jurisdiction confidence to deny Tier 1 or Tier 2 credentials, which are jurisdiction-independent.
+
+### 24.4 Three Failure Modes
+
+| Mode | Example | Solution |
+|------|---------|----------|
+| **Captured/corrupt bodies** | State-controlled professional bodies | Cross-jurisdiction verification: subject verified by professional in a free-body jurisdiction |
+| **Nonexistent bodies** | No formal professional regulation | Embassy model: international NGOs and law firms with globally-licensed professionals serve as remote trust anchors |
+| **Non-digital bodies** | Paper-based registries, no APIs | Manual registry cross-checks (weighted lower); eIDAS 2.0 mandates machine-readable interfaces by December 2026 |
+
+For jurisdictions where Tier 3/4 is not achievable, Tier 1 + Tier 2 (self-declared + peer vouches) are always available. "Some trust" is infinitely better than "no trust."
+
+---
+
+## 25. Implementation Levels
+
+### 25.1 Overview
+
+Protocol complexity should not prevent partial adoption. Signet defines three progressive implementation levels so that client developers can integrate incrementally.
+
+### 25.2 Level 1 — Read Trust Badges
+
+**Effort:** A weekend. **Event kinds:** 30470 (credential), 30471 (vouch).
+
+Read credentials and vouches for a pubkey, compute a basic trust tier and score, display a badge. No new cryptography beyond Schnorr signature verification (which Nostr clients already implement). This is the NIP-05 equivalent — minimal effort, immediate value.
+
+The reference implementation provides `src/badge.ts` with `computeBadge()`, `buildBadgeFilters()`, and related helpers.
+
+### 25.3 Level 2 — Issue Vouches
+
+**Effort:** A few days. **Event kinds:** 30470, 30471, 30472 (policy).
+
+Level 1 + users can vouch for each other (create kind 30471 events) and communities can set policies (kind 30472). This is the viral layer — peer vouching creates Tier 2 network effects without requiring professional verifiers.
+
+### 25.4 Level 3 — Full Protocol
+
+**Effort:** Weeks to months. **Event kinds:** All 11 (30470-30480).
+
+All event kinds, full cryptographic stack: Merkle trees for selective disclosure, Bulletproofs for age range proofs, ring signatures for issuer privacy, two-credential ceremony, nullifier computation, guardian delegation, anomaly detection, and the voting extension.
+
+### 25.5 Strategic Guidance
+
+The recommended adoption path is:
+1. Get Level 1 into 10+ Nostr clients (badges create visibility and demand)
+2. Enable Level 2 for viral peer vouching
+3. Level 3 for clients that want full verification capability
 
 *This specification is a living document. It will evolve through community feedback and implementation experience.*
