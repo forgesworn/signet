@@ -1,7 +1,7 @@
 # Verifier Bootstrapping & Trust Anchor Design
 
 **Date:** 2026-03-04
-**Status:** Draft — for review
+**Status:** Implemented — code and spec complete (see spec/protocol.md §20-§23, src/credentials.ts, app/src/pages/Verifier.tsx)
 
 ## 1. The Problem
 
