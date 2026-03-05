@@ -156,28 +156,28 @@ describe('i18n', () => {
   });
 
   describe('formatLocalizedTrustScore', () => {
-    it('formats trust score in English', () => {
-      expect(formatLocalizedTrustScore(85)).toBe('Trust Score: 85/100');
+    it('formats Signet IQ in English', () => {
+      expect(formatLocalizedTrustScore(85)).toBe('Signet IQ: 85/200');
     });
 
-    it('formats trust score in Spanish', () => {
-      expect(formatLocalizedTrustScore(72, 'es')).toBe('Puntuación de Confianza: 72/100');
+    it('formats Signet IQ in Spanish', () => {
+      expect(formatLocalizedTrustScore(72, 'es')).toBe('Signet IQ: 72/200');
     });
 
-    it('formats trust score in Japanese', () => {
-      expect(formatLocalizedTrustScore(90, 'ja')).toBe('信頼スコア: 90/100');
+    it('formats Signet IQ in Japanese', () => {
+      expect(formatLocalizedTrustScore(90, 'ja')).toBe('Signet IQ: 90/200');
     });
 
-    it('formats trust score in German', () => {
-      expect(formatLocalizedTrustScore(50, 'de')).toBe('Vertrauensbewertung: 50/100');
+    it('formats Signet IQ in German', () => {
+      expect(formatLocalizedTrustScore(50, 'de')).toBe('Signet IQ: 50/200');
     });
 
-    it('formats trust score with zero', () => {
-      expect(formatLocalizedTrustScore(0)).toBe('Trust Score: 0/100');
+    it('formats Signet IQ with zero', () => {
+      expect(formatLocalizedTrustScore(0)).toBe('Signet IQ: 0/200');
     });
 
-    it('formats trust score with max value', () => {
-      expect(formatLocalizedTrustScore(100)).toBe('Trust Score: 100/100');
+    it('formats Signet IQ with max value', () => {
+      expect(formatLocalizedTrustScore(200)).toBe('Signet IQ: 200/200');
     });
   });
 

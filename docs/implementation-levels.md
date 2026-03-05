@@ -6,7 +6,7 @@ A guide for Nostr client developers integrating the Signet identity protocol. Th
 
 | Level | Effort | Event Kinds | New Crypto | What Users Get |
 |-------|--------|-------------|------------|----------------|
-| 1 — Read Trust Badges | ~1 weekend | 30470, 30471 | None | Tier badges and trust scores on profiles |
+| 1 — Read Trust Badges | ~1 weekend | 30470, 30471 | None | Tier badges and Signet IQ on profiles |
 | 2 — Issue Vouches | A few days | 30470–30472 | None | Peer vouching, Tier 2 networks, policy checks |
 | 3 — Full Protocol | Weeks to months | 30470–30480 | Merkle, Bulletproofs, ring signatures | Professional verification, ZK proofs, elections |
 
@@ -55,8 +55,8 @@ The `badge` object includes:
 
 - `badge.isVerified` — boolean, true if the pubkey has any Signet verification
 - `badge.tier` — number 1–4, the highest verified tier
-- `badge.tierLabel` — human-readable string (e.g. `"Tier 2 — Web of Trust"`)
-- `badge.score` — integer 0–100 derived from weighted trust signals
+- `badge.tierLabel` — human-readable string (e.g. `"Vouched"`, `"Verified"`, `"Verified (Child Safety)"`)
+- `badge.score` — integer 0–200 Signet IQ derived from weighted trust signals (100 = government standard)
 
 ### Trust tiers at a glance
 
@@ -96,17 +96,18 @@ Everything from Level 1, plus:
 ```typescript
 import { createVouch } from 'signet-protocol';
 
-const vouchEvent = createVouch({
-  voucherPubkey: myPubkey,
-  voucheePubkey: theirPubkey,
-  tier: 2,
-  comment: 'I have met this person in person and verified their identity.',
+// createVouch takes the voucher's private key and a VouchParams object.
+// It returns a signed Nostr event ready to publish.
+const vouchEvent = await createVouch(myPrivkey, {
+  subjectPubkey: theirPubkey,
+  method: 'in-person',
+  context: 'I have met this person in person and verified their identity.',
+  voucherTier: 2,
+  voucherScore: 106,
 });
 
-// Sign and publish vouchEvent to your relay as a standard Nostr event.
-// createVouch returns an unsigned event template; sign it with your key
-// the same way you sign any other Nostr event.
-await publishEvent(signEvent(vouchEvent, myPrivkey));
+// Publish to your relay as a standard Nostr event.
+await publishEvent(vouchEvent);
 ```
 
 ### Parsing incoming vouches
@@ -118,10 +119,10 @@ import { parseVouch, countQualifyingVouches, hasEnoughVouches } from 'signet-pro
 const vouch = parseVouch(rawEvent);
 
 // Count how many qualifying vouches a pubkey has received
-const count = countQualifyingVouches(pubkey, allVouchEvents);
+const count = countQualifyingVouches(allVouchEvents, pubkey);
 
 // Check whether a pubkey clears the threshold required for Tier 2
-const qualifies = hasEnoughVouches(pubkey, allVouchEvents, { requiredTier: 2, minVouches: 3 });
+const qualifies = hasEnoughVouches(allVouchEvents, pubkey, 3);
 ```
 
 Reference: `src/vouches.ts`
@@ -136,15 +137,15 @@ import { parsePolicy, checkPolicyCompliance, PolicyChecker } from 'signet-protoc
 // Parse a policy event
 const policy = parsePolicy(policyEvent);
 
-// One-shot check: does this pubkey's badge meet the policy?
-const result = checkPolicyCompliance(badge, policy);
-if (!result.passes) {
-  showError(`This action requires ${result.requiredTierLabel} or higher.`);
+// One-shot check: does this user meet the policy?
+const result = checkPolicyCompliance(policy, userTier, userScore);
+if (!result.allowed) {
+  showError(`This action requires Tier ${result.requiredTier} or higher.`);
 }
 
 // For repeated checks across many pubkeys, use PolicyChecker (more efficient)
 const checker = new PolicyChecker(policyEvent);
-const passes = checker.check(badge);
+const adultResult = checker.checkAdult(userTier, userScore);
 ```
 
 Reference: `src/policies.ts`
@@ -182,15 +183,17 @@ Level 3 is full reference implementation. This is appropriate for clients that w
 
 All modules are re-exported from the package root. You can also import them directly for tree-shaking.
 
-| Module | Path | Responsibility |
-|--------|------|----------------|
-| Credentials | `signet-protocol/credentials` | Issue, parse, verify kind 30470 credentials including Merkle roots and nullifiers |
-| Ring signatures | `signet-protocol/ring-signature` | Linkable ring signature generation and verification for voting |
-| Range proofs | `signet-protocol/range-proof` | Bulletproof-based age range proofs |
-| Merkle trees | `signet-protocol/merkle` | Build attribute trees, generate and verify inclusion proofs |
-| Trust score | `signet-protocol/trust-score` | Weighted signal aggregation, 0–100 score computation |
-| Anomaly detection | `signet-protocol/anomaly` | Detect vouch ring attacks and other manipulation patterns |
-| Jurisdictions | `signet-protocol/jurisdictions` | Jurisdiction-specific rules for document types and professional bodies |
+| Module | Source | Responsibility |
+|--------|--------|----------------|
+| Credentials | `src/credentials.ts` | Issue, parse, verify kind 30470 credentials including Merkle roots and nullifiers |
+| Ring signatures | `src/ring-signature.ts` | Linkable ring signature generation and verification for voting |
+| Range proofs | `src/range-proof.ts` | Bulletproof-based age range proofs |
+| Merkle trees | `src/merkle.ts` | Build attribute trees, generate and verify inclusion proofs |
+| Signet IQ | `src/trust-score.ts` | Weighted signal aggregation, 0–200 Signet IQ computation |
+| Anomaly detection | `src/anomaly.ts` | Detect vouch ring attacks and other manipulation patterns |
+| Jurisdictions | `src/jurisdictions.ts` | Jurisdiction-specific rules for document types and professional bodies |
+
+All modules are re-exported from the package root (`signet-protocol`). Import from the root entry point:
 
 ### Full event kind reference
 

@@ -4,7 +4,7 @@ import type { StoredIdentity } from '../lib/db';
 import { createQRPayload, serializeQRPayload, ENTITY_LABELS } from '../lib/signet';
 import { QRCode } from '../components/QRCode';
 import { TierBadge } from '../components/TierBadge';
-import { TrustScore } from '../components/TrustScore';
+import { SignetIQ } from '../components/SignetIQ';
 
 interface HomeProps {
   identity: StoredIdentity;
@@ -316,7 +316,7 @@ export function Home({ identity, credentials = [], vouches = [], bridges = [] }:
         </div>
       )}
 
-      {/* Trust score card */}
+      {/* Signet IQ card */}
       <div
         className="card"
         style={{
@@ -324,7 +324,7 @@ export function Home({ identity, credentials = [], vouches = [], bridges = [] }:
           marginBottom: 16,
         }}
       >
-        <TrustScore score={trustBreakdown.score} showBreakdown={credentials.length > 0 || vouches.length > 0 || bridges.length > 0} />
+        <SignetIQ breakdown={trustBreakdown} showBreakdown={credentials.length > 0 || vouches.length > 0 || bridges.length > 0} />
       </div>
 
       {/* Share button */}

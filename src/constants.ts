@@ -37,7 +37,7 @@ export const VERIFIER_ACTIVATION = {
   MIN_PROFESSIONS: 2,
 } as const;
 
-/** Trust score weights (default implementation, Signet IQ 0-200 scale) */
+/** Signet IQ weights (default implementation, 0-200 scale) */
 export const TRUST_WEIGHTS = {
   PROFESSIONAL_VERIFICATION: 80,
   IN_PERSON_VOUCH: 16,

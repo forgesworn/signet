@@ -151,7 +151,7 @@ Four is the most tabs a normie will tolerate. Three is better. The center "+" is
 │  └──────────────────────────────┘  │
 │                                    │
 │  ┌──────────────────────────────┐  │
-│  │  Trust: ██████████░░ 72%     │  │
+│  │  Signet IQ: █████████░░ 144   │  │
 │  │  Family: 4 members verified  │  │
 │  │  Since: March 2026           │  │
 │  └──────────────────────────────┘  │
@@ -174,7 +174,7 @@ Four is the most tabs a normie will tolerate. Three is better. The center "+" is
 - **Name + verification status** — Simple label. "Verified Person ✓" or "Unverified" or "Child Account".
 - **Trust summary card** — Score bar + family count + account age. No breakdown, no signals, no jargon.
 - **Signet ID** — Your public key in npub format. Copy/share buttons.
-- **If child account** — Shows "Linked to: [Parent name]" instead of trust score.
+- **If child account** — Shows "Linked to: [Parent name]" instead of Signet IQ.
 
 ### 2. My Family
 
@@ -214,7 +214,7 @@ Four is the most tabs a normie will tolerate. Three is better. The center "+" is
 │  ← Mum (Sarah)                     │
 │                                    │
 │  ┌──────────────────────────────┐  │
-│  │  Trust: ██████████░░ 72%     │  │
+│  │  Signet IQ: █████████░░ 144   │  │
 │  │  Tier 3 — Verified Person    │  │
 │  │  Connected: 14 Feb 2026      │  │
 │  └──────────────────────────────┘  │
@@ -422,7 +422,7 @@ Database: 'my-signet' (version 1)
 
 ### 1. No relay dependency at launch
 
-The app works entirely offline. Family verification is peer-to-peer (QR + shared secret). Trust scores are computed locally from what the app knows. Relay integration can come later for cross-device sync and credential publication.
+The app works entirely offline. Family verification is peer-to-peer (QR + shared secret). Signet IQ is computed locally from what the app knows. Relay integration can come later for cross-device sync and credential publication.
 
 ### 2. No nsec import
 
@@ -433,7 +433,7 @@ The dev app supports nsec import for Nostr power users. The family app only supp
 The protocol has 9 entity types and 4 tiers. The family app uses these internally but never shows them in the UI. Instead:
 - "Verified Person" or "Unverified" (maps to tier >= 2 vs tier 1)
 - "Child Account" (maps to isChild flag)
-- Trust score shown as a simple percentage bar
+- Signet IQ shown as a simple bar
 
 ### 4. "Signet Me" words are always visible
 
@@ -574,8 +574,8 @@ family-app/
 | Screens | 10+ pages | 4 screens |
 | Features | Full protocol (all 11 event kinds) | Identity + family verification + Signet Me |
 | Complexity | Every knob exposed | Complexity hidden behind simplicity |
-| Crypto shown | Tiers, entities, Merkle proofs, ring sigs | "Verified" / "Unverified" + trust % |
-| Relay | Required | Not required (local-first) |
+| Crypto shown | Tiers, entities, Merkle proofs, ring sigs | "Verified" / "Unverified" + Signet IQ |
+| Relay | Not required (local-first) | Not required (local-first) |
 | Port | 5174 | 5175 |
 
 Both import the same `signet-protocol` library. The family app uses maybe 20% of the protocol's surface area, but that 20% is the part that matters to 80% of people.

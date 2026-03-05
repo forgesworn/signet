@@ -6,7 +6,7 @@
 // one of N verified accounts also controls this anon account.
 
 import { SIGNET_KINDS, SIGNET_LABEL, MIN_BRIDGE_RING_SIZE, TRUST_WEIGHTS } from './constants.js';
-import { getPublicKey, signEvent, verifyEvent, getEventId } from './crypto.js';
+import { getPublicKey, signEvent, verifyEvent } from './crypto.js';
 import { ringSign, ringVerify } from './ring-signature.js';
 import { getTagValue } from './validation.js';
 import type { NostrEvent, UnsignedEvent, SignetTier, ParsedIdentityBridge } from './types.js';

@@ -156,7 +156,7 @@ export {
   hasReachedRevocationThreshold,
 } from './challenges.js';
 
-// Trust Score
+// Signet IQ
 export {
   computeTrustScore,
   formatTrustDisplay,

@@ -25,7 +25,7 @@ Para utilizar o Protocolo, você deve ter pelo menos a idade de consentimento di
 
 ## 3. Descrição do Protocolo
 
-O Protocolo Signet é um protocolo de verificação de identidade descentralizado para a rede Nostr com quatro níveis de verificação (auto-declarado, rede de confiança, verificação profissional adulto, verificação profissional adulto + criança), utilizando assinaturas Schnorr, Bulletproofs, assinaturas em anel e eventos Nostr tipos 30470–30475.
+O Protocolo Signet é um protocolo de verificação de identidade descentralizado para a rede Nostr com quatro níveis de verificação (auto-declarado, rede de confiança, verificação profissional adulto, verificação profissional adulto + criança), utilizando assinaturas Schnorr, Bulletproofs, assinaturas em anel e eventos Nostr tipos 30470–30480.
 
 ---
 

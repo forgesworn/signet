@@ -128,7 +128,7 @@ When vouching for another user:
 - You must have a genuine basis for the vouch
 - You must not accept payment or other consideration for providing vouches (pay-for-vouch schemes)
 - You may revoke a vouch at any time by publishing a revocation event
-- You understand that your vouching behaviour affects your own trust score
+- You understand that your vouching behaviour affects your own Signet IQ
 
 ---
 
@@ -169,7 +169,7 @@ Credentials may include an expiry date. Relying parties should check:
 - The credential has not been revoked (kind 30475)
 - The credential has not expired
 - The credential's verification tier meets their requirements (kind 30472 policy)
-- The credential's trust score is acceptable
+- The credential's Signet IQ is acceptable
 
 ### 6.3 Credential Revocation
 
@@ -187,7 +187,7 @@ Revocation is accomplished by publishing a kind 30475 event.
 ### 6.5 Two-Credential Model
 
 Professional verification (Tier 3 and Tier 4) uses a two-credential ceremony:
-- **Natural Person credential:** Bound to the subject's real identity, includes Merkle root (for selective attribute disclosure), document-based nullifier (for duplicate prevention), and age-range proof. Personal details (name, DOB, nationality) are never published on-chain.
+- **Natural Person credential:** Bound to the subject's real identity, includes Merkle root (for selective attribute disclosure), document-based nullifier (for duplicate prevention), and age-range proof. Personal details (name, DOB, nationality, document type) are never published on-chain.
 - **Persona credential:** An anonymous alias carrying only the age-range proof and guardian tags (if child). No nullifier or Merkle root. The link between Natural Person and Persona is known only to the subject and the verifier.
 
 ### 6.6 Credential Chains
@@ -246,7 +246,7 @@ THE PROTOCOL IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KI
 - THE PROTOCOL WILL OPERATE WITHOUT INTERRUPTION OR ERROR
 - THE CRYPTOGRAPHIC COMPONENTS WILL REMAIN SECURE INDEFINITELY
 - THE PROTOCOL WILL MEET YOUR SPECIFIC REQUIREMENTS
-- ANY TRUST SCORE ACCURATELY REFLECTS THE TRUSTWORTHINESS OF A USER
+- ANY SIGNET IQ ACCURATELY REFLECTS THE TRUSTWORTHINESS OF A USER
 
 ### 8.3 Decentralisation Disclaimer
 

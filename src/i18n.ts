@@ -63,7 +63,7 @@ export interface TranslationStrings {
   msg_ring_signature_invalid: string;
   msg_age_proof_valid: string;
   msg_age_proof_invalid: string;
-  msg_trust_score: string;
+  msg_signet_iq: string;
 
   // --- Legal Terms ---
   legal_privacy_policy: string;
@@ -155,7 +155,7 @@ const en: TranslationStrings = {
   msg_ring_signature_invalid: 'Ring signature verification failed.',
   msg_age_proof_valid: 'Age range proof verified — age is within the declared range.',
   msg_age_proof_invalid: 'Age range proof verification failed.',
-  msg_trust_score: 'Trust Score',
+  msg_signet_iq: 'Signet IQ',
 
   legal_privacy_policy: 'Privacy Policy',
   legal_terms_of_service: 'Terms of Service',
@@ -243,7 +243,7 @@ const es: TranslationStrings = {
   msg_ring_signature_invalid: 'La verificación de la firma de anillo falló.',
   msg_age_proof_valid: 'Prueba de rango de edad verificada — la edad está dentro del rango declarado.',
   msg_age_proof_invalid: 'La verificación de la prueba de rango de edad falló.',
-  msg_trust_score: 'Puntuación de Confianza',
+  msg_signet_iq: 'Signet IQ',
 
   legal_privacy_policy: 'Política de Privacidad',
   legal_terms_of_service: 'Términos de Servicio',
@@ -331,7 +331,7 @@ const fr: TranslationStrings = {
   msg_ring_signature_invalid: 'La vérification de la signature en anneau a échoué.',
   msg_age_proof_valid: 'Preuve de tranche d\'âge vérifiée — l\'âge est dans la tranche déclarée.',
   msg_age_proof_invalid: 'La vérification de la preuve de tranche d\'âge a échoué.',
-  msg_trust_score: 'Score de Confiance',
+  msg_signet_iq: 'Signet IQ',
 
   legal_privacy_policy: 'Politique de Confidentialité',
   legal_terms_of_service: 'Conditions d\'Utilisation',
@@ -419,7 +419,7 @@ const de: TranslationStrings = {
   msg_ring_signature_invalid: 'Verifizierung der Ringsignatur fehlgeschlagen.',
   msg_age_proof_valid: 'Altersbereichsnachweis verifiziert — das Alter liegt im angegebenen Bereich.',
   msg_age_proof_invalid: 'Verifizierung des Altersbereichsnachweises fehlgeschlagen.',
-  msg_trust_score: 'Vertrauensbewertung',
+  msg_signet_iq: 'Signet IQ',
 
   legal_privacy_policy: 'Datenschutzerklärung',
   legal_terms_of_service: 'Nutzungsbedingungen',
@@ -507,7 +507,7 @@ const pt: TranslationStrings = {
   msg_ring_signature_invalid: 'Falha na verificação da assinatura em anel.',
   msg_age_proof_valid: 'Prova de faixa etária verificada — a idade está dentro da faixa declarada.',
   msg_age_proof_invalid: 'Falha na verificação da prova de faixa etária.',
-  msg_trust_score: 'Pontuação de Confiança',
+  msg_signet_iq: 'Signet IQ',
 
   legal_privacy_policy: 'Política de Privacidade',
   legal_terms_of_service: 'Termos de Serviço',
@@ -595,7 +595,7 @@ const ja: TranslationStrings = {
   msg_ring_signature_invalid: 'リング署名の検証に失敗しました。',
   msg_age_proof_valid: '年齢範囲証明が検証されました — 年齢は申告された範囲内です。',
   msg_age_proof_invalid: '年齢範囲証明の検証に失敗しました。',
-  msg_trust_score: '信頼スコア',
+  msg_signet_iq: 'Signet IQ',
 
   legal_privacy_policy: 'プライバシーポリシー',
   legal_terms_of_service: '利用規約',
@@ -683,7 +683,7 @@ const ko: TranslationStrings = {
   msg_ring_signature_invalid: '링 서명 검증에 실패했습니다.',
   msg_age_proof_valid: '연령 범위 증명이 검증되었습니다 — 연령이 선언된 범위 내에 있습니다.',
   msg_age_proof_invalid: '연령 범위 증명 검증에 실패했습니다.',
-  msg_trust_score: '신뢰 점수',
+  msg_signet_iq: 'Signet IQ',
 
   legal_privacy_policy: '개인정보 보호정책',
   legal_terms_of_service: '이용약관',
@@ -771,7 +771,7 @@ const zh: TranslationStrings = {
   msg_ring_signature_invalid: '环签名验证失败。',
   msg_age_proof_valid: '年龄范围证明已验证 — 年龄在声明的范围内。',
   msg_age_proof_invalid: '年龄范围证明验证失败。',
-  msg_trust_score: '信任评分',
+  msg_signet_iq: 'Signet IQ',
 
   legal_privacy_policy: '隐私政策',
   legal_terms_of_service: '服务条款',
@@ -859,7 +859,7 @@ const ar: TranslationStrings = {
   msg_ring_signature_invalid: 'فشل التحقق من توقيع الحلقة.',
   msg_age_proof_valid: 'تم التحقق من إثبات نطاق العمر — العمر ضمن النطاق المعلن.',
   msg_age_proof_invalid: 'فشل التحقق من إثبات نطاق العمر.',
-  msg_trust_score: 'درجة الثقة',
+  msg_signet_iq: 'Signet IQ',
 
   legal_privacy_policy: 'سياسة الخصوصية',
   legal_terms_of_service: 'شروط الخدمة',
@@ -947,7 +947,7 @@ const hi: TranslationStrings = {
   msg_ring_signature_invalid: 'रिंग हस्ताक्षर सत्यापन विफल।',
   msg_age_proof_valid: 'आयु सीमा प्रमाण सत्यापित — आयु घोषित सीमा के भीतर है।',
   msg_age_proof_invalid: 'आयु सीमा प्रमाण सत्यापन विफल।',
-  msg_trust_score: 'विश्वास स्कोर',
+  msg_signet_iq: 'Signet IQ',
 
   legal_privacy_policy: 'गोपनीयता नीति',
   legal_terms_of_service: 'सेवा की शर्तें',
@@ -1013,7 +1013,7 @@ const it: TranslationStrings = {
   msg_ring_signature_invalid: 'Verifica della firma ad anello fallita.',
   msg_age_proof_valid: 'Prova della fascia d\'età verificata — l\'età rientra nell\'intervallo dichiarato.',
   msg_age_proof_invalid: 'Verifica della prova della fascia d\'età fallita.',
-  msg_trust_score: 'Punteggio di Fiducia',
+  msg_signet_iq: 'Signet IQ',
   legal_privacy_policy: 'Informativa sulla Privacy', legal_terms_of_service: 'Termini di Servizio',
   legal_data_processing: 'Accordo sul Trattamento dei Dati', legal_consent: 'Consenso',
   legal_right_to_erasure: 'Diritto alla Cancellazione', legal_data_portability: 'Portabilità dei Dati',
@@ -1070,7 +1070,7 @@ const nl: TranslationStrings = {
   msg_ring_signature_invalid: 'Verificatie van ringhandtekening mislukt.',
   msg_age_proof_valid: 'Leeftijdsbereikbewijs geverifieerd — leeftijd valt binnen het aangegeven bereik.',
   msg_age_proof_invalid: 'Verificatie van leeftijdsbereikbewijs mislukt.',
-  msg_trust_score: 'Vertrouwensscore',
+  msg_signet_iq: 'Signet IQ',
   legal_privacy_policy: 'Privacybeleid', legal_terms_of_service: 'Servicevoorwaarden',
   legal_data_processing: 'Verwerkersovereenkomst', legal_consent: 'Toestemming',
   legal_right_to_erasure: 'Recht op Wissing', legal_data_portability: 'Gegevensoverdraagbaarheid',
@@ -1128,7 +1128,7 @@ const tr: TranslationStrings = {
   msg_ring_signature_invalid: 'Halka imzası doğrulaması başarısız oldu.',
   msg_age_proof_valid: 'Yaş aralığı kanıtı doğrulandı — yaş beyan edilen aralık içindedir.',
   msg_age_proof_invalid: 'Yaş aralığı kanıtı doğrulaması başarısız oldu.',
-  msg_trust_score: 'Güven Puanı',
+  msg_signet_iq: 'Signet IQ',
   legal_privacy_policy: 'Gizlilik Politikası', legal_terms_of_service: 'Hizmet Şartları',
   legal_data_processing: 'Veri İşleme Sözleşmesi', legal_consent: 'Onay',
   legal_right_to_erasure: 'Silme Hakkı', legal_data_portability: 'Veri Taşınabilirliği',
@@ -1186,7 +1186,7 @@ const id_lang: TranslationStrings = {
   msg_ring_signature_invalid: 'Verifikasi tanda tangan cincin gagal.',
   msg_age_proof_valid: 'Bukti rentang usia terverifikasi — usia berada dalam rentang yang dinyatakan.',
   msg_age_proof_invalid: 'Verifikasi bukti rentang usia gagal.',
-  msg_trust_score: 'Skor Kepercayaan',
+  msg_signet_iq: 'Signet IQ',
   legal_privacy_policy: 'Kebijakan Privasi', legal_terms_of_service: 'Ketentuan Layanan',
   legal_data_processing: 'Perjanjian Pemrosesan Data', legal_consent: 'Persetujuan',
   legal_right_to_erasure: 'Hak Penghapusan', legal_data_portability: 'Portabilitas Data',
@@ -1244,7 +1244,7 @@ const sw: TranslationStrings = {
   msg_ring_signature_invalid: 'Uthibitishaji wa saini ya pete umeshindwa.',
   msg_age_proof_valid: 'Uthibitisho wa umri umethibitishwa — umri uko ndani ya masafa yaliyotangazwa.',
   msg_age_proof_invalid: 'Uthibitishaji wa uthibitisho wa umri umeshindwa.',
-  msg_trust_score: 'Alama ya Kuamini',
+  msg_signet_iq: 'Signet IQ',
   legal_privacy_policy: 'Sera ya Faragha', legal_terms_of_service: 'Masharti ya Huduma',
   legal_data_processing: 'Mkataba wa Usindikaji wa Data', legal_consent: 'Ridhaa',
   legal_right_to_erasure: 'Haki ya Kufutwa', legal_data_portability: 'Ubebaji wa Data',
@@ -1332,10 +1332,10 @@ export function getLanguageNativeName(code: LanguageCode): string {
   return names[code] ?? code;
 }
 
-/** Format a trust score display in the current language */
+/** Format a Signet IQ display in the current language */
 export function formatLocalizedTrustScore(score: number, lang?: LanguageCode): string {
-  const label = t('msg_trust_score', lang);
-  return `${label}: ${score}/100`;
+  const label = t('msg_signet_iq', lang);
+  return `${label}: ${score}/200`;
 }
 
 /** Get the tier description in the current language */

@@ -6,8 +6,11 @@ import {
   createRevocation,
   parseRevocation,
   hasReachedRevocationThreshold,
+  countChallengeConfirmations,
+  createProfessionalCredential,
   SIGNET_KINDS,
 } from '../src/index.js';
+import type { NostrEvent } from '../src/types.js';
 import { verifyEvent } from '../src/crypto.js';
 import { getTagValue } from '../src/validation.js';
 
@@ -127,6 +130,110 @@ describe('revocations', () => {
     it('uses custom threshold', () => {
       expect(hasReachedRevocationThreshold(3, 3)).toBe(true);
       expect(hasReachedRevocationThreshold(2, 3)).toBe(false);
+    });
+  });
+
+  describe('countChallengeConfirmations', () => {
+    function makeConfirmation(pubkey: string, challengeId: string): NostrEvent {
+      return {
+        id: Math.random().toString(36).slice(2),
+        kind: 1,
+        pubkey,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['challenge', challengeId]],
+        content: 'Confirmed',
+        sig: 'mock',
+      };
+    }
+
+    it('returns 0 with no confirmation events', async () => {
+      const verifier = generateKeyPair();
+      const subject = generateKeyPair();
+      const cred = await createProfessionalCredential(verifier.privateKey, subject.publicKey, {
+        profession: 'solicitor',
+        jurisdiction: 'UK',
+      });
+
+      const count = countChallengeConfirmations('challenge-1', [], [cred]);
+      expect(count).toBe(0);
+    });
+
+    it('counts Tier 3+ confirmations', async () => {
+      const verifier = generateKeyPair();
+      const confirmer1 = generateKeyPair();
+      const confirmer2 = generateKeyPair();
+
+      // Create Tier 3 credentials for both confirmers
+      const cred1 = await createProfessionalCredential(verifier.privateKey, confirmer1.publicKey, {
+        profession: 'solicitor',
+        jurisdiction: 'UK',
+      });
+      const cred2 = await createProfessionalCredential(verifier.privateKey, confirmer2.publicKey, {
+        profession: 'doctor',
+        jurisdiction: 'UK',
+      });
+
+      const confirmations = [
+        makeConfirmation(confirmer1.publicKey, 'ch-1'),
+        makeConfirmation(confirmer2.publicKey, 'ch-1'),
+      ];
+
+      const count = countChallengeConfirmations('ch-1', confirmations, [cred1, cred2]);
+      expect(count).toBe(2);
+    });
+
+    it('ignores confirmations from non-Tier-3 pubkeys', async () => {
+      const verifier = generateKeyPair();
+      const tier3User = generateKeyPair();
+      const tier1User = generateKeyPair();
+
+      const cred = await createProfessionalCredential(verifier.privateKey, tier3User.publicKey, {
+        profession: 'solicitor',
+        jurisdiction: 'UK',
+      });
+
+      const confirmations = [
+        makeConfirmation(tier3User.publicKey, 'ch-2'),
+        makeConfirmation(tier1User.publicKey, 'ch-2'), // no Tier 3 credential
+      ];
+
+      const count = countChallengeConfirmations('ch-2', confirmations, [cred]);
+      expect(count).toBe(1);
+    });
+
+    it('deduplicates confirmations from the same pubkey', async () => {
+      const verifier = generateKeyPair();
+      const confirmer = generateKeyPair();
+
+      const cred = await createProfessionalCredential(verifier.privateKey, confirmer.publicKey, {
+        profession: 'solicitor',
+        jurisdiction: 'UK',
+      });
+
+      const confirmations = [
+        makeConfirmation(confirmer.publicKey, 'ch-3'),
+        makeConfirmation(confirmer.publicKey, 'ch-3'), // duplicate
+      ];
+
+      const count = countChallengeConfirmations('ch-3', confirmations, [cred]);
+      expect(count).toBe(1);
+    });
+
+    it('ignores confirmations for a different challenge', async () => {
+      const verifier = generateKeyPair();
+      const confirmer = generateKeyPair();
+
+      const cred = await createProfessionalCredential(verifier.privateKey, confirmer.publicKey, {
+        profession: 'solicitor',
+        jurisdiction: 'UK',
+      });
+
+      const confirmations = [
+        makeConfirmation(confirmer.publicKey, 'ch-other'),
+      ];
+
+      const count = countChallengeConfirmations('ch-4', confirmations, [cred]);
+      expect(count).toBe(0);
     });
   });
 });

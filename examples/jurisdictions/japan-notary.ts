@@ -141,8 +141,8 @@ async function main() {
   console.log(`Data categories: ${consent.dataCategories.join(', ')}`);
   console.log();
 
-  // --- 8. Trust score (Japanese output) ---
-  console.log(`--- ${t('msg_trust_score')} ---`);
+  // --- 8. Signet IQ (Japanese output) ---
+  console.log(`--- ${t('msg_signet_iq')} ---`);
   const trustScore = computeTrustScore(
     subject.publicKey,
     [credential],

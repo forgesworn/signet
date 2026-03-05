@@ -1,4 +1,4 @@
-// Trust Score Computation
+// Signet IQ Computation
 // Continuous 0-200 Signet IQ score from weighted signals
 
 import { TRUST_WEIGHTS, MAX_TRUST_SCORE, SIGNET_KINDS } from './constants.js';
@@ -10,7 +10,7 @@ import type {
   SignetTier,
 } from './types.js';
 
-/** Compute trust score for a subject from their credentials, vouches, and bridges */
+/** Compute Signet IQ for a subject from their credentials, vouches, and bridges */
 export function computeTrustScore(
   subjectPubkey: string,
   credentials: NostrEvent[],
@@ -141,10 +141,10 @@ export function computeTrustScore(
   };
 }
 
-/** Get a human-readable trust score display */
+/** Get a human-readable Signet IQ display */
 export function formatTrustDisplay(breakdown: TrustScoreBreakdown): string {
-  const checkmarks = '✓'.repeat(Math.min(breakdown.tier, 4));
-  const tierLabel = ['', 'Self-declared', 'Web-of-trust', 'Professional', 'Professional+Child'][breakdown.tier];
+  const checkmarks = breakdown.tier >= 2 ? '✓'.repeat(breakdown.tier - 1) : '';
+  const tierLabel = ['', 'Self-declared', 'Web-of-trust', 'Verified', 'Verified (Child Safety)'][breakdown.tier];
 
   const lines = [
     `${checkmarks} Tier ${breakdown.tier} (${tierLabel})`,
@@ -169,35 +169,25 @@ export function formatTrustDisplay(breakdown: TrustScoreBreakdown): string {
 }
 
 /** Verify the signal ordering invariant:
- *  professional verification > in-person vouch > online vouch > account age */
+ *  professional verification > identity bridge > in-person vouch > online vouch > account age */
 export function verifySignalOrdering(signals: TrustSignal[]): boolean {
-  const profWeight = signals
-    .filter((s) => s.type === 'professional-verification')
-    .reduce((sum, s) => sum + s.weight, 0);
+  const maxWeight = (type: TrustSignal['type']): number => {
+    const weights = signals.filter((s) => s.type === type).map((s) => s.weight);
+    return weights.length > 0 ? Math.max(...weights) : 0;
+  };
 
-  const inPersonWeight = signals
-    .filter((s) => s.type === 'in-person-vouch')
-    .reduce((sum, s) => sum + s.weight, 0);
+  const profMax = maxWeight('professional-verification');
+  const bridgeMax = maxWeight('identity-bridge');
+  const inPersonMax = maxWeight('in-person-vouch');
 
-  const onlineWeight = signals
-    .filter((s) => s.type === 'online-vouch')
-    .reduce((sum, s) => sum + s.weight, 0);
+  // Professional verification must exceed identity bridge
+  if (profMax > 0 && bridgeMax > 0 && profMax <= bridgeMax) return false;
 
-  const ageWeight = signals
-    .filter((s) => s.type === 'account-age')
-    .reduce((sum, s) => sum + s.weight, 0);
+  // Identity bridge must exceed in-person vouch
+  if (bridgeMax > 0 && inPersonMax > 0 && bridgeMax <= inPersonMax) return false;
 
-  // If there's a professional verification, its individual weight must exceed
-  // any individual in-person vouch weight
-  if (profWeight > 0 && inPersonWeight > 0) {
-    const maxProf = Math.max(
-      ...signals.filter((s) => s.type === 'professional-verification').map((s) => s.weight)
-    );
-    const maxInPerson = Math.max(
-      ...signals.filter((s) => s.type === 'in-person-vouch').map((s) => s.weight)
-    );
-    if (maxProf <= maxInPerson) return false;
-  }
+  // Professional verification must exceed in-person vouch
+  if (profMax > 0 && inPersonMax > 0 && profMax <= inPersonMax) return false;
 
   return true;
 }

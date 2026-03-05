@@ -44,17 +44,17 @@ The Signet Protocol is architected to minimise data collection. Because the Prot
 | Category | Description | Source | Storage Location |
 |----------|-------------|--------|-----------------|
 | **Nostr Public Keys** | secp256k1 public keys (npub) used for Protocol interactions | User-generated | Nostr relays (decentralised) |
-| **Credential Metadata** | Nostr event kinds 30470–30475 containing verification tier, issuance timestamps, expiry dates, and credential type identifiers | Generated during credential issuance | Nostr relays (decentralised) |
+| **Credential Metadata** | Nostr event kinds 30470–30477 containing verification tier, issuance timestamps, expiry dates, and credential type identifiers | Generated during credential issuance | Nostr relays (decentralised) |
 | **Zero-Knowledge Proofs** | Bulletproofs for age range verification; future ZK-SNARK/ZK-STARK proofs for other claims | Generated locally by user | Nostr relays (decentralised) |
 | **Ring Signatures** | Cryptographic signatures that prove membership in a group without revealing which member signed | Generated locally by user | Nostr relays (decentralised) |
 | **Verification Tier Data** | Tier level (1–4) indicating the strength of identity verification | Assigned during verification | Embedded in credential events |
 | **Vouch Records** | Kind 30471 events representing web-of-trust endorsements | Created by vouching parties | Nostr relays (decentralised) |
 | **Policy Events** | Kind 30472 events specifying relying party requirements | Created by relying parties | Nostr relays (decentralised) |
 | **Verifier Registration** | Kind 30473 events identifying professional verifiers | Created by verifiers | Nostr relays (decentralised) |
-| **Challenge/Response Data** | Kind 30474 events for interactive verification | Generated during verification | Nostr relays (decentralised) |
+| **Challenge/Response Data** | Kind 30474 events for verifier legitimacy challenges | Generated during verification | Nostr relays (decentralised) |
 | **Revocation Records** | Kind 30475 events for credential revocation | Created when credentials are revoked | Nostr relays (decentralised) |
 | **Nullifier Hashes** | SHA-256 hash of document type, country code, and document number — used to prevent duplicate identity creation | Computed during two-credential ceremony | Embedded in Natural Person credential events |
-| **Merkle Roots** | Hash commitment to verified attributes (name, nationality, DOB) enabling selective disclosure | Computed during two-credential ceremony | Embedded in Natural Person credential events |
+| **Merkle Roots** | Hash commitment to verified attributes (dateOfBirth, documentType, name, nationality, nullifier) enabling selective disclosure | Computed during two-credential ceremony | Embedded in Natural Person credential events |
 | **Entity Type Tags** | Classification of account type (Natural Person, Persona, etc.) | Set during credential issuance | Embedded in credential events |
 | **Guardian Tags** | Parent/guardian public keys linked to child credentials | Set during child verification ceremony | Embedded in child credential events |
 | **Identity Bridge Events** | Kind 30476 events linking Natural Person and Persona via ring signatures | Created by the user | Nostr relays (decentralised) |
@@ -68,7 +68,7 @@ By design, the Signet Protocol does **not** collect, process, or store:
 - Biometric data
 - Exact dates of birth (age range proofs reveal only that a user falls within a range)
 - Document numbers or details (document details are used only to compute a one-way nullifier hash during the two-credential ceremony, then discarded by the verifier; only the hash is published)
-- Merkle tree leaf values (the verified name, nationality, and DOB are stored as Merkle leaves known only to the subject and verifier; only the Merkle root hash is published on-chain)
+- Merkle tree leaf values (the verified name, nationality, DOB, document type, and nullifier are stored as Merkle leaves known only to the subject and verifier; only the Merkle root hash is published on-chain)
 - Financial information or payment data
 - Location data or IP addresses (Protocol-level; relay operators may collect IP addresses independently)
 - Browsing history or device fingerprints
@@ -151,7 +151,7 @@ Processing complies with the DPDP Act, including:
 Data processed through the Signet Protocol is used exclusively for:
 
 1. **Credential Issuance and Verification** — Enabling users to create, present, and verify credentials across the four verification tiers.
-2. **Trust Score Computation** — Calculating trust scores based on web-of-trust vouches, credential tiers, and verification history.
+2. **Signet IQ Computation** — Calculating Signet IQ scores based on web-of-trust vouches, credential tiers, and verification history.
 3. **Age Range Verification** — Using Bulletproofs to prove a user falls within an age range without revealing their exact age.
 4. **Professional Verification** — Enabling licensed professionals (lawyers, notaries, medical professionals) to act as verifiers.
 5. **Credential Revocation** — Processing revocation events when credentials are invalidated.
@@ -239,7 +239,7 @@ Events published to the Nostr network are retained by relay operators according 
 | Revoked credentials | Revocation events are retained indefinitely for verification integrity |
 | Expired credentials | Retained on relays per relay operator policies |
 | Vouch records | Until revoked by the vouching party |
-| Challenge/response data | Ephemeral; not retained after verification completes |
+| Challenge/response data | Persistent; published to Nostr relays as standard events and retained for protocol integrity |
 
 ### 8.3 Centralised Records
 
@@ -455,15 +455,15 @@ If ancillary services (such as a documentation website) use cookies, a separate 
 
 ## 13. Automated Decision-Making and Profiling
 
-### 13.1 Trust Score Computation
+### 13.1 Signet IQ Computation
 
-The Protocol computes trust scores based on:
+The Protocol computes Signet IQ scores (0–200, where 100 represents the current government standard) based on:
 - Verification tier level (1–4)
 - Number and quality of vouches
 - Verifier credentials and standing
 - Credential age and history
 
-These trust scores are computed algorithmically and are visible to relying parties. They do not constitute automated decision-making with legal effects under GDPR Art. 22, as they are one input among many that relying parties may consider.
+These Signet IQ scores are computed algorithmically and are visible to relying parties. They do not constitute automated decision-making with legal effects under GDPR Art. 22, as they are one input among many that relying parties may consider.
 
 ### 13.2 No Profiling for Marketing
 

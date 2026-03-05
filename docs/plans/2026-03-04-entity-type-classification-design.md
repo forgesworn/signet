@@ -198,7 +198,7 @@ This is deliberately left as a future extension (YAGNI). The current 9 types cov
 | Existing Concept | How Entity Types Interact |
 |---|---|
 | Verification Tiers (1-4) | Orthogonal. Entity type and tier are independent axes. A Natural Person could be Tier 3 or 4. A Persona inherits trust via identity bridge. |
-| Trust Score (0-100) | Entity type may influence score weights (e.g., vouches from Natural Persons vs Free Agents carry different weight). Details TBD in implementation. |
+| Signet IQ (0-200) | Entity type may influence score weights (e.g., vouches from Natural Persons vs Free Agents carry different weight). Core weights implemented in `src/constants.ts`. |
 | Identity Bridge (kind 30476) | Already exists. Now formally defines the Persona and Juridical Persona entity types. |
 | Revocation (kind 30475) | Already exists. Used to revoke agent delegations as well as credentials. |
 | Vouch (kind 30471) | Unchanged. Vouches can flow between any entity types, with weight influenced by the voucher's type and tier. |

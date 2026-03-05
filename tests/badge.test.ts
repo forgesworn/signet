@@ -51,7 +51,7 @@ describe('badge display (Level 1)', () => {
 
       expect(badge.isVerified).toBe(true);
       expect(badge.tier).toBe(2);
-      expect(badge.tierLabel).toBe('Vouched');
+      expect(badge.tierLabel).toBe('Web-of-trust');
     });
 
     it('computes badge for Tier 3 (professional) credential', async () => {

@@ -51,7 +51,7 @@ O Protocolo Signet foi arquitetado para minimizar a coleta de dados. Como o Prot
 | **Registros de Endosso** | Eventos tipo 30471 representando endossos da rede de confiança | Criados pelas partes endossantes | Relays Nostr (descentralizado) |
 | **Eventos de Política** | Eventos tipo 30472 especificando requisitos das partes confiantes | Criados pelas partes confiantes | Relays Nostr (descentralizado) |
 | **Registro de Verificadores** | Eventos tipo 30473 identificando verificadores profissionais | Criados pelos verificadores | Relays Nostr (descentralizado) |
-| **Dados de Desafio/Resposta** | Eventos tipo 30474 para verificação interativa | Gerados durante a verificação | Relays Nostr (descentralizado) |
+| **Dados de Desafio/Resposta** | Eventos tipo 30474 para desafios de legitimidade de verificadores | Gerados durante a verificação | Relays Nostr (descentralizado) |
 | **Registros de Revogação** | Eventos tipo 30475 para revogação de credenciais | Criados quando credenciais são revogadas | Relays Nostr (descentralizado) |
 
 ### 3.2 Dados que NÃO Coletamos
@@ -125,7 +125,7 @@ O processamento cumpre a Lei DPDP, incluindo processamento baseado em consentime
 Os dados processados através do Protocolo Signet são utilizados exclusivamente para:
 
 1. **Emissão e Verificação de Credenciais** — Permitir que usuários criem, apresentem e verifiquem credenciais nos quatro níveis de verificação.
-2. **Cálculo de Pontuação de Confiança** — Calcular pontuações de confiança baseadas em endossos, níveis de credenciais e histórico de verificação.
+2. **Cálculo do Signet IQ** — Calcular o Signet IQ baseado em endossos, níveis de credenciais e histórico de verificação.
 3. **Verificação de Faixa Etária** — Usar Bulletproofs para provar que um usuário está dentro de uma faixa etária sem revelar sua idade exata.
 4. **Verificação Profissional** — Permitir que profissionais licenciados atuem como verificadores.
 5. **Revogação de Credenciais** — Processar eventos de revogação quando credenciais são invalidadas.
@@ -322,7 +322,7 @@ O Protocolo Signet **não** usa cookies, web beacons, impressão digital de nave
 
 ## 13. Tomada de Decisão Automatizada e Perfilamento
 
-O Protocolo calcula pontuações de confiança algoritmicamente. Estas não constituem tomada de decisão automatizada com efeitos legais sob o Art. 22 do RGPD. Não fazemos perfilamento para marketing.
+O Protocolo calcula o Signet IQ algoritmicamente. Este não constitui tomada de decisão automatizada com efeitos legais sob o Art. 22 do RGPD. Não fazemos perfilamento para marketing.
 
 ---
 

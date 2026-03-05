@@ -51,7 +51,7 @@ Le Protocole Signet est architecturé pour minimiser la collecte de données. É
 | **Enregistrements de Garants** | Événements de type 30471 représentant des endorsements du réseau de confiance | Créés par les parties garantes | Relais Nostr (décentralisé) |
 | **Événements de Politique** | Événements de type 30472 spécifiant les exigences des parties de confiance | Créés par les parties de confiance | Relais Nostr (décentralisé) |
 | **Inscription des Vérificateurs** | Événements de type 30473 identifiant les vérificateurs professionnels | Créés par les vérificateurs | Relais Nostr (décentralisé) |
-| **Données de Défi/Réponse** | Événements de type 30474 pour la vérification interactive | Générées lors de la vérification | Relais Nostr (décentralisé) |
+| **Données de Défi/Réponse** | Événements de type 30474 pour les défis de légitimité des vérificateurs | Générées lors de la vérification | Relais Nostr (décentralisé) |
 | **Enregistrements de Révocation** | Événements de type 30475 pour la révocation d'identifiants | Créés lors de la révocation des identifiants | Relais Nostr (décentralisé) |
 
 ### 3.2 Données que Nous ne Collectons PAS
@@ -142,7 +142,7 @@ Le traitement est conforme à la loi DPDP, notamment :
 Les données traitées via le Protocole Signet sont utilisées exclusivement pour :
 
 1. **Émission et Vérification d'Identifiants** — Permettre aux utilisateurs de créer, présenter et vérifier des identifiants à travers les quatre niveaux de vérification.
-2. **Calcul du Score de Confiance** — Calculer les scores de confiance basés sur les garants du réseau de confiance, les niveaux d'identifiants et l'historique de vérification.
+2. **Calcul du Signet IQ** — Calculer les scores Signet IQ basés sur les garants du réseau de confiance, les niveaux d'identifiants et l'historique de vérification.
 3. **Vérification de Tranche d'Âge** — Utiliser les Bulletproofs pour prouver qu'un utilisateur se trouve dans une tranche d'âge sans révéler son âge exact.
 4. **Vérification Professionnelle** — Permettre aux professionnels licenciés (avocats, notaires, professionnels médicaux) d'agir comme vérificateurs.
 5. **Révocation d'Identifiants** — Traiter les événements de révocation lorsque les identifiants sont invalidés.
@@ -426,15 +426,15 @@ Si des services auxiliaires utilisent des cookies, un avis séparé sur les cook
 
 ## 13. Prise de Décision Automatisée et Profilage
 
-### 13.1 Calcul du Score de Confiance
+### 13.1 Calcul du Signet IQ
 
-Le Protocole calcule des scores de confiance basés sur :
+Le Protocole calcule des scores Signet IQ basés sur :
 - Le niveau de vérification (1–4)
 - Le nombre et la qualité des garants
 - Les qualifications et la réputation du vérificateur
 - L'ancienneté et l'historique des identifiants
 
-Ces scores de confiance sont calculés algorithmiquement et sont visibles par les parties de confiance. Ils ne constituent pas une prise de décision automatisée avec effets juridiques au sens de l'Art. 22 du RGPD.
+Ces scores Signet IQ sont calculés algorithmiquement et sont visibles par les parties de confiance. Ils ne constituent pas une prise de décision automatisée avec effets juridiques au sens de l'Art. 22 du RGPD.
 
 ### 13.2 Pas de Profilage à des Fins Marketing
 

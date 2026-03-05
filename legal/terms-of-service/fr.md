@@ -74,6 +74,9 @@ Le Protocole Signet est un protocole de vérification d'identité décentralisé
 - **30473** — Événements d'inscription des vérificateurs
 - **30474** — Événements de défi
 - **30475** — Événements de révocation
+- **30476** — Pont d'identité
+- **30477** — Délégation
+- **30478–30480** — Extension de vote
 
 ### 3.4 Composants Cryptographiques
 
@@ -115,7 +118,7 @@ Lorsque vous garantissez un autre utilisateur :
 - Vous devez avoir une base réelle pour le garant
 - Vous ne devez pas accepter de paiement en échange de garants
 - Vous pouvez révoquer un garant à tout moment
-- Votre comportement de garant affecte votre propre score de confiance
+- Votre comportement de garant affecte votre propre Signet IQ
 
 ---
 

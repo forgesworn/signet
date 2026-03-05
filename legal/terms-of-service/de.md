@@ -64,7 +64,7 @@ Das Signet-Protokoll ist ein dezentrales Identitätsverifizierungsprotokoll für
 
 ### 3.3 Ereignistypen
 
-30470 (Berechtigungsnachweise), 30471 (Bürgschaften), 30472 (Richtlinien), 30473 (Verifizierer-Registrierung), 30474 (Herausforderungen), 30475 (Widerrufe). Nummern sind Platzhalter.
+30470 (Berechtigungsnachweise), 30471 (Bürgschaften), 30472 (Richtlinien), 30473 (Verifizierer-Registrierung), 30474 (Herausforderungen), 30475 (Widerrufe), 30476 (Identitätsbrücke), 30477 (Delegation), 30478–30480 (Wahlsystem). Nummern sind Platzhalter.
 
 ### 3.4 Kryptografische Komponenten
 
@@ -102,7 +102,7 @@ Sie dürfen NICHT:
 
 ### 4.3 Bürgschaftspflichten (Stufe 2)
 
-Bei der Bürgschaft für einen anderen Nutzer müssen Sie eine echte Grundlage haben, dürfen keine Bezahlung annehmen, können die Bürgschaft jederzeit widerrufen und verstehen, dass Ihr Bürgschaftsverhalten Ihre eigene Vertrauensbewertung beeinflusst.
+Bei der Bürgschaft für einen anderen Nutzer müssen Sie eine echte Grundlage haben, dürfen keine Bezahlung annehmen, können die Bürgschaft jederzeit widerrufen und verstehen, dass Ihr Bürgschaftsverhalten Ihren eigenen Signet IQ beeinflusst.
 
 ---
 
