@@ -1,18 +1,10 @@
 import { openDB, type IDBPDatabase } from 'idb';
+import type { EntityType } from 'signet-protocol';
+
+export type { EntityType };
 
 const DB_NAME = 'signet';
-const DB_VERSION = 2;
-
-export type EntityType =
-  | 'natural_person'
-  | 'persona'
-  | 'personal_agent'
-  | 'free_personal_agent'
-  | 'juridical_person'
-  | 'juridical_persona'
-  | 'organised_agent'
-  | 'free_organised_agent'
-  | 'free_agent';
+const DB_VERSION = 3;
 
 export interface StoredIdentity {
   id: string; // pubkey (was 'current' in v1)
@@ -28,6 +20,17 @@ export interface StoredIdentity {
   linkedPersonaPubkey?: string; // link between Natural Person and Persona
   ageRange?: string;
   isChild?: boolean;
+}
+
+export interface CachedBadge {
+  tier: number;
+  tierLabel: string;
+  score: number;
+  entityType?: string;
+  isVerified: boolean;
+  credentialCount: number;
+  vouchCount: number;
+  fetchedAt: number;
 }
 
 export interface StoredConnection {
@@ -50,6 +53,10 @@ export interface StoredConnection {
   };
   connectedAt: number;
   method: string;
+  /** How this contact was added: 'mutual' (QR scan) or 'follow' (pubkey lookup) */
+  connectionType: 'mutual' | 'follow';
+  /** Cached badge data from relay */
+  badge?: CachedBadge;
 }
 
 export interface StoredPreferences {
@@ -101,6 +108,18 @@ function getDB() {
                   }
                 }
               });
+            }
+          });
+        }
+
+        // v2 → v3: add connectionType to existing connections
+        if (oldVersion < 3) {
+          const connectionsStore = transaction.objectStore('connections');
+          connectionsStore.getAll().then((conns: Record<string, unknown>[]) => {
+            for (const conn of conns) {
+              if (!conn.connectionType) {
+                connectionsStore.put({ ...conn, connectionType: 'mutual' });
+              }
             }
           });
         }
