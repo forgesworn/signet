@@ -2,79 +2,22 @@
 // Proves "value is in [min, max]" without revealing the exact value.
 // Used for Tier 4 age range proofs: "child aged 8-12" without revealing exact age.
 
-import { secp256k1 } from '@noble/curves/secp256k1';
-import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex, hexToBytes, utf8ToBytes, concatBytes } from '@noble/hashes/utils';
-
-const Point = secp256k1.ProjectivePoint;
-const N = secp256k1.CURVE.n;
-type ProjectivePoint = typeof Point.BASE;
-
-// --- Generator Points ---
-
-/** Generator G: standard secp256k1 base point */
-const G = Point.BASE;
-
-/**
- * Generator H: nothing-up-my-sleeve second generator.
- * Created by hashing to a curve point — nobody knows log_G(H).
- */
-function createGeneratorH(): ProjectivePoint {
-  const seed = utf8ToBytes('Signet-Pedersen-Generator-H-v1');
-  for (let i = 0; i < 256; i++) {
-    const buf = new Uint8Array(seed.length + 1);
-    buf.set(seed);
-    buf[seed.length] = i;
-    const h = sha256(buf);
-    const hex = '02' + bytesToHex(h);
-    try {
-      const point = Point.fromHex(hex);
-      point.assertValidity();
-      return point;
-    } catch {
-      continue;
-    }
-  }
-  throw new Error('Failed to generate H point');
-}
-
-const H = createGeneratorH();
-
-// --- Scalar Utilities ---
-
-function mod(a: bigint, m: bigint = N): bigint {
-  const result = a % m;
-  return result >= 0n ? result : result + m;
-}
-
-function randomScalar(): bigint {
-  const bytes = secp256k1.utils.randomPrivateKey();
-  return mod(BigInt('0x' + bytesToHex(bytes)));
-}
-
-function scalarToHex(s: bigint): string {
-  return s.toString(16).padStart(64, '0');
-}
-
-function hexToScalar(hex: string): bigint {
-  return BigInt('0x' + hex);
-}
-
-function hashToScalar(...parts: Uint8Array[]): bigint {
-  const data = concatBytes(...parts);
-  const h = sha256(data);
-  return mod(BigInt('0x' + bytesToHex(h)));
-}
+import { hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
+import {
+  Point,
+  type ProjectivePoint,
+  mod,
+  randomScalar,
+  scalarToHex,
+  hexToScalar,
+  hashToScalar,
+  safeMultiply,
+  G,
+  H,
+} from './secp256k1-utils.js';
 
 function pointToBytes(p: ProjectivePoint): Uint8Array {
   return p.toRawBytes(true);
-}
-
-/** Safe scalar multiplication — handles 0n (which noble/curves rejects) */
-function safeMultiply(point: ProjectivePoint, scalar: bigint): ProjectivePoint {
-  const s = mod(scalar);
-  if (s === 0n) return Point.ZERO;
-  return point.multiply(s);
 }
 
 // --- Pedersen Commitment ---
