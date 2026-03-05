@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
 import type { StoredConnection } from '../lib/db';
+import { ENTITY_LABELS } from '../lib/signet';
 
 interface ConnectionsProps {
   connections: StoredConnection[];
   onSelectContact: (pubkey: string) => void;
+  onFollow: () => void;
 }
 
 function timeAgo(timestampSeconds: number): string {
@@ -32,7 +34,7 @@ function truncatePubkey(pubkey: string): string {
   return `${pubkey.slice(0, 8)}...${pubkey.slice(-8)}`;
 }
 
-export function Connections({ connections, onSelectContact }: ConnectionsProps) {
+export function Connections({ connections, onSelectContact, onFollow }: ConnectionsProps) {
   const [filter, setFilter] = useState('');
 
   const sorted = useMemo(() => {
@@ -78,6 +80,15 @@ export function Connections({ connections, onSelectContact }: ConnectionsProps) 
         style={{ marginBottom: 4 }}
       />
 
+      {/* Follow button */}
+      <button
+        className="btn btn-secondary"
+        onClick={onFollow}
+        style={{ width: '100%', minHeight: 44 }}
+      >
+        + Follow a pubkey
+      </button>
+
       {/* Empty state */}
       {sorted.length === 0 && (
         <div
@@ -90,7 +101,7 @@ export function Connections({ connections, onSelectContact }: ConnectionsProps) 
           }}
         >
           {connections.length === 0
-            ? 'No connections yet. Scan a QR code to connect.'
+            ? 'No connections yet. Scan a QR code or follow a pubkey.'
             : 'No connections match your search.'}
         </div>
       )}
@@ -162,6 +173,15 @@ export function Connections({ connections, onSelectContact }: ConnectionsProps) 
               >
                 Connected {timeAgo(conn.connectedAt)}
               </div>
+              {conn.badge && (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {conn.badge.tierLabel} · IQ {conn.badge.score}
+                  {conn.badge.entityType && ` · ${ENTITY_LABELS[conn.badge.entityType as keyof typeof ENTITY_LABELS] ?? ''}`}
+                </div>
+              )}
+              {conn.connectionType === 'mutual' && (
+                <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 600, marginTop: 2, display: 'inline-block' }}>IN-PERSON</span>
+              )}
             </div>
 
             {/* Chevron */}
