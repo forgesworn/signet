@@ -3,12 +3,18 @@
 // Used for Tier 3/4 issuer privacy: "a professional verified this" without revealing which professional.
 
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex, utf8ToBytes, concatBytes } from '@noble/hashes/utils';
-
-const Point = secp256k1.ProjectivePoint;
-const N = secp256k1.CURVE.n;
-type ProjectivePoint = typeof Point.BASE;
+import { utf8ToBytes } from '@noble/hashes/utils';
+import {
+  Point,
+  N,
+  type ProjectivePoint,
+  mod,
+  randomScalar,
+  scalarToHex,
+  hexToScalar,
+  hashToScalar,
+  safeMultiply,
+} from './secp256k1-utils.js';
 
 /** A ring signature: starting challenge + response scalars */
 export interface RingSignature {
@@ -22,47 +28,11 @@ export interface RingSignature {
   message: string;
 }
 
-/** Convert a scalar bigint to 32-byte hex */
-function scalarToHex(s: bigint): string {
-  return s.toString(16).padStart(64, '0');
-}
-
-/** Convert hex to bigint scalar */
-function hexToScalar(hex: string): bigint {
-  return BigInt('0x' + hex);
-}
-
-/** Modular arithmetic helpers */
-function mod(a: bigint, m: bigint = N): bigint {
-  const result = a % m;
-  return result >= 0n ? result : result + m;
-}
-
-/** Hash to scalar: SHA-256 of concatenated data, reduced mod N */
-function hashToScalar(...parts: Uint8Array[]): bigint {
-  const data = concatBytes(...parts);
-  const h = sha256(data);
-  return mod(BigInt('0x' + bytesToHex(h)));
-}
-
 /** Load a public key from x-only hex (32 bytes) to a curve point.
  *  Assumes even y-coordinate (BIP-340 convention). */
 function pubkeyToPoint(pubkeyHex: string): ProjectivePoint {
   // x-only pubkey: prepend 02 for even y
   return Point.fromHex('02' + pubkeyHex);
-}
-
-/** Generate a random scalar in [1, N-1] */
-function randomScalar(): bigint {
-  const bytes = secp256k1.utils.randomPrivateKey();
-  return mod(BigInt('0x' + bytesToHex(bytes)));
-}
-
-/** Safe scalar multiplication — handles 0n (which noble/curves rejects) */
-function safeMultiply(point: ProjectivePoint, scalar: bigint): ProjectivePoint {
-  const s = mod(scalar);
-  if (s === 0n) return Point.ZERO;
-  return point.multiply(s);
 }
 
 /**
