@@ -9,6 +9,7 @@ This repo contains:
 - `spec/voting.md` — voting extension specification (linkable ring signatures, elections)
 - `src/` — TypeScript protocol library (npm publishable)
 - `app/` — Reference web app (React + Vite, imports the protocol library)
+- `family-app/` — My Signet family app (React + Vite, production-ready, normie-friendly)
 - `examples/` — example event payloads and flows
 - `legal/` — legal documents in multiple languages
 - `docs/plans/` — design and implementation plans
@@ -73,6 +74,7 @@ Signet/
 ├── src/          — Protocol library (TypeScript, no framework dependencies)
 ├── tests/        — Protocol tests (vitest)
 ├── app/          — Reference web app (React + Vite + TypeScript)
+├── family-app/   — My Signet family app (React + Vite + TypeScript)
 ├── spec/         — Protocol specification
 ├── examples/     — Example flows
 ├── legal/        — Legal documents (multi-language)
@@ -92,11 +94,17 @@ node node_modules/typescript/bin/tsc --noEmit  # typecheck protocol
 npm run dev                                     # start dev server
 npm run build                                   # production build
 npm run typecheck                               # typecheck app
+
+# Family App (from family-app/ directory)
+npm run dev                                     # start dev server (port 5175)
+npm run build                                   # production build
+npm run typecheck                               # typecheck family app
 ```
 
 ## Port Allocation
 
 - **5174** — Signet reference app (HTTPS, self-signed cert)
+- **5175** — My Signet family app (HTTPS, self-signed cert)
 - Avoid: 3000, 5173, 7777, 7778, 8787 (in use by other services)
 
 ## Subagent Model Selection
