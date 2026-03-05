@@ -664,6 +664,89 @@ export function buildNullifierChainTag(oldNullifier: string): string[][] {
   return [['nullifier-chain', oldNullifier]];
 }
 
+// --- Multi-Document Nullifier Families ---
+
+export interface DocumentDescriptor {
+  documentType: string;
+  countryCode: string;
+  documentNumber: string;
+}
+
+export interface NullifierFamily {
+  /** Primary nullifier (first document) */
+  primary: string;
+  /** All nullifiers in the family (including primary) */
+  nullifiers: Array<{ documentType: string; nullifier: string }>;
+}
+
+/**
+ * Compute nullifiers for ALL documents presented during a verification ceremony.
+ * Returns a nullifier family containing all nullifiers. Collision with ANY nullifier
+ * in ANY family triggers duplicate detection.
+ */
+export function computeNullifierFamily(documents: DocumentDescriptor[]): NullifierFamily {
+  if (documents.length === 0) {
+    throw new Error('At least one document is required for nullifier computation');
+  }
+
+  const nullifiers = documents.map(doc => ({
+    documentType: doc.documentType,
+    nullifier: computeNullifier(doc.documentType, doc.countryCode, doc.documentNumber),
+  }));
+
+  return {
+    primary: nullifiers[0].nullifier,
+    nullifiers,
+  };
+}
+
+/**
+ * Build nullifier-family tags for a credential event.
+ * The primary nullifier is stored in the 'nullifier' tag (backwards compatible).
+ * Additional nullifiers are stored in 'nullifier-family' tags.
+ */
+export function buildNullifierFamilyTags(family: NullifierFamily): string[][] {
+  const tags: string[][] = [
+    ['nullifier', family.primary],
+  ];
+  for (const entry of family.nullifiers) {
+    tags.push(['nullifier-family', entry.nullifier, entry.documentType]);
+  }
+  return tags;
+}
+
+/**
+ * Check if ANY nullifier in a family collides with ANY nullifier in existing credentials.
+ * This catches attempts to use different documents for the same person.
+ */
+export function checkNullifierFamilyDuplicate(
+  family: NullifierFamily,
+  existingCredentials: NostrEvent[]
+): { isDuplicate: boolean; conflicting?: NostrEvent; matchedNullifier?: string } {
+  for (const cred of existingCredentials) {
+    // Check against primary nullifier tag
+    const credNullifier = getTagValue(cred, 'nullifier');
+
+    // Also check against all nullifier-family tags
+    const credFamilyNullifiers = getTagValues(cred, 'nullifier-family');
+
+    const allCredNullifiers = new Set<string>();
+    if (credNullifier) allCredNullifiers.add(credNullifier);
+    for (const fn of credFamilyNullifiers) {
+      allCredNullifiers.add(fn);
+    }
+
+    // Check each nullifier in the new family against all existing nullifiers
+    for (const entry of family.nullifiers) {
+      if (allCredNullifiers.has(entry.nullifier)) {
+        return { isDuplicate: true, conflicting: cred, matchedNullifier: entry.nullifier };
+      }
+    }
+  }
+
+  return { isDuplicate: false };
+}
+
 // --- Guardian Delegation ---
 
 /**

@@ -12,6 +12,8 @@ This repo contains:
 - `examples/` — example event payloads and flows
 - `legal/` — legal documents in multiple languages
 - `docs/plans/` — design and implementation plans
+- `docs/signet-in-5-minutes.md` — one-page developer overview
+- `docs/implementation-levels.md` — three-level integration guide for client developers
 
 ## Key Concepts
 
@@ -21,6 +23,10 @@ This repo contains:
 - **9 entity types**: Natural Person, Persona, Personal Agent, Free Personal Agent, Juridical Person, Juridical Persona, Organised Agent, Free Organised Agent, Free Agent
 - **Two-credential ceremony**: Professional verification issues Natural Person credential (with nullifier, Merkle root) + Persona credential (anonymous, age-range only) simultaneously
 - **Document-based nullifiers**: SHA-256(docType||country||docNumber||salt) prevents duplicate identity without revealing documents
+- **Multi-document nullifier families**: All documents presented during verification produce nullifiers; collision with ANY nullifier detects duplicates
+- **Jurisdiction confidence**: Scored 0-100 based on professional body coverage, public registers, digital credentials, data protection maturity, mutual recognition
+- **3 implementation levels**: Level 1 (read badges, a weekend) → Level 2 (issue vouches, days) → Level 3 (full protocol, weeks+)
+- **Badge display library**: `src/badge.ts` — drop-in Level 1 integration for any Nostr client
 - **Credential chains**: `supersedes`/`superseded-by` tags for lifecycle events (name change, document renewal, tier upgrade)
 - **Guardian delegation**: Kind 30477 events with scopes (full, activity-approval, content-management, contact-approval) for family structures
 - **Merkle selective disclosure**: Verified attributes as private leaves, only root published on-chain

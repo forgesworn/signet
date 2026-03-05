@@ -106,11 +106,15 @@ export {
   computeNullifier,
   checkNullifierDuplicate,
   buildNullifierChainTag,
+  // Multi-document nullifier families
+  computeNullifierFamily,
+  buildNullifierFamilyTags,
+  checkNullifierFamilyDuplicate,
   // Guardian delegation
   createGuardianDelegation,
 } from './credentials.js';
 
-export type { RingProtectedContent } from './credentials.js';
+export type { RingProtectedContent, DocumentDescriptor, NullifierFamily } from './credentials.js';
 
 // Vouches (kind 30471)
 export {
@@ -244,6 +248,9 @@ export {
   canTransferData,
   getAllLanguages,
   getJurisdictionsByLanguage,
+  computeJurisdictionConfidence,
+  getJurisdictionConfidence,
+  rankJurisdictionsByConfidence,
 } from './jurisdictions.js';
 
 export type {
@@ -253,6 +260,7 @@ export type {
   DataProtectionLaw,
   ChildProtectionLaw,
   Jurisdiction,
+  JurisdictionConfidence,
 } from './jurisdictions.js';
 
 // Internationalization
@@ -353,6 +361,17 @@ export {
 } from './connections.js';
 
 export type { ContactInfo, Connection, QRPayload } from './connections.js';
+
+// Badge Display (Level 1 integration)
+export {
+  computeBadge,
+  getTrustLevel,
+  meetsMinimumTier,
+  filterEventsForPubkey,
+  buildBadgeFilters,
+} from './badge.js';
+
+export type { BadgeInfo, TrustLevel } from './badge.js';
 
 // Signet Words (Time-Based Verification)
 export {

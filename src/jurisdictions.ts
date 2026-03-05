@@ -3300,3 +3300,124 @@ export function getAllLanguages(): string[] {
 export function getJurisdictionsByLanguage(languageCode: string): Jurisdiction[] {
   return Object.values(JURISDICTIONS).filter((j) => j.languages.includes(languageCode));
 }
+
+// --- Jurisdiction Confidence ---
+
+export interface JurisdictionConfidence {
+  /** ISO 3166-1 alpha-2 code */
+  code: string;
+  /** Overall confidence score (0-100) */
+  score: number;
+  /** Breakdown of contributing factors */
+  breakdown: {
+    /** Number of professional bodies (0-20 points, 1pt per body, capped at 20) */
+    professionalBodyCoverage: number;
+    /** Proportion of bodies with public registers (0-20 points) */
+    publicRegisterAvailability: number;
+    /** Proportion of bodies issuing digital credentials (0-15 points) */
+    digitalCredentialIssuance: number;
+    /** Data protection law maturity (0-15 points) */
+    dataProtectionMaturity: number;
+    /** Number of mutual recognition partners (0-10 points, 1pt per partner, capped at 10) */
+    mutualRecognition: number;
+    /** E-signature legal recognition (0 or 10 points) */
+    eSignatureRecognition: number;
+    /** Legal system compatibility bonus (0-10 points) */
+    legalSystemScore: number;
+  };
+}
+
+/**
+ * Compute a confidence score for a jurisdiction based on how well its
+ * professional bodies and legal framework support Signet verification.
+ * Higher scores mean credentials from this jurisdiction carry more weight.
+ */
+export function computeJurisdictionConfidence(jurisdictionCode: string): JurisdictionConfidence | undefined {
+  const j = getJurisdiction(jurisdictionCode);
+  if (!j) return undefined;
+
+  const bodies = j.professionalBodies;
+
+  // Professional body coverage: 1pt per body, max 20
+  const professionalBodyCoverage = Math.min(bodies.length, 20);
+
+  // Public register availability: proportion of bodies with public registers * 20
+  const publicRegisterAvailability = bodies.length > 0
+    ? Math.round((bodies.filter(b => b.hasPublicRegister).length / bodies.length) * 20)
+    : 0;
+
+  // Digital credential issuance: proportion of bodies issuing digital credentials * 15
+  const digitalCredentialIssuance = bodies.length > 0
+    ? Math.round((bodies.filter(b => b.issuesDigitalCredentials).length / bodies.length) * 15)
+    : 0;
+
+  // Data protection maturity: composite of key data protection features
+  let dataProtectionMaturity = 0;
+  const dp = j.dataProtection;
+  if (dp.requiresExplicitConsent) dataProtectionMaturity += 3;
+  if (dp.rightToErasure) dataProtectionMaturity += 3;
+  if (dp.rightToPortability) dataProtectionMaturity += 3;
+  if (dp.breachNotificationHours > 0) dataProtectionMaturity += 3;
+  if (dp.crossBorderRestrictions) dataProtectionMaturity += 3;
+  dataProtectionMaturity = Math.min(dataProtectionMaturity, 15);
+
+  // Mutual recognition: 1pt per partner, max 10
+  const mutualRecognition = Math.min(j.mutualRecognition.length, 10);
+
+  // E-signature recognition: binary
+  const eSignatureRecognition = j.eSignatureRecognised ? 10 : 0;
+
+  // Legal system: common-law and civil-law score highest (well-established professional regulation)
+  const legalSystemScores: Record<LegalSystem, number> = {
+    'common-law': 10,
+    'civil-law': 10,
+    'mixed': 7,
+    'religious': 4,
+    'customary': 3,
+  };
+  const legalSystemScore = legalSystemScores[j.legalSystem] ?? 5;
+
+  const score = Math.min(
+    professionalBodyCoverage +
+    publicRegisterAvailability +
+    digitalCredentialIssuance +
+    dataProtectionMaturity +
+    mutualRecognition +
+    eSignatureRecognition +
+    legalSystemScore,
+    100
+  );
+
+  return {
+    code: j.code,
+    score,
+    breakdown: {
+      professionalBodyCoverage,
+      publicRegisterAvailability,
+      digitalCredentialIssuance,
+      dataProtectionMaturity,
+      mutualRecognition,
+      eSignatureRecognition,
+      legalSystemScore,
+    },
+  };
+}
+
+/**
+ * Get the jurisdiction confidence score (0-100) for a jurisdiction.
+ * Returns 0 for unknown jurisdictions.
+ */
+export function getJurisdictionConfidence(jurisdictionCode: string): number {
+  const confidence = computeJurisdictionConfidence(jurisdictionCode);
+  return confidence?.score ?? 0;
+}
+
+/**
+ * Get all jurisdictions ranked by confidence score (highest first).
+ */
+export function rankJurisdictionsByConfidence(): JurisdictionConfidence[] {
+  return getJurisdictionCodes()
+    .map(code => computeJurisdictionConfidence(code))
+    .filter((c): c is JurisdictionConfidence => c !== undefined)
+    .sort((a, b) => b.score - a.score);
+}
