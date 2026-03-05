@@ -19,10 +19,16 @@ This repo contains:
 - **8 core event kinds** (30470-30477): credential, vouch, policy, verifier, challenge, revocation, identity bridge, delegation
 - **3 voting extension event kinds** (30478-30480): election, ballot, election result
 - **9 entity types**: Natural Person, Persona, Personal Agent, Free Personal Agent, Juridical Person, Juridical Persona, Organised Agent, Free Organised Agent, Free Agent
+- **Two-credential ceremony**: Professional verification issues Natural Person credential (with nullifier, Merkle root) + Persona credential (anonymous, age-range only) simultaneously
+- **Document-based nullifiers**: SHA-256(docType||country||docNumber||salt) prevents duplicate identity without revealing documents
+- **Credential chains**: `supersedes`/`superseded-by` tags for lifecycle events (name change, document renewal, tier upgrade)
+- **Guardian delegation**: Kind 30477 events with scopes (full, activity-approval, content-management, contact-approval) for family structures
+- **Merkle selective disclosure**: Verified attributes as private leaves, only root published on-chain
 - **Crypto stack**: Schnorr (secp256k1 base) + Bulletproofs (age range proofs) + future ZK layer
 - **No central authority**: professional bodies (Law Society, medical boards, notary commissions) are the trust anchors
 - **"Signet me"**: Time-based word verification (configurable 1-23 words, default 3) for peer-to-peer identity proof over untrusted channels
 - **BIP-39 / NIP-06**: Identity derived from 12-word mnemonic, Shamir backup supported
+- **Child safety**: Age-range proofs on all tiers, guardian-linked sub-accounts, client display requirements for age-gap warnings
 
 ## Relationship to Fathom
 
