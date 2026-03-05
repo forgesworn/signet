@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
-import type { StoredIdentity, StoredConnection } from '../lib/db';
+import type { StoredIdentity, StoredConnection, CachedBadge } from '../lib/db';
 import { parseQRPayload, computeSharedSecret, type QRPayload } from '../lib/signet';
+import { fetchBadge } from '../lib/badge-fetch';
 import { useCamera } from '../hooks/useCamera';
 import { useSignetWords } from '../hooks/useSignetWords';
 import { QRScanner } from '../components/QRScanner';
@@ -8,6 +9,7 @@ import { QRScanner } from '../components/QRScanner';
 interface ScanProps {
   identity: StoredIdentity;
   onConnect: (connection: Omit<StoredConnection, 'ownerPubkey'>) => Promise<void>;
+  relayUrl?: string;
 }
 
 type Step = 'scanner' | 'preview' | 'success';
@@ -19,7 +21,7 @@ interface ShareSelection {
   address: boolean;
 }
 
-export function Scan({ identity, onConnect }: ScanProps) {
+export function Scan({ identity, onConnect, relayUrl }: ScanProps) {
   const [step, setStep] = useState<Step>('scanner');
   const [scannedPayload, setScannedPayload] = useState<QRPayload | null>(null);
   const [shareSelection, setShareSelection] = useState<ShareSelection>({
@@ -75,6 +77,13 @@ export function Scan({ identity, onConnect }: ScanProps) {
       const secret = computeSharedSecret(identity.privateKey, scannedPayload.pubkey);
       setSharedSecret(secret);
 
+      // Fetch badge from relay (non-blocking — save even if relay fails)
+      let badge: CachedBadge | undefined;
+      if (relayUrl) {
+        const fetched = await fetchBadge(scannedPayload.pubkey, relayUrl);
+        if (fetched) badge = fetched;
+      }
+
       const ourInfo: StoredConnection['ourInfo'] = {};
       if (shareSelection.name) ourInfo.name = identity.displayName;
       if (shareSelection.mobile) ourInfo.mobile = '';
@@ -88,6 +97,8 @@ export function Scan({ identity, onConnect }: ScanProps) {
         ourInfo,
         connectedAt: Math.floor(Date.now() / 1000),
         method: 'qr-scan',
+        connectionType: 'mutual' as const,
+        badge,
       };
 
       await onConnect(connection);
@@ -97,7 +108,7 @@ export function Scan({ identity, onConnect }: ScanProps) {
     } finally {
       setConnecting(false);
     }
-  }, [scannedPayload, identity, shareSelection, onConnect]);
+  }, [scannedPayload, identity, shareSelection, onConnect, relayUrl]);
 
   // ── Handle done / reset ────────────────────────
   const handleDone = useCallback(() => {
