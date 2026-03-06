@@ -2,7 +2,6 @@
 // Proves "one of N public keys signed this message" without revealing which one.
 // Used for Tier 3/4 issuer privacy: "a professional verified this" without revealing which professional.
 
-import { secp256k1 } from '@noble/curves/secp256k1';
 import { utf8ToBytes } from '@noble/hashes/utils';
 import {
   Point,
