@@ -105,6 +105,7 @@ describe('voting extension', () => {
         reVote: 'denied',
         tallyPubkeys: ['key1'],
         authorityPubkey: 'authority-key',
+        algorithm: 'secp256k1',
       };
       expect(parsed.authorityPubkey).toBe('authority-key');
     });
@@ -118,6 +119,7 @@ describe('voting extension', () => {
         encryptedVote: 'vote',
         ephemeralPubkey: 'ephemeral-key',
         timestamp: 1234567890,
+        algorithm: 'secp256k1',
       };
       expect(parsed.ephemeralPubkey).toBe('ephemeral-key');
       expect(parsed.timestamp).toBe(1234567890);
@@ -132,6 +134,7 @@ describe('voting extension', () => {
         totalEligible: 20,
         totalInvalid: 0,
         tallierPubkey: 'tallier-key',
+        algorithm: 'secp256k1',
       };
       expect(parsed.tallierPubkey).toBe('tallier-key');
     });
