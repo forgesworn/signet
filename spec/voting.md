@@ -157,6 +157,7 @@ A replaceable event published by an election authority defining an election.
     ["tally-pubkeys", "<pubkey1>", "<pubkey2>", "..."],  // keys that can decrypt ballots
     ["tally-threshold", "<m>", "<n>"],                   // m-of-n threshold for decryption
     ["ring-size", "<minimum_ring_size>"],                 // minimum eligible set size
+    ["algo", "secp256k1"],                                  // cryptographic algorithm
     ["L", "signet"],
     ["l", "election", "signet"]
   ],
@@ -188,6 +189,7 @@ A replaceable event published by a voter. The voter's actual pubkey is NOT used 
     ["key-image", "<hex_encoded_key_image>"],
     ["ring-sig", "<hex_encoded_linkable_ring_signature>"],
     ["encrypted-vote", "<encrypted_vote_content>"],
+    ["algo", "secp256k1"],                                  // cryptographic algorithm
     ["L", "signet"],
     ["l", "ballot", "signet"]
   ],
@@ -225,6 +227,7 @@ A replaceable event published after an election closes with the verified tally.
     ["total-eligible", "<count>"],
     ["total-invalid", "<count>"],
     ["tally-proof", "<proof_data>"],
+    ["algo", "secp256k1"],                                  // cryptographic algorithm
     ["L", "signet"],
     ["l", "election-result", "signet"]
   ],

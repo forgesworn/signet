@@ -1,7 +1,7 @@
 // Kind 30471 — Vouch Attestation
 // Create and manage peer vouches
 
-import { SIGNET_KINDS, SIGNET_LABEL, DEFAULT_VOUCH_THRESHOLD, DEFAULT_VOUCHER_MIN_TIER } from './constants.js';
+import { SIGNET_KINDS, SIGNET_LABEL, DEFAULT_VOUCH_THRESHOLD, DEFAULT_VOUCHER_MIN_TIER, DEFAULT_CRYPTO_ALGORITHM } from './constants.js';
 import { signEvent, getPublicKey } from './crypto.js';
 import { getTagValue } from './validation.js';
 import type {
@@ -11,6 +11,7 @@ import type {
   ParsedVouch,
   VouchMethod,
   SignetTier,
+  CryptoAlgorithm,
 } from './types.js';
 
 /** Build an unsigned vouch event */
@@ -24,6 +25,7 @@ export function buildVouchEvent(
     ['method', params.method],
     ['voucher-tier', String(params.voucherTier)],
     ['voucher-score', String(params.voucherScore)],
+    ['algo', DEFAULT_CRYPTO_ALGORITHM],
     ['L', SIGNET_LABEL],
     ['l', 'vouch', SIGNET_LABEL],
   ];
@@ -56,12 +58,15 @@ export function parseVouch(event: NostrEvent): ParsedVouch | null {
   const tier = getTagValue(event, 'voucher-tier');
   const score = getTagValue(event, 'voucher-score');
 
+  const algorithm = (getTagValue(event, 'algo') || DEFAULT_CRYPTO_ALGORITHM) as CryptoAlgorithm;
+
   return {
     subjectPubkey: getTagValue(event, 'd') || '',
     method: (getTagValue(event, 'method') || 'online') as VouchMethod,
     context: getTagValue(event, 'context'),
     voucherTier: (tier ? parseInt(tier, 10) : 1) as SignetTier,
     voucherScore: score ? parseInt(score, 10) : 50,
+    algorithm,
   };
 }
 

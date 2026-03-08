@@ -1,7 +1,7 @@
 // Kind 30472 — Community Verification Policy
 // Create policies and check compliance
 
-import { SIGNET_KINDS, SIGNET_LABEL } from './constants.js';
+import { SIGNET_KINDS, SIGNET_LABEL, DEFAULT_CRYPTO_ALGORITHM } from './constants.js';
 import { signEvent, getPublicKey } from './crypto.js';
 import { getTagValue } from './validation.js';
 import type {
@@ -12,6 +12,7 @@ import type {
   ParsedPolicy,
   SignetTier,
   EnforcementLevel,
+  CryptoAlgorithm,
 } from './types.js';
 
 /** Build an unsigned policy event */
@@ -24,6 +25,7 @@ export function buildPolicyEvent(
     ['adult-min-tier', String(params.adultMinTier)],
     ['child-min-tier', String(params.childMinTier)],
     ['enforcement', params.enforcement],
+    ['algo', DEFAULT_CRYPTO_ALGORITHM],
     ['L', SIGNET_LABEL],
     ['l', 'policy', SIGNET_LABEL],
   ];
@@ -59,6 +61,8 @@ export function parsePolicy(event: NostrEvent): ParsedPolicy | null {
   const adultTier = getTagValue(event, 'adult-min-tier');
   const childTier = getTagValue(event, 'child-min-tier');
 
+  const algorithm = (getTagValue(event, 'algo') || DEFAULT_CRYPTO_ALGORITHM) as CryptoAlgorithm;
+
   return {
     communityId: getTagValue(event, 'd') || '',
     adultMinTier: (adultTier ? parseInt(adultTier, 10) : 1) as SignetTier,
@@ -68,6 +72,7 @@ export function parsePolicy(event: NostrEvent): ParsedPolicy | null {
     modMinTier: getTagValue(event, 'mod-min-tier') ? parseInt(getTagValue(event, 'mod-min-tier')!, 10) as SignetTier : undefined,
     verifierBond: getTagValue(event, 'verifier-bond') ? parseInt(getTagValue(event, 'verifier-bond')!, 10) : undefined,
     revocationThreshold: getTagValue(event, 'revocation-threshold') ? parseInt(getTagValue(event, 'revocation-threshold')!, 10) : undefined,
+    algorithm,
   };
 }
 

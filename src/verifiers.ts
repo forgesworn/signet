@@ -1,7 +1,7 @@
 // Kind 30473 — Verifier Credential
 // Professional verifier registration and cross-verification
 
-import { SIGNET_KINDS, SIGNET_LABEL, VERIFIER_ACTIVATION } from './constants.js';
+import { SIGNET_KINDS, SIGNET_LABEL, VERIFIER_ACTIVATION, DEFAULT_CRYPTO_ALGORITHM } from './constants.js';
 import { signEvent, getPublicKey } from './crypto.js';
 import { getTagValue } from './validation.js';
 import type {
@@ -9,6 +9,7 @@ import type {
   UnsignedEvent,
   VerifierParams,
   ParsedVerifier,
+  CryptoAlgorithm,
 } from './types.js';
 
 /** Build an unsigned verifier credential event */
@@ -26,6 +27,7 @@ export function buildVerifierEvent(
       ['jurisdiction', params.jurisdiction],
       ['licence', params.licenceHash],
       ['body', params.professionalBody],
+      ['algo', DEFAULT_CRYPTO_ALGORITHM],
       ['L', SIGNET_LABEL],
       ['l', 'verifier', SIGNET_LABEL],
     ],
@@ -47,11 +49,14 @@ export async function createVerifierCredential(
 export function parseVerifier(event: NostrEvent): ParsedVerifier | null {
   if (event.kind !== SIGNET_KINDS.VERIFIER) return null;
 
+  const algorithm = (getTagValue(event, 'algo') || DEFAULT_CRYPTO_ALGORITHM) as CryptoAlgorithm;
+
   return {
     profession: getTagValue(event, 'profession') || '',
     jurisdiction: getTagValue(event, 'jurisdiction') || '',
     licenceHash: getTagValue(event, 'licence') || '',
     professionalBody: getTagValue(event, 'body') || '',
+    algorithm,
   };
 }
 

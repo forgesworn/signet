@@ -1,6 +1,11 @@
 // Signet Protocol Types
 // All TypeScript interfaces for the 11 Nostr event kinds (8 core + 3 voting extension) and supporting structures
 
+/** Asymmetric cryptographic algorithm for event signing and key agreement.
+ * 'secp256k1' is the current Nostr standard. Additional algorithms
+ * (e.g. post-quantum lattice-based schemes) may be added in future versions. */
+export type CryptoAlgorithm = 'secp256k1' | (string & {});
+
 /** Verification tier levels */
 export type SignetTier = 1 | 2 | 3 | 4;
 
@@ -189,6 +194,7 @@ export interface ParsedCredential {
   guardianPubkeys?: string[];
   supersedes?: string;
   supersededBy?: string;
+  algorithm: CryptoAlgorithm;
 }
 
 export interface ParsedVouch {
@@ -197,6 +203,7 @@ export interface ParsedVouch {
   context?: string;
   voucherTier: SignetTier;
   voucherScore: number;
+  algorithm: CryptoAlgorithm;
 }
 
 export interface ParsedPolicy {
@@ -208,6 +215,7 @@ export interface ParsedPolicy {
   modMinTier?: SignetTier;
   verifierBond?: number;
   revocationThreshold?: number;
+  algorithm: CryptoAlgorithm;
 }
 
 export interface ParsedVerifier {
@@ -215,6 +223,7 @@ export interface ParsedVerifier {
   jurisdiction: string;
   licenceHash: string;
   professionalBody: string;
+  algorithm: CryptoAlgorithm;
 }
 
 export interface ParsedChallenge {
@@ -222,6 +231,7 @@ export interface ParsedChallenge {
   reason: ChallengeReason;
   evidenceType: string;
   reporterTier: SignetTier;
+  algorithm: CryptoAlgorithm;
 }
 
 export interface ParsedRevocation {
@@ -231,6 +241,7 @@ export interface ParsedRevocation {
   bondAction: BondAction;
   scope: RevocationScope;
   effectiveAt: number;
+  algorithm: CryptoAlgorithm;
 }
 
 // --- Entity Type Classification ---
@@ -266,6 +277,7 @@ export interface ParsedDelegation {
   entityType: 'personal_agent' | 'free_personal_agent' | 'organised_agent' | 'free_organised_agent';
   ownerPubkey: string;
   expiresAt?: number;
+  algorithm: CryptoAlgorithm;
 }
 
 // --- Voting Extension (spec/voting.md) ---
@@ -390,4 +402,5 @@ export interface ParsedIdentityBridge {
   ringSize: number;
   ring: string[];
   timestamp: number;
+  algorithm: CryptoAlgorithm;
 }

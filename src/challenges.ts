@@ -1,7 +1,7 @@
 // Kind 30474 — Verifier Challenge
 // Kind 30475 — Verifier Revocation
 
-import { SIGNET_KINDS, SIGNET_LABEL, DEFAULT_REVOCATION_THRESHOLD } from './constants.js';
+import { SIGNET_KINDS, SIGNET_LABEL, DEFAULT_REVOCATION_THRESHOLD, DEFAULT_CRYPTO_ALGORITHM } from './constants.js';
 import { signEvent, getPublicKey } from './crypto.js';
 import { getTagValue } from './validation.js';
 import type {
@@ -15,6 +15,7 @@ import type {
   BondAction,
   RevocationScope,
   SignetTier,
+  CryptoAlgorithm,
 } from './types.js';
 
 // --- Kind 30474: Challenge ---
@@ -34,6 +35,7 @@ export function buildChallengeEvent(
       ['reason', params.reason],
       ['evidence-type', params.evidenceType],
       ['reporter-tier', String(params.reporterTier)],
+      ['algo', DEFAULT_CRYPTO_ALGORITHM],
       ['L', SIGNET_LABEL],
       ['l', 'challenge', SIGNET_LABEL],
     ],
@@ -55,11 +57,14 @@ export async function createChallenge(
 export function parseChallenge(event: NostrEvent): ParsedChallenge | null {
   if (event.kind !== SIGNET_KINDS.CHALLENGE) return null;
 
+  const algorithm = (getTagValue(event, 'algo') || DEFAULT_CRYPTO_ALGORITHM) as CryptoAlgorithm;
+
   return {
     verifierPubkey: getTagValue(event, 'd') || '',
     reason: (getTagValue(event, 'reason') || 'other') as ChallengeReason,
     evidenceType: getTagValue(event, 'evidence-type') || '',
     reporterTier: (parseInt(getTagValue(event, 'reporter-tier') || '1')) as SignetTier,
+    algorithm,
   };
 }
 
@@ -82,6 +87,7 @@ export function buildRevocationEvent(
       ['bond-action', params.bondAction],
       ['scope', params.scope],
       ['effective', String(params.effectiveAt)],
+      ['algo', DEFAULT_CRYPTO_ALGORITHM],
       ['L', SIGNET_LABEL],
       ['l', 'revocation', SIGNET_LABEL],
     ],
@@ -103,6 +109,8 @@ export async function createRevocation(
 export function parseRevocation(event: NostrEvent): ParsedRevocation | null {
   if (event.kind !== SIGNET_KINDS.REVOCATION) return null;
 
+  const algorithm = (getTagValue(event, 'algo') || DEFAULT_CRYPTO_ALGORITHM) as CryptoAlgorithm;
+
   return {
     verifierPubkey: getTagValue(event, 'd') || '',
     challengeEventId: getTagValue(event, 'challenge') || '',
@@ -110,6 +118,7 @@ export function parseRevocation(event: NostrEvent): ParsedRevocation | null {
     bondAction: (getTagValue(event, 'bond-action') || 'held') as BondAction,
     scope: (getTagValue(event, 'scope') || 'full') as RevocationScope,
     effectiveAt: parseInt(getTagValue(event, 'effective') || '0'),
+    algorithm,
   };
 }
 
