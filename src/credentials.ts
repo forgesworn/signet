@@ -1,7 +1,7 @@
 // Kind 30470 — Verification Credential
 // Create, sign, verify, and parse Signet credentials for all 4 tiers
 
-import { SIGNET_KINDS, SIGNET_LABEL, DEFAULT_CREDENTIAL_EXPIRY_SECONDS } from './constants.js';
+import { SIGNET_KINDS, SIGNET_LABEL, DEFAULT_CREDENTIAL_EXPIRY_SECONDS, DEFAULT_CRYPTO_ALGORITHM } from './constants.js';
 import { signEvent, verifyEvent, getPublicKey, hashString } from './crypto.js';
 import { validateCredential, getTagValue, getTagValues } from './validation.js';
 import { ringSign, ringVerify, type RingSignature } from './ring-signature.js';
@@ -20,6 +20,7 @@ import type {
   CredentialChain,
   GuardianDelegationParams,
   MerkleProof,
+  CryptoAlgorithm,
 } from './types.js';
 import { MerkleTree } from './merkle.js';
 
@@ -36,6 +37,7 @@ export function buildCredentialEvent(
     ['scope', params.scope],
     ['method', params.method],
     ['expires', String(params.expiresAt)],
+    ['algo', DEFAULT_CRYPTO_ALGORITHM],
     ['L', SIGNET_LABEL],
     ['l', 'verification', SIGNET_LABEL],
   ];
@@ -188,6 +190,7 @@ export function parseCredential(event: NostrEvent): ParsedCredential | null {
   if (!tier) return null;
 
   const guardianValues = getTagValues(event, 'guardian');
+  const algorithm = (getTagValue(event, 'algo') || DEFAULT_CRYPTO_ALGORITHM) as CryptoAlgorithm;
 
   return {
     subjectPubkey: getTagValue(event, 'd') || '',
@@ -205,6 +208,7 @@ export function parseCredential(event: NostrEvent): ParsedCredential | null {
     guardianPubkeys: guardianValues.length > 0 ? guardianValues : undefined,
     supersedes: getTagValue(event, 'supersedes'),
     supersededBy: getTagValue(event, 'superseded-by'),
+    algorithm,
   };
 }
 
@@ -755,6 +759,7 @@ export async function createGuardianDelegation(
     ['delegation-type', 'guardian-delegate'],
     ['child', params.childPubkey],
     ['scope', params.scope],
+    ['algo', DEFAULT_CRYPTO_ALGORITHM],
     ['L', SIGNET_LABEL],
     ['l', 'delegation', SIGNET_LABEL],
   ];

@@ -88,6 +88,10 @@ export const ENTITY_LABELS: Record<string, string> = {
   free_agent: 'Free Agent',
 };
 
+/** Default asymmetric cryptographic algorithm (Nostr standard secp256k1).
+ * Tagged on events so future parsers can distinguish pre- and post-quantum events. */
+export const DEFAULT_CRYPTO_ALGORITHM = 'secp256k1' as const;
+
 /** Signal ordering (protocol-mandated) */
 export const SIGNAL_PRIORITY = [
   'professional-verification',

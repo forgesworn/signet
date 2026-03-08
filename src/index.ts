@@ -3,6 +3,7 @@
 
 // Types
 export type {
+  CryptoAlgorithm,
   SignetTier,
   VerificationType,
   VerificationScope,
@@ -66,6 +67,7 @@ export {
   ENTITY_TYPES,
   DELEGATION_CONSTRAINTS,
   ENTITY_LABELS,
+  DEFAULT_CRYPTO_ALGORITHM,
 } from './constants.js';
 
 // Crypto

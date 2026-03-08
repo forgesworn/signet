@@ -5,12 +5,12 @@
 // Published from the anon account. Content contains a ring signature proving
 // one of N verified accounts also controls this anon account.
 
-import { SIGNET_KINDS, SIGNET_LABEL, MIN_BRIDGE_RING_SIZE, TRUST_WEIGHTS } from './constants.js';
+import { SIGNET_KINDS, SIGNET_LABEL, MIN_BRIDGE_RING_SIZE, TRUST_WEIGHTS, DEFAULT_CRYPTO_ALGORITHM } from './constants.js';
 import { getPublicKey, signEvent, verifyEvent } from './crypto.js';
 import { ringSign, ringVerify } from './ring-signature.js';
 import { getTagValue } from './validation.js';
 import { randomBytes } from '@noble/hashes/utils';
-import type { NostrEvent, UnsignedEvent, SignetTier, ParsedIdentityBridge } from './types.js';
+import type { NostrEvent, UnsignedEvent, SignetTier, ParsedIdentityBridge, CryptoAlgorithm } from './types.js';
 import type { RingSignature } from './ring-signature.js';
 
 /** Generate a cryptographically secure random integer in [0, max) */
@@ -127,6 +127,7 @@ export async function createIdentityBridge(
       ['d', 'identity-bridge'],
       ['ring-min-tier', String(ringMinTier)],
       ['ring-size', String(ring.length)],
+      ['algo', DEFAULT_CRYPTO_ALGORITHM],
       ['L', SIGNET_LABEL],
       ['l', 'identity-bridge', SIGNET_LABEL],
     ],
@@ -180,12 +181,15 @@ export function parseIdentityBridge(event: NostrEvent): ParsedIdentityBridge | n
     const ringMinTier = parseInt(getTagValue(event, 'ring-min-tier') || '1', 10) as SignetTier;
     const ringSize = parseInt(getTagValue(event, 'ring-size') || '0', 10);
 
+    const algorithm = (getTagValue(event, 'algo') || DEFAULT_CRYPTO_ALGORITHM) as CryptoAlgorithm;
+
     return {
       anonPubkey: event.pubkey,
       ringMinTier,
       ringSize,
       ring: parsed.ringSig.ring,
       timestamp: parsed.timestamp,
+      algorithm,
     };
   } catch {
     return null;

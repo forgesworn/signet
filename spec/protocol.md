@@ -450,6 +450,7 @@ A replaceable event published by a verifier attesting to a subject's verificatio
     ["profession", "solicitor"],         // verifier's profession
     ["jurisdiction", "UK"],              // legal jurisdiction
     ["expires", "<unix_timestamp>"],     // credential expiry
+    ["algo", "secp256k1"],               // cryptographic algorithm (§9.5)
     ["L", "signet"],                     // protocol namespace label
     ["l", "verification", "signet"]      // protocol label
   ],
@@ -472,6 +473,7 @@ A replaceable event published by a peer vouching for another user.
     ["context", "bitcoin-meetup"],       // optional: where/how they met
     ["voucher-tier", "3"],               // voucher's own tier at time of vouch
     ["voucher-score", "87"],             // voucher's own score at time of vouch
+    ["algo", "secp256k1"],               // cryptographic algorithm (§9.5)
     ["L", "signet"],
     ["l", "vouch", "signet"]
   ],
@@ -496,6 +498,7 @@ A replaceable event published by a community operator defining minimum verificat
     ["enforcement", "client"],           // "client", "relay", or "both"
     ["verifier-bond", "100000"],         // optional: min sats bond for verifiers
     ["revocation-threshold", "5"],       // optional: confirmations needed to revoke
+    ["algo", "secp256k1"],               // cryptographic algorithm (§9.5)
     ["L", "signet"],
     ["l", "policy", "signet"]
   ],
@@ -517,6 +520,7 @@ A replaceable event published by a professional declaring their verifier status.
     ["jurisdiction", "UK"],
     ["licence", "<encrypted_or_hashed_licence_number>"],
     ["body", "Law Society of England and Wales"],
+    ["algo", "secp256k1"],               // cryptographic algorithm (§9.5)
     ["L", "signet"],
     ["l", "verifier", "signet"]
     // Cross-verification vouches from other professionals
@@ -542,6 +546,7 @@ A regular event published by anyone challenging a verifier's legitimacy. Trigger
                                            // "other"
     ["evidence-type", "registry-screenshot"], // type of evidence provided
     ["reporter-tier", "3"],                // reporter's own tier
+    ["algo", "secp256k1"],               // cryptographic algorithm (§9.5)
     ["L", "signet"],
     ["l", "challenge", "signet"]
   ],
@@ -566,6 +571,7 @@ A replaceable event published when a community confirms a challenge. Supersedes 
     ["scope", "full"],                      // "full" = all credentials flagged,
                                             // "partial" = specific credentials flagged
     ["effective", "<unix_timestamp>"],      // when revocation takes effect
+    ["algo", "secp256k1"],               // cryptographic algorithm (§9.5)
     ["L", "signet"],
     ["l", "revocation", "signet"]
   ],
@@ -594,6 +600,7 @@ A replaceable event published by an anonymous account to prove it is controlled 
     ["d", "identity-bridge"],
     ["ring-min-tier", "3"],                // minimum verification tier of ring members
     ["ring-size", "10"],                   // number of pubkeys in the ring
+    ["algo", "secp256k1"],               // cryptographic algorithm (§9.5)
     ["L", "signet"],
     ["l", "identity-bridge", "signet"]
   ],
@@ -713,6 +720,24 @@ Ring signatures handle issuer privacy without ZK circuits. Bulletproofs handle a
 | Ring signature lib (e.g. Nostringer) | SAG on Nostr pubkeys | Experimental — needs audit before production |
 | MuSig2 lib | Multi-party signing | Functional, BIP-327 |
 | Bulletproofs lib | Range proofs on secp256k1 | Needs audit before production |
+
+### Quantum Readiness
+
+Every Signet event carries an `["algo", "secp256k1"]` tag identifying the asymmetric cryptographic algorithm used for event signing and key agreement. This tag serves two purposes:
+
+1. **Forward compatibility.** When post-quantum algorithms (e.g. ML-DSA, SLH-DSA, ML-KEM) are standardised for Nostr, new events will carry a different `algo` value. Parsers can distinguish pre- and post-quantum events without heuristics.
+2. **Graceful migration.** During a transition period, clients can accept both `secp256k1` and post-quantum algorithm values, enabling a rolling upgrade across the network.
+
+**Rules for the `algo` tag:**
+
+| Rule | Detail |
+|------|--------|
+| **MUST be present** on all Signet events (kinds 30470-30477) | Builders set it to `DEFAULT_CRYPTO_ALGORITHM` (`secp256k1`) |
+| **Parsers MUST default** to `secp256k1` if absent | Ensures backward compatibility with legacy events created before this tag was introduced |
+| **Value is a free-form string** | Allows future algorithms without a protocol revision — just publish events with the new value |
+| **One algorithm per event** | An event is signed under a single algorithm; hybrid constructions would use two separate events |
+
+**Current status:** All Signet events use secp256k1 (Schnorr signatures via BIP-340). No post-quantum migration is currently planned, but the tagging ensures the protocol is ready when one becomes necessary.
 
 ### Open Implementation Questions
 
@@ -1202,6 +1227,7 @@ A replaceable event published by an account owner to delegate authority to an ag
     ["entity-type", "<agent_type>"],      // personal_agent, free_personal_agent,
                                           // organised_agent, free_organised_agent
     ["expires", "<unix_timestamp>"],      // optional: delegation expiry
+    ["algo", "secp256k1"],               // cryptographic algorithm (§9.5)
     ["L", "signet"],
     ["l", "delegation", "signet"]
   ],
