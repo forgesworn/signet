@@ -322,6 +322,7 @@ export interface ParsedElection {
   tallyThreshold?: [m: number, n: number];
   ringSize?: number;
   authorityPubkey: string;
+  algorithm: CryptoAlgorithm;
 }
 
 /** Kind 30483: Ballot */
@@ -341,6 +342,7 @@ export interface ParsedBallot {
   encryptedVote: string;
   ephemeralPubkey: string;
   timestamp: number;
+  algorithm: CryptoAlgorithm;
 }
 
 /** Kind 30484: Election Result */
@@ -363,6 +365,7 @@ export interface ParsedElectionResult {
   totalInvalid: number;
   tallyProof?: string;
   tallierPubkey: string;
+  algorithm: CryptoAlgorithm;
 }
 
 // --- Two-Credential Ceremony ---
