@@ -68,6 +68,7 @@ describe('policies', () => {
       enforcement: 'client' as const,
       minScore: 50,
       modMinTier: 3 as const,
+      algorithm: 'secp256k1' as const,
     };
 
     it('allows adults meeting tier and score', () => {
