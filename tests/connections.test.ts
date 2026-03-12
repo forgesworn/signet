@@ -112,12 +112,17 @@ describe('connections', () => {
 
     it('throws on missing pubkey', () => {
       const data = JSON.stringify({ nonce: 'abc' });
-      expect(() => parseQRPayload(data)).toThrow('missing or invalid pubkey');
+      expect(() => parseQRPayload(data)).toThrow('pubkey must be a 64-character hex string');
     });
 
     it('throws on missing nonce', () => {
-      const data = JSON.stringify({ pubkey: 'abc' });
+      const data = JSON.stringify({ pubkey: 'a'.repeat(64) });
       expect(() => parseQRPayload(data)).toThrow('missing or invalid nonce');
+    });
+
+    it('throws on invalid pubkey format', () => {
+      const data = JSON.stringify({ pubkey: 'abc', nonce: 'abc' });
+      expect(() => parseQRPayload(data)).toThrow('pubkey must be a 64-character hex string');
     });
 
     it('throws when payload is not an object', () => {

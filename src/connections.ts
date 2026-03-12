@@ -81,8 +81,8 @@ export function parseQRPayload(data: string): QRPayload {
 
   const obj = parsed as Record<string, unknown>;
 
-  if (typeof obj.pubkey !== 'string' || obj.pubkey.length === 0) {
-    throw new Error('Invalid QR payload: missing or invalid pubkey');
+  if (typeof obj.pubkey !== 'string' || !/^[0-9a-f]{64}$/i.test(obj.pubkey)) {
+    throw new Error('Invalid QR payload: pubkey must be a 64-character hex string');
   }
   if (typeof obj.nonce !== 'string' || obj.nonce.length === 0) {
     throw new Error('Invalid QR payload: missing or invalid nonce');
