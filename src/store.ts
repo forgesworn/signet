@@ -216,7 +216,26 @@ export class SignetStore {
 
   /** Import events from JSON */
   import(json: string): number {
-    const events = JSON.parse(json) as NostrEvent[];
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) {
+      throw new Error('Import data must be a JSON array');
+    }
+    const events: NostrEvent[] = [];
+    for (const item of parsed) {
+      if (
+        typeof item !== 'object' || item === null ||
+        typeof item.id !== 'string' ||
+        typeof item.pubkey !== 'string' ||
+        typeof item.kind !== 'number' ||
+        typeof item.created_at !== 'number' ||
+        !Array.isArray(item.tags) ||
+        typeof item.content !== 'string' ||
+        typeof item.sig !== 'string'
+      ) {
+        continue; // skip malformed entries
+      }
+      events.push(item as NostrEvent);
+    }
     let added = 0;
     for (const event of events) {
       if (this.add(event)) added++;

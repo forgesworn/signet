@@ -16,6 +16,11 @@ import {
   scalarEqual,
 } from './secp256k1-utils.js';
 
+/** Maximum number of members in a ring, to prevent denial-of-service via unbounded computation. */
+export const MAX_RING_SIZE = 1000;
+
+const SAG_DOMAIN = utf8ToBytes('signet-sag-v1');
+
 /** A ring signature: starting challenge + response scalars */
 export interface RingSignature {
   /** The ring of public keys (x-only hex, 32 bytes each) */
@@ -59,6 +64,7 @@ export function ringSign(
   privateKey: string
 ): RingSignature {
   if (ring.length < 2) throw new Error('Ring must have at least 2 members');
+  if (ring.length > MAX_RING_SIZE) throw new Error(`Ring size ${ring.length} exceeds maximum of ${MAX_RING_SIZE}`);
   if (signerIndex < 0 || signerIndex >= ring.length) throw new Error('Signer index out of range');
 
   const n = ring.length;
@@ -87,6 +93,7 @@ export function ringSign(
 
   const nextIdx = (pi + 1) % n;
   challenges[nextIdx] = hashToScalar(
+    SAG_DOMAIN,
     msgBytes,
     utf8ToBytes(ring.join(',')),
     kG.toRawBytes(true)
@@ -106,6 +113,7 @@ export function ringSign(
 
     if (iNext !== nextIdx || j < n - 1) {
       challenges[iNext] = hashToScalar(
+        SAG_DOMAIN,
         msgBytes,
         utf8ToBytes(ring.join(',')),
         R.toRawBytes(true)
@@ -134,6 +142,7 @@ export function ringVerify(sig: RingSignature): boolean {
   try {
     const { ring, c0, responses, message } = sig;
     if (ring.length < 2) return false;
+    if (ring.length > MAX_RING_SIZE) return false;
     if (responses.length !== ring.length) return false;
 
     const n = ring.length;
@@ -150,8 +159,9 @@ export function ringVerify(sig: RingSignature): boolean {
       const cP = safeMultiply(ringPoints[i], c);
       const R = sG.add(cP);
 
-      // c_{i+1} = H(msg, ring, R_i)
+      // c_{i+1} = H(domain, msg, ring, R_i)
       c = hashToScalar(
+        SAG_DOMAIN,
         msgBytes,
         utf8ToBytes(ring.join(',')),
         R.toRawBytes(true)

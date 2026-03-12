@@ -4,6 +4,10 @@
 import { SIGNET_KINDS, SIGNET_LABEL } from './constants.js';
 import type { NostrEvent, SignetTier } from './types.js';
 
+const MAX_CONTENT_LENGTH = 65536;
+const MAX_TAG_VALUE_LENGTH = 1024;
+const MAX_TAGS_COUNT = 100;
+
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
@@ -17,7 +21,22 @@ export function getTagValue(event: NostrEvent | { tags: string[][] }, name: stri
 
 /** Get all tag values by name */
 export function getTagValues(event: NostrEvent | { tags: string[][] }, name: string): string[] {
-  return event.tags.filter((t) => t[0] === name).map((t) => t[1]);
+  return event.tags.filter((t) => t[0] === name && t[1] !== undefined).map((t) => t[1]);
+}
+
+/** Validate field-size bounds on untrusted event data */
+function validateFieldSizeBounds(event: NostrEvent, errors: string[]): void {
+  if (event.content.length > MAX_CONTENT_LENGTH) {
+    errors.push(`Event content exceeds maximum length of ${MAX_CONTENT_LENGTH} characters`);
+  }
+  if (event.tags.length > MAX_TAGS_COUNT) {
+    errors.push(`Event has too many tags (max ${MAX_TAGS_COUNT})`);
+  }
+  for (const t of event.tags) {
+    if (t[1] !== undefined && t[1].length > MAX_TAG_VALUE_LENGTH) {
+      errors.push(`Tag value for "${t[0]}" exceeds maximum length of ${MAX_TAG_VALUE_LENGTH} characters`);
+    }
+  }
 }
 
 /** Check that the event has the signet protocol label */
@@ -30,6 +49,8 @@ function hasSignetLabel(event: NostrEvent): boolean {
 /** Validate a kind 30470 Verification Credential */
 export function validateCredential(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
+
+  validateFieldSizeBounds(event, errors);
 
   if (event.kind !== SIGNET_KINDS.CREDENTIAL) {
     errors.push(`Expected kind ${SIGNET_KINDS.CREDENTIAL}, got ${event.kind}`);
@@ -95,6 +116,8 @@ export function validateCredential(event: NostrEvent): ValidationResult {
 export function validateVouch(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
 
+  validateFieldSizeBounds(event, errors);
+
   if (event.kind !== SIGNET_KINDS.VOUCH) {
     errors.push(`Expected kind ${SIGNET_KINDS.VOUCH}, got ${event.kind}`);
   }
@@ -127,6 +150,8 @@ export function validateVouch(event: NostrEvent): ValidationResult {
 /** Validate a kind 30472 Community Policy */
 export function validatePolicy(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
+
+  validateFieldSizeBounds(event, errors);
 
   if (event.kind !== SIGNET_KINDS.POLICY) {
     errors.push(`Expected kind ${SIGNET_KINDS.POLICY}, got ${event.kind}`);
@@ -161,6 +186,8 @@ export function validatePolicy(event: NostrEvent): ValidationResult {
 export function validateVerifier(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
 
+  validateFieldSizeBounds(event, errors);
+
   if (event.kind !== SIGNET_KINDS.VERIFIER) {
     errors.push(`Expected kind ${SIGNET_KINDS.VERIFIER}, got ${event.kind}`);
   }
@@ -191,6 +218,8 @@ export function validateVerifier(event: NostrEvent): ValidationResult {
 /** Validate a kind 30474 Verifier Challenge */
 export function validateChallenge(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
+
+  validateFieldSizeBounds(event, errors);
 
   if (event.kind !== SIGNET_KINDS.CHALLENGE) {
     errors.push(`Expected kind ${SIGNET_KINDS.CHALLENGE}, got ${event.kind}`);
@@ -223,6 +252,8 @@ export function validateChallenge(event: NostrEvent): ValidationResult {
 /** Validate a kind 30475 Verifier Revocation */
 export function validateRevocation(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
+
+  validateFieldSizeBounds(event, errors);
 
   if (event.kind !== SIGNET_KINDS.REVOCATION) {
     errors.push(`Expected kind ${SIGNET_KINDS.REVOCATION}, got ${event.kind}`);

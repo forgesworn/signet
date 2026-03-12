@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeKeyImage, lsagSign, lsagVerify, hasDuplicateKeyImage } from '../src/lsag.js';
+import { MAX_RING_SIZE, computeKeyImage, lsagSign, lsagVerify, hasDuplicateKeyImage } from '../src/lsag.js';
 import { generateKeyPair } from '../src/crypto.js';
 
 describe('LSAG', () => {
@@ -58,6 +58,14 @@ describe('LSAG', () => {
         .toThrow('Ring must have at least 2 members');
     });
 
+    it('rejects ring size exceeding MAX_RING_SIZE in lsagSign', () => {
+      const dummyKey = 'a'.repeat(64);
+      const oversizedRing = Array(MAX_RING_SIZE + 1).fill(dummyKey);
+      expect(() => lsagSign('msg', oversizedRing, 0, 'b'.repeat(64), electionId)).toThrow(
+        `Ring size ${MAX_RING_SIZE + 1} exceeds maximum of ${MAX_RING_SIZE}`
+      );
+    });
+
     it('rejects signer index out of range', () => {
       expect(() => lsagSign('msg', ring, 5, signer.privateKey, electionId))
         .toThrow('Signer index out of range');
@@ -111,6 +119,20 @@ describe('LSAG', () => {
     it('rejects identity point as key image', () => {
       const sig = lsagSign('test', ring, 0, signer.privateKey, electionId);
       sig.keyImage = '00'.repeat(33);
+      expect(lsagVerify(sig)).toBe(false);
+    });
+
+    it('rejects ring size exceeding MAX_RING_SIZE in lsagVerify', () => {
+      const dummyKey = 'a'.repeat(64);
+      const oversizedRing = Array(MAX_RING_SIZE + 1).fill(dummyKey);
+      const sig = {
+        keyImage: '02' + 'a'.repeat(64),
+        c0: 'a'.repeat(64),
+        responses: Array(MAX_RING_SIZE + 1).fill('b'.repeat(64)),
+        ring: oversizedRing,
+        message: 'test',
+        electionId,
+      };
       expect(lsagVerify(sig)).toBe(false);
     });
 

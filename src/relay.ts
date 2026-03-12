@@ -84,6 +84,9 @@ export class RelayClient {
     private url: string,
     private options: RelayOptions = {}
   ) {
+    if (!/^wss?:\/\//i.test(this.url)) {
+      throw new Error('Relay URL must use ws:// or wss:// scheme');
+    }
     this.options = {
       connectTimeout: 5000,
       autoReconnect: true,

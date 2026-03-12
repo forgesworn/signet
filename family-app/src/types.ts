@@ -11,6 +11,8 @@ export interface FamilyIdentity {
   guardianPubkey?: string;
   ageRange?: string;
   createdAt: number;
+  /** Whether privateKey and mnemonic are encrypted with encryptSecret(). Defaults to false for backwards compatibility. */
+  encrypted?: boolean;
 }
 
 export interface FamilyMember {

@@ -103,6 +103,21 @@ describe('range-proof', () => {
     });
   });
 
+  describe('binding context', () => {
+    it('rejects proof when verified with a different context', () => {
+      const proof = createRangeProof(7, 5, 10, 'pubkey_A');
+      // Manually swap the context to simulate transplanting the proof to a different credential
+      const transplanted = { ...proof, context: 'pubkey_B' };
+      expect(verifyRangeProof(transplanted)).toBe(false);
+    });
+
+    it('rejects proof created with context when verified without context', () => {
+      const proof = createRangeProof(7, 5, 10, 'pubkey_A');
+      const stripped = { ...proof, context: undefined };
+      expect(verifyRangeProof(stripped)).toBe(false);
+    });
+  });
+
   describe('serialization', () => {
     it('round-trips through JSON', () => {
       const proof = createAgeRangeProof(10, '8-12');

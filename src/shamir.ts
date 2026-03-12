@@ -180,6 +180,13 @@ export function reconstructSecret(
   if (ids.size !== used.length) {
     throw new Error('Duplicate share IDs detected — each share must have a unique ID');
   }
+
+  // Reject shares with ID 0: x=0 is the secret itself, not a valid share x-coordinate
+  for (const share of used) {
+    if (share.id === 0) {
+      throw new Error('Invalid share ID: 0 is not a valid x-coordinate');
+    }
+  }
   const secretLen = used[0].data.length;
   const result = new Uint8Array(secretLen);
 

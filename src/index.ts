@@ -174,6 +174,7 @@ export {
 
 // Ring Signatures
 export {
+  MAX_RING_SIZE,
   ringSign,
   ringVerify,
   signCredentialRing,
@@ -184,6 +185,7 @@ export type { RingSignature } from './ring-signature.js';
 
 // LSAG (Linkable Ring Signatures)
 export {
+  MAX_RING_SIZE as LSAG_MAX_RING_SIZE,
   computeKeyImage,
   lsagSign,
   lsagVerify,

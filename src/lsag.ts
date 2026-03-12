@@ -27,6 +27,9 @@ export interface LsagSignature {
   electionId: string;    // binds key image to this election
 }
 
+/** Maximum number of members in a ring, to prevent denial-of-service via unbounded computation. */
+export const MAX_RING_SIZE = 1000;
+
 const LSAG_DOMAIN = utf8ToBytes('signet-lsag-v1');
 
 function validatePubkeyHex(pubkeyHex: string): void {
@@ -91,6 +94,7 @@ export function lsagSign(
   electionId: string,
 ): LsagSignature {
   if (ring.length < 2) throw new Error('Ring must have at least 2 members');
+  if (ring.length > MAX_RING_SIZE) throw new Error(`Ring size ${ring.length} exceeds maximum of ${MAX_RING_SIZE}`);
   if (signerIndex < 0 || signerIndex >= ring.length) throw new Error('Signer index out of range');
 
   const n = ring.length;
@@ -150,6 +154,7 @@ export function lsagVerify(sig: LsagSignature): boolean {
   try {
     const { keyImage, c0, responses, ring, message, electionId } = sig;
     if (ring.length < 2) return false;
+    if (ring.length > MAX_RING_SIZE) return false;
     if (responses.length !== ring.length) return false;
 
     const I = Point.fromHex(keyImage);
