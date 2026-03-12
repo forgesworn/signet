@@ -204,6 +204,11 @@ export function parseIdentityBridge(event: NostrEvent): ParsedIdentityBridge | n
 
   try {
     const parsed = JSON.parse(event.content);
+
+    if (!parsed || !parsed.ringSig || !Array.isArray(parsed.ringSig.ring)) {
+      return null;
+    }
+
     const ringMinTier = parseInt(getTagValue(event, 'ring-min-tier') || '1', 10) as SignetTier;
     const ringSize = parseInt(getTagValue(event, 'ring-size') || '0', 10);
 

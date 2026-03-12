@@ -594,6 +594,8 @@ export async function supersedeCredential(
   return { newCredential, oldCredential };
 }
 
+const MAX_CHAIN_DEPTH = 100;
+
 /**
  * Follow supersedes/superseded-by chain to find current active credential.
  */
@@ -629,6 +631,7 @@ export function resolveCredentialChain(events: NostrEvent[]): CredentialChain | 
 
   while (cursor) {
     if (visited.has(cursor.id)) break;
+    if (history.length > MAX_CHAIN_DEPTH) break;
     visited.add(cursor.id);
 
     const supersedesId = getTagValue(cursor, 'supersedes');
