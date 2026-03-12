@@ -12,6 +12,7 @@ import {
   hexToScalar,
   hashToScalar,
   safeMultiply,
+  scalarEqual,
   G,
   H,
 } from './secp256k1-utils.js';
@@ -194,7 +195,7 @@ function verifyBitProof(proof: BitProof): boolean {
       pointToBytes(R1)
     );
 
-    return mod(e0 + e1) === e;
+    return scalarEqual(mod(e0 + e1), e);
   } catch {
     return false;
   }
@@ -271,7 +272,7 @@ function verifySumBinding(
       pointToBytes(D),
       pointToBytes(R)
     );
-    return eCheck === e;
+    return scalarEqual(eCheck, e);
   } catch {
     return false;
   }
