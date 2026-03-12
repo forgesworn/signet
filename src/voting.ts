@@ -382,6 +382,12 @@ export function verifyBallot(
     errors.push('Ballot was created after election closed');
   }
 
+  // Reject ballots with timestamps in the future (prevents created_at spoofing)
+  const now = Math.floor(Date.now() / 1000);
+  if (ballot.created_at > now + 60) {
+    errors.push('Ballot timestamp is in the future');
+  }
+
   // Parse ring signature
   const ringSigStr = getTagValue(ballot, 'ring-sig');
   if (!ringSigStr) {

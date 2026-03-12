@@ -30,6 +30,7 @@
     "signet",
     "web-of-trust"
   ],
+  "sideEffects": false,
   "license": "MIT",
   "engines": {
     "node": ">=18"

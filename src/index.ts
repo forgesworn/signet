@@ -339,6 +339,16 @@ export {
   getTagValues,
 } from './validation.js';
 
+export type { ValidationResult } from './validation.js';
+
+// Errors
+export {
+  SignetError,
+  SignetValidationError,
+  SignetCryptoError,
+  SignetVotingError,
+} from './errors.js';
+
 // BIP-39 Wordlist
 export { wordlist as BIP39_WORDLIST } from '@scure/bip39/wordlists/english.js';
 

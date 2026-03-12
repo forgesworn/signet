@@ -365,7 +365,12 @@ export function verifyRingProtectedContent(event: NostrEvent): {
       const expectedPrefix = `signet:credential:${subjectPubkey}:`;
       const messageBindsToSubject = content.ringSignature.message.startsWith(expectedPrefix);
 
-      result.ringValid = cryptoValid && messageBindsToSubject;
+      // Verify the timestamp in the message matches the event's created_at
+      const parts = content.ringSignature.message.split(':');
+      const msgTimestamp = parseInt(parts[3], 10);
+      const timestampMatches = !isNaN(msgTimestamp) && msgTimestamp === event.created_at;
+
+      result.ringValid = cryptoValid && messageBindsToSubject && timestampMatches;
     }
 
     if (content.rangeProof) {

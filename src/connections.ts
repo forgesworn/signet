@@ -53,7 +53,15 @@ export function computeSharedSecret(myPrivateKey: string, theirPublicKey: string
 
 // ── QR Payload ───────────────────────────────────────────────────────────────
 
-/** Create a QR payload containing our public key and a random nonce. */
+/**
+ * Create a QR payload containing our public key and a random nonce.
+ *
+ * **SECURITY WARNING — unencrypted payload:** The returned object is serialised
+ * as cleartext JSON by `serializeQRPayload`.  Any `ContactInfo` embedded in the
+ * payload (name, mobile, email, address, children's public keys) is transmitted
+ * without encryption.  Only display this QR code on trusted screens in
+ * controlled environments.  Do not transmit it over untrusted channels.
+ */
 export function createQRPayload(publicKey: string, info?: ContactInfo): QRPayload {
   const nonce = bytesToHex(randomBytes(32));
   const payload: QRPayload = { pubkey: publicKey, nonce };
@@ -87,8 +95,8 @@ export function parseQRPayload(data: string): QRPayload {
   if (typeof obj.pubkey !== 'string' || !/^[0-9a-f]{64}$/i.test(obj.pubkey)) {
     throw new Error('Invalid QR payload: pubkey must be a 64-character hex string');
   }
-  if (typeof obj.nonce !== 'string' || obj.nonce.length === 0) {
-    throw new Error('Invalid QR payload: missing or invalid nonce');
+  if (typeof obj.nonce !== 'string' || obj.nonce.length < 16) {
+    throw new Error('Invalid QR payload: nonce must be at least 16 hex characters (64 bits of entropy)');
   }
 
   return parsed as QRPayload;
