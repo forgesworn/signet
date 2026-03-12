@@ -117,7 +117,17 @@ describe('connections', () => {
 
     it('throws on missing nonce', () => {
       const data = JSON.stringify({ pubkey: 'a'.repeat(64) });
-      expect(() => parseQRPayload(data)).toThrow('missing or invalid nonce');
+      expect(() => parseQRPayload(data)).toThrow('nonce must be at least 16 hex characters');
+    });
+
+    it('throws on nonce shorter than 16 characters', () => {
+      const data = JSON.stringify({ pubkey: 'a'.repeat(64), nonce: 'abc123' });
+      expect(() => parseQRPayload(data)).toThrow('nonce must be at least 16 hex characters');
+    });
+
+    it('accepts a nonce of exactly 16 characters', () => {
+      const data = JSON.stringify({ pubkey: 'a'.repeat(64), nonce: 'b'.repeat(16) });
+      expect(() => parseQRPayload(data)).not.toThrow();
     });
 
     it('throws on invalid pubkey format', () => {

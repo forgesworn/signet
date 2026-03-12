@@ -1,6 +1,13 @@
 // Signet Words — Time-based word verification ("signet me")
 // Delegates word derivation to canary-kit for protocol alignment.
 // Signet handles identity (who you are). Canary handles verification (prove it's you).
+//
+// KNOWN ISSUE (M13): canary-kit is not yet published to npm.
+// The dependency in package.json uses "file:../canary-kit" which works locally
+// but will break `npm publish`. Before publishing signet-protocol to npm,
+// canary-kit must be published first and the file: reference replaced with
+// a versioned range (e.g. "canary-kit": "^0.x.y").
+// Tracking: https://github.com/TheCryptoDonkey/signet/issues — M13
 
 import { deriveTokenBytes } from 'canary-kit/token';
 import { encodeAsWords, type TokenEncoding } from 'canary-kit/encoding';
