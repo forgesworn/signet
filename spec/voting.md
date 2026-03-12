@@ -14,7 +14,7 @@
 
 This specification defines a voting extension for the Signet protocol. It enables cryptographically secure elections at organisational, community, and national scale, using linkable ring signatures for ballot secrecy and one-person-one-vote enforcement.
 
-The extension depends on the Signet protocol for identity verification (credential tiers, entity types, Signet IQ) and adds three new Nostr event kinds: Election Definition (30478), Ballot (30479), and Election Result (30480).
+The extension depends on the Signet protocol for identity verification (credential tiers, entity types, Signet IQ) and adds three new Nostr event kinds: Election Definition (30482), Ballot (30483), and Election Result (30484).
 
 Ballot secrecy is achieved through linkable ring signatures — voters prove membership in an eligible set without revealing which member they are, while key images prevent double voting. Encrypted ballots ensure vote content remains secret until tallying.
 
@@ -122,11 +122,11 @@ Linkable ring signatures align with Signet's core principle of decentralisation 
 
 5. **Ring signature** — The voter produces a linkable ring signature over the ballot, proving they are a member of the eligible set without revealing which member.
 
-6. **Submission** — The voter publishes the ballot as a kind 30479 event on Nostr relays.
+6. **Submission** — The voter publishes the ballot as a kind 30483 event on Nostr relays.
 
 7. **Re-voting** — If the election allows re-voting, a voter may submit a new ballot with the same key image. The latest ballot (by event timestamp) replaces all previous ballots with that key image.
 
-8. **Tally** — After the election closes, tally authorities decrypt the ballots, deduplicate by key image (keeping the latest), count the votes, and publish the result as a kind 30480 event.
+8. **Tally** — After the election closes, tally authorities decrypt the ballots, deduplicate by key image (keeping the latest), count the votes, and publish the result as a kind 30484 event.
 
 9. **Verification** — Anyone can verify: each ballot has a valid ring signature from the eligible set, each key image appears at most once in the final tally, and the published totals match the decrypted ballots.
 
@@ -134,13 +134,15 @@ Linkable ring signatures align with Signet's core principle of decentralisation 
 
 ## 4. Event Kinds
 
-### Kind 30478 — Election Definition
+> **Note:** Kinds 30480-30481 are reserved for the Dominion Protocol (vault share, vault config).
+
+### Kind 30482 — Election Definition
 
 A replaceable event published by an election authority defining an election.
 
 ```jsonc
 {
-  "kind": 30478,
+  "kind": 30482,
   "pubkey": "<election_authority_pubkey>",
   "tags": [
     ["d", "<election_id>"],
@@ -175,17 +177,17 @@ A replaceable event published by an election authority defining an election.
 - `ring-size` is OPTIONAL; defaults to the full eligible set. Elections with fewer eligible voters than `ring-size` MUST NOT proceed
 - `scale` MUST be one of: `organisational`, `community`, `national`
 
-### Kind 30479 — Ballot
+### Kind 30483 — Ballot
 
 A replaceable event published by a voter. The voter's actual pubkey is NOT used — ballots are published from an ephemeral key to prevent linking.
 
 ```jsonc
 {
-  "kind": 30479,
+  "kind": 30483,
   "pubkey": "<ephemeral_ballot_pubkey>",
   "tags": [
     ["d", "<election_id>"],
-    ["election", "<kind_30478_event_id>"],
+    ["election", "<kind_30482_event_id>"],
     ["key-image", "<hex_encoded_key_image>"],
     ["ring-sig", "<hex_encoded_linkable_ring_signature>"],
     ["encrypted-vote", "<encrypted_vote_content>"],
@@ -198,7 +200,7 @@ A replaceable event published by a voter. The voter's actual pubkey is NOT used 
 ```
 
 **Field requirements:**
-- `election_id` MUST match a published kind 30478 election
+- `election_id` MUST match a published kind 30482 election
 - `key-image` MUST be deterministically derived as `I = x * H_p(P || election_id)` where `x` is the voter's private key and `P` is their public key in the eligible set
 - `ring-sig` MUST be a valid linkable ring signature over the ballot content, verifiable against the eligible set
 - `encrypted-vote` MUST be the vote content encrypted to the tally authority pubkey(s) specified in the election definition
@@ -210,17 +212,17 @@ A replaceable event published by a voter. The voter's actual pubkey is NOT used 
 - If the key image matches a previously seen ballot for this election and re-voting is allowed, the new ballot replaces the old one
 - If re-voting is denied and a matching key image exists, the ballot MUST be rejected
 
-### Kind 30480 — Election Result
+### Kind 30484 — Election Result
 
 A replaceable event published after an election closes with the verified tally.
 
 ```jsonc
 {
-  "kind": 30480,
+  "kind": 30484,
   "pubkey": "<tallier_pubkey>",
   "tags": [
     ["d", "<election_id>"],
-    ["election", "<kind_30478_event_id>"],
+    ["election", "<kind_30482_event_id>"],
     ["result", "<option_1>", "<count>"],
     ["result", "<option_2>", "<count>"],
     ["total-ballots", "<count>"],
@@ -239,7 +241,7 @@ A replaceable event published after an election closes with the verified tally.
 - `tallier_pubkey` SHOULD be one of the `tally-pubkeys` from the election definition
 - The sum of all `result` counts plus `total-invalid` MUST equal `total-ballots`
 - `tally-proof` SHOULD contain sufficient data for independent verification (e.g., the decrypted ballots and their ring signatures)
-- Anyone MAY publish a kind 30480 for any election — independent tallies increase confidence
+- Anyone MAY publish a kind 30484 for any election — independent tallies increase confidence
 
 ---
 
@@ -264,7 +266,7 @@ Given a message `m` (the ballot content), ring `R`, signer index `s`, private ke
 
 1. Compute key image: `I = x_s * H_p(P_s || e)`
 2. Generate random scalar `α`
-3. For each non-signer index `i ≠ s`, generate random scalars `c_i` and `r_i`
+3. For each non-signer index i (wrapping from s+1 back to s), generate a random response r_i. Compute the challenge c_{i+1} sequentially from the hash chain: c_{i+1} = H(m || L_i || R_i).
 4. Compute initial commitment: `L_s = α * G`, `R_s = α * H_p(P_s || e)`
 5. For each `i` from `s+1` to `s-1` (wrapping):
    - `L_i = r_i * G + c_i * P_i`
@@ -305,7 +307,7 @@ The voter encrypts their vote content to the tally authority's public key(s) bef
    - Generate ephemeral keypair `(k, K = k * G)`
    - Compute shared secret `S = k * T` where `T` is the tally authority's public key
    - Derive encryption key from `S` using HKDF
-   - Encrypt vote content using ChaCha20-Poly1305
+   - Encrypt vote content using AEAD cipher (AES-256-GCM recommended; available in Web Crypto API across all target runtimes)
    - Output: `K || nonce || ciphertext || tag`
 
 ### 6.2 Multi-Authority Threshold Decryption
@@ -325,7 +327,7 @@ After decryption and tallying:
 - All decrypted votes are published (without linking to specific voters)
 - The ring signatures remain verifiable
 - Anyone can independently verify that the tally matches the decrypted ballots
-- The election result event (kind 30480) references the verification data
+- The election result event (kind 30484) references the verification data
 
 ---
 
@@ -371,14 +373,14 @@ A political party (e.g., Restore Britain) wants members to vote on policy positi
 
 1. Party establishes itself as a Juridical Person (verified organisation) with Signet credentials
 2. Members are verified Natural Persons who hold party membership credentials (kind 30470)
-3. Party leadership publishes a kind 30478 election: "Should the party support policy X?"
+3. Party leadership publishes a kind 30482 election: "Should the party support policy X?"
    - `eligible-entity-types`: `natural_person`
    - `eligible-min-tier`: `2` (web-of-trust verified)
    - `eligible-community`: `<party_community_id>`
    - `re-vote`: `allowed`
-4. Each eligible member computes their key image and submits an encrypted ballot (kind 30479)
+4. Each eligible member computes their key image and submits an encrypted ballot (kind 30483)
 5. After close, tally authorities decrypt and count
-6. Result published as kind 30480 — anyone can verify
+6. Result published as kind 30484 — anyone can verify
 7. If a member was coerced by party leadership, they re-vote privately — last ballot counts
 
 ### 8.2 Relay / Community Governance
@@ -386,12 +388,12 @@ A political party (e.g., Restore Britain) wants members to vote on policy positi
 A Nostr relay community votes on moderation policy:
 
 1. Relay operator publishes community verification policy (kind 30472) requiring Tier 2+
-2. Operator publishes a kind 30478 election for policy change
+2. Operator publishes a kind 30482 election for policy change
    - `scale`: `community`
    - `eligible-entity-types`: `natural_person,persona`
    - `eligible-min-tier`: `2`
    - `ring-size`: `20` (minimum anonymity set)
-3. Community members vote via kind 30479
+3. Community members vote via kind 30483
 4. If fewer than 20 eligible members exist, election cannot proceed (ring too small for meaningful anonymity)
 
 ### 8.3 Organisational Board Votes
@@ -399,7 +401,7 @@ A Nostr relay community votes on moderation policy:
 A company board votes on a resolution:
 
 1. Board members hold Juridical Person delegation credentials
-2. Chair publishes kind 30478 election
+2. Chair publishes kind 30482 election
    - `scale`: `organisational`
    - `eligible-entity-types`: `natural_person`
    - `eligible-min-tier`: `3` (professionally verified)
@@ -412,7 +414,7 @@ A company board votes on a resolution:
 Using civic identity from the Signet protocol spec (§19):
 
 1. Government issues citizen credentials (kind 30470) as described in protocol spec §19.2
-2. Election authority publishes kind 30478 referencing citizenship credentials
+2. Election authority publishes kind 30482 referencing citizenship credentials
    - `eligible-entity-types`: `natural_person`
    - `eligible-min-tier`: `3` (government-verified)
 3. Citizens vote using their government-attested public keys as ring members
