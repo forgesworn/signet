@@ -13,6 +13,7 @@ import {
   hexToScalar,
   hashToScalar,
   safeMultiply,
+  scalarEqual,
 } from './secp256k1-utils.js';
 
 /** A ring signature: starting challenge + response scalars */
@@ -150,7 +151,7 @@ export function ringVerify(sig: RingSignature): boolean {
     }
 
     // Check: computed c_n wraps around to c_0
-    return c === hexToScalar(c0);
+    return scalarEqual(c, hexToScalar(c0));
   } catch {
     return false;
   }

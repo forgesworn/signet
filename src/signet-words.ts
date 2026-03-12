@@ -5,6 +5,8 @@
 import { deriveTokenBytes } from 'canary-kit/token';
 import { encodeAsWords, type TokenEncoding } from 'canary-kit/encoding';
 import { WORDLIST } from 'canary-kit/wordlist';
+import { constantTimeEqual } from './utils.js';
+import { utf8ToBytes } from '@noble/hashes/utils';
 
 /** The Canary spoken-clarity wordlist used for Signet word verification. */
 export { WORDLIST as SIGNET_WORDLIST } from 'canary-kit/wordlist';
@@ -72,8 +74,12 @@ export function verifySignetWords(
 
   for (let offset = -tolerance; offset <= tolerance; offset++) {
     const candidate = deriveWords(sharedSecret, currentEpoch + offset, wordCount);
-    if (candidate.length === words.length && candidate.every((w, i) => w === words[i])) {
-      return true;
+    if (candidate.length === words.length) {
+      const a = utf8ToBytes(candidate.join('\0'));
+      const b = utf8ToBytes(words.join('\0'));
+      if (constantTimeEqual(a, b)) {
+        return true;
+      }
     }
   }
 

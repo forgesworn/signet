@@ -3,7 +3,8 @@
 
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex, utf8ToBytes, concatBytes } from '@noble/hashes/utils';
+import { bytesToHex, hexToBytes, utf8ToBytes, concatBytes } from '@noble/hashes/utils';
+import { constantTimeEqual } from './utils.js';
 
 export const Point = secp256k1.ProjectivePoint;
 export const N = secp256k1.CURVE.n;
@@ -30,9 +31,17 @@ export function scalarToHex(s: bigint): string {
   return s.toString(16).padStart(64, '0');
 }
 
-/** Convert hex to bigint scalar */
+/** Convert hex to bigint scalar, validated and reduced mod N */
 export function hexToScalar(hex: string): bigint {
-  return BigInt('0x' + hex);
+  if (!/^[0-9a-f]{1,64}$/i.test(hex)) throw new Error('Invalid scalar hex');
+  return mod(BigInt('0x' + hex));
+}
+
+/** Constant-time equality check for two scalars (compared as 32-byte arrays) */
+export function scalarEqual(a: bigint, b: bigint): boolean {
+  const aBuf = hexToBytes(mod(a).toString(16).padStart(64, '0'));
+  const bBuf = hexToBytes(mod(b).toString(16).padStart(64, '0'));
+  return constantTimeEqual(aBuf, bBuf);
 }
 
 /** Hash to scalar: SHA-256 of concatenated data, reduced mod N */
