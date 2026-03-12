@@ -21,22 +21,13 @@ This repo contains:
 - **4 verification tiers**: Tier 1 (self-declared) → Tier 2 (web-of-trust) → Tier 3 (professional adult) → Tier 4 (professional adult+child)
 - **8 core event kinds** (30470-30477): credential, vouch, policy, verifier, challenge, revocation, identity bridge, delegation
 - **3 voting extension event kinds** (30482-30484): election, ballot, election result
-- **9 entity types**: Natural Person, Persona, Personal Agent, Free Personal Agent, Juridical Person, Juridical Persona, Organised Agent, Free Organised Agent, Free Agent
 - **Two-credential ceremony**: Professional verification issues Natural Person credential (with nullifier, Merkle root) + Persona credential (anonymous, age-range only) simultaneously
 - **Document-based nullifiers**: SHA-256 of length-prefixed fields (docType, country, docNumber, "signet-nullifier-v2") prevents duplicate identity without revealing documents
-- **Multi-document nullifier families**: All documents presented during verification produce nullifiers; collision with ANY nullifier detects duplicates
-- **Jurisdiction confidence**: Scored 0-100 based on professional body coverage, public registers, digital credentials, data protection maturity, mutual recognition
-- **3 implementation levels**: Level 1 (read badges, a weekend) → Level 2 (issue vouches, days) → Level 3 (full protocol, weeks+)
-- **Badge display library**: `src/badge.ts` — drop-in Level 1 integration for any Nostr client
-- **Credential chains**: `supersedes`/`superseded-by` tags for lifecycle events (name change, document renewal, tier upgrade)
 - **Guardian delegation**: Kind 30477 events with scopes (full, activity-approval, content-management, contact-approval) for family structures
-- **Merkle selective disclosure**: Verified attributes as private leaves, only root published on-chain
 - **Crypto stack**: Schnorr (secp256k1 base) + Bulletproofs (age range proofs) + future ZK layer
 - **No central authority**: professional bodies (Law Society, medical boards, notary commissions) are the trust anchors
-- **"Signet me"**: Time-based word verification (configurable 1-16 words, default 3) powered by canary-kit's CANARY-DERIVE and spoken-clarity wordlist
-- **BIP-39 / NIP-06**: Identity derived from 12-word mnemonic, Shamir backup supported
-- **canary-kit dependency**: Word derivation and encoding delegated to canary-kit/token and canary-kit/encoding for protocol alignment
-- **Child safety**: Age-range proofs on all tiers, guardian-linked sub-accounts, client display requirements for age-gap warnings
+- **"Signet me"**: Time-based word verification (configurable 1-16 words, default 3) powered by canary-kit's CANARY-DERIVE
+- **BIP-39 / NIP-06**: Identity derived from 12-word mnemonic, Shamir backup supported via `@scure/bip39`
 
 ## Relationship to Fathom
 
@@ -128,7 +119,8 @@ These conventions were established during the security hardening review (2026-03
 
 ## Gotchas
 
-- **`canary-kit: "file:../canary-kit"`** in `package.json` — local path dependency. `canary-kit` is not published to npm yet. This MUST be resolved before `signet-protocol` can be published. Used only in `src/signet-words.ts`.
+- **canary-kit dependency** — `canary-kit` is published on npm as `^0.1.0`. The `package.json` still has `"canary-kit": "file:../canary-kit"` — this MUST be changed to `"canary-kit": "^0.1.0"` before publishing `signet-protocol` to npm. Used only in `src/signet-words.ts`.
+- **npm publication** — `signet-protocol` is not yet published to npm. Fathom currently uses a `file:` reference. Publishing requires the canary-kit dep fix above.
 - **App typecheck uses its own tsconfig** — running `tsc --noEmit` from the project root only checks `src/`. The apps have their own tsconfigs and must be checked separately from their directories.
 - **`@noble/hashes` deprecation warnings** — `sha256`, `ProjectivePoint`, etc. show as deprecated in diagnostics. These are re-export deprecations, not functional deprecations. The functions work correctly. Ignore these warnings.
 - **CSP in dev mode** — The `script-src 'self'` CSP in `app/index.html` and `family-app/index.html` may log violations during Vite dev server (HMR uses inline scripts). This is expected in dev; the CSP protects production builds.
