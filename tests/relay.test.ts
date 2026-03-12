@@ -83,6 +83,17 @@ describe('RelayClient', () => {
       expect(client.getState()).toBe('disconnected');
     });
 
+    it('throws for non-websocket URL schemes', () => {
+      expect(() => new RelayClient('https://relay.example.com')).toThrow('ws:// or wss://');
+      expect(() => new RelayClient('http://relay.example.com')).toThrow('ws:// or wss://');
+      expect(() => new RelayClient('relay.example.com')).toThrow('ws:// or wss://');
+    });
+
+    it('accepts ws:// and wss:// URLs', () => {
+      expect(() => new RelayClient('wss://relay.example.com')).not.toThrow();
+      expect(() => new RelayClient('ws://relay.example.com')).not.toThrow();
+    });
+
     it('notifies state changes via callback', async () => {
       const client = new RelayClient('wss://relay.example.com');
       const states: string[] = [];

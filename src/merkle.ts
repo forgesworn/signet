@@ -1,14 +1,45 @@
 // Merkle Tree Selective Disclosure
 // Credential attributes as Merkle leaves — reveal chosen attributes + sibling paths
 
-import { hashString } from './crypto.js';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import type { MerkleProof, SelectiveDisclosure } from './types.js';
+
+/**
+ * Hash a leaf node with domain separation prefix 0x00.
+ * Leaf hash: SHA-256(0x00 || "key:value")
+ * RFC 6962 domain separation prevents second-preimage attacks.
+ */
+function hashLeaf(data: string): string {
+  const prefix = new Uint8Array([0x00]);
+  const content = utf8ToBytes(data);
+  const combined = new Uint8Array(1 + content.length);
+  combined.set(prefix);
+  combined.set(content, 1);
+  return bytesToHex(sha256(combined));
+}
+
+/**
+ * Hash an internal node with domain separation prefix 0x01.
+ * Internal node hash: SHA-256(0x01 || left || right)
+ * RFC 6962 domain separation prevents second-preimage attacks.
+ */
+function hashInternal(left: string, right: string): string {
+  const prefix = new Uint8Array([0x01]);
+  const leftBytes = hexToBytes(left);
+  const rightBytes = hexToBytes(right);
+  const combined = new Uint8Array(1 + leftBytes.length + rightBytes.length);
+  combined.set(prefix);
+  combined.set(leftBytes, 1);
+  combined.set(rightBytes, 1 + leftBytes.length);
+  return bytesToHex(sha256(combined));
+}
 
 /** Combine two hashes into a parent node */
 function hashPair(left: string, right: string): string {
   // Canonical ordering: smaller hash first to ensure deterministic trees
   const [a, b] = left < right ? [left, right] : [right, left];
-  return hashString(a + b);
+  return hashInternal(a, b);
 }
 
 /** Build a Merkle tree from leaf values. Returns all levels (bottom-up). */
@@ -18,7 +49,7 @@ function buildTree(leaves: string[]): string[][] {
   // Pad to power of 2
   const paddedLeaves = [...leaves];
   while (paddedLeaves.length & (paddedLeaves.length - 1)) {
-    paddedLeaves.push(hashString('__padding__' + paddedLeaves.length));
+    paddedLeaves.push(hashLeaf('__padding__' + paddedLeaves.length));
   }
 
   const levels: string[][] = [paddedLeaves];
@@ -43,8 +74,8 @@ export class MerkleTree {
 
   constructor(private attributes: Record<string, string>) {
     const entries = Object.entries(attributes).sort(([a], [b]) => a.localeCompare(b));
-    // Each leaf is hash("key:value")
-    this.leafHashes = entries.map(([k, v]) => hashString(`${k}:${v}`));
+    // Each leaf is hashLeaf("key:value") — domain-separated with 0x00 prefix
+    this.leafHashes = entries.map(([k, v]) => hashLeaf(`${k}:${v}`));
     this.levels = buildTree(this.leafHashes);
     this.root = this.levels[this.levels.length - 1][0];
   }
@@ -109,7 +140,7 @@ export function verifyMerkleProof(
   value: string,
   proof: MerkleProof
 ): boolean {
-  let currentHash = hashString(`${key}:${value}`);
+  let currentHash = hashLeaf(`${key}:${value}`);
   if (currentHash !== proof.leaf) return false;
 
   let idx = proof.index;

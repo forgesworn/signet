@@ -324,6 +324,50 @@ describe('voting protocol', () => {
       expect(result.errors).toHaveLength(0);
     });
 
+    it('does not leak vote content in ring signature (C1 fix)', async () => {
+      const params = makeElectionParams({ tallyPubkeys: [tally.publicKey] });
+      const election = await createElection(authority.privateKey, params);
+
+      const selectedOption = 'Option A';
+      const { event } = await castBallot(
+        voter1.privateKey, election, selectedOption, eligibleRing,
+      );
+
+      // The ring-sig tag contains the LSAG signature as JSON
+      const ringSigTag = event.tags.find((t) => t[0] === 'ring-sig');
+      expect(ringSigTag).toBeDefined();
+      const ringSigJson = ringSigTag![1];
+
+      // The plaintext vote MUST NOT appear in the ring signature
+      expect(ringSigJson).not.toContain(selectedOption);
+
+      // The message field should be a hash commitment, not the plaintext
+      const parsed = JSON.parse(ringSigJson);
+      expect(parsed.message).not.toContain(selectedOption);
+      expect(parsed.message).toMatch(/^[^:]+:[0-9a-f]{64}$/); // electionId:sha256hex
+    });
+
+    it('rejects ballot with tampered encrypted-vote (binding check)', async () => {
+      const params = makeElectionParams({ tallyPubkeys: [tally.publicKey] });
+      const election = await createElection(authority.privateKey, params);
+
+      const { event } = await castBallot(
+        voter1.privateKey, election, 'Option A', eligibleRing,
+      );
+
+      // Tamper with the encrypted vote tag
+      const tampered = {
+        ...event,
+        tags: event.tags.map(t =>
+          t[0] === 'encrypted-vote' ? ['encrypted-vote', 'deadbeef'.repeat(20)] : t,
+        ),
+      };
+
+      const result = verifyBallot(tampered, election, eligibleRing);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('Ring signature message does not match encrypted vote commitment');
+    });
+
     it('rejects voter not in ring', async () => {
       const params = makeElectionParams({ tallyPubkeys: [tally.publicKey] });
       const election = await createElection(authority.privateKey, params);

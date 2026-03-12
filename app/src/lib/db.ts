@@ -1,7 +1,9 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import type { EntityType } from 'signet-protocol';
+import { encryptSecret, decryptSecret } from './crypto-store';
 
 export type { EntityType };
+export { encryptSecret, decryptSecret } from './crypto-store';
 
 const DB_NAME = 'signet';
 const DB_VERSION = 3;
@@ -20,6 +22,8 @@ export interface StoredIdentity {
   linkedPersonaPubkey?: string; // link between Natural Person and Persona
   ageRange?: string;
   isChild?: boolean;
+  /** Whether privateKey (and mnemonic, if present) are encrypted with encryptSecret(). Defaults to false for backwards compatibility. */
+  encrypted?: boolean;
 }
 
 export interface CachedBadge {
@@ -150,9 +154,66 @@ export async function getActiveIdentity(): Promise<StoredIdentity | undefined> {
   return getIdentity(prefs.activeAccountId);
 }
 
+/**
+ * @deprecated Stores privateKey and mnemonic in plaintext.
+ * Use saveIdentityEncrypted instead to protect private key material at rest.
+ */
 export async function saveIdentity(identity: StoredIdentity): Promise<void> {
   const db = await getDB();
   await db.put('identity', identity);
+}
+
+/**
+ * Encrypt privateKey and mnemonic with a passphrase-derived AES-256-GCM key before storing.
+ * The stored record has encrypted: true so callers know to decrypt on load.
+ */
+export async function saveIdentityEncrypted(identity: StoredIdentity, passphrase: string): Promise<void> {
+  const encryptedPrivateKey = await encryptSecret(identity.privateKey, passphrase);
+  const encryptedMnemonic = identity.mnemonic !== undefined
+    ? await encryptSecret(identity.mnemonic, passphrase)
+    : undefined;
+
+  const encryptedIdentity: StoredIdentity = {
+    ...identity,
+    privateKey: encryptedPrivateKey,
+    mnemonic: encryptedMnemonic,
+    encrypted: true,
+  };
+
+  const db = await getDB();
+  await db.put('identity', encryptedIdentity);
+}
+
+/**
+ * Load an identity and decrypt privateKey and mnemonic if they were stored encrypted.
+ * Returns undefined if no identity exists for the given pubkey.
+ * Throws if decryption fails (wrong passphrase).
+ */
+export async function loadIdentityDecrypted(pubkey: string, passphrase: string): Promise<StoredIdentity | undefined> {
+  const db = await getDB();
+  const stored: StoredIdentity | undefined = await db.get('identity', pubkey);
+  if (!stored) return undefined;
+
+  if (!stored.encrypted) return stored;
+
+  const privateKey = await decryptSecret(stored.privateKey, passphrase);
+  const mnemonic = stored.mnemonic !== undefined
+    ? await decryptSecret(stored.mnemonic, passphrase)
+    : undefined;
+
+  return { ...stored, privateKey, mnemonic, encrypted: false };
+}
+
+/**
+ * Load the active identity and decrypt sensitive fields if encrypted.
+ * Returns undefined if no active identity is set.
+ * Throws if decryption fails (wrong passphrase).
+ */
+export async function loadActiveIdentityDecrypted(passphrase: string): Promise<StoredIdentity | undefined> {
+  const prefs = await getPreferences();
+  const pubkey = prefs.activeAccountId ?? (await getAllIdentities())[0]?.id;
+  if (!pubkey) return undefined;
+  return loadIdentityDecrypted(pubkey, passphrase);
 }
 
 export async function deleteIdentity(pubkey: string): Promise<void> {

@@ -4,7 +4,7 @@
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { sha256 } from '@noble/hashes/sha256';
 import { hkdf } from '@noble/hashes/hkdf';
-import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
+import { bytesToHex, hexToBytes, utf8ToBytes, randomBytes } from '@noble/hashes/utils';
 import { generateKeyPair as genKey, getPublicKey, signEvent } from './crypto.js';
 import { SIGNET_KINDS, SIGNET_LABEL, DEFAULT_CRYPTO_ALGORITHM } from './constants.js';
 import { getTagValue } from './validation.js';
@@ -188,6 +188,9 @@ export async function encryptBallotContent(
   // ECDH: ephemeralPriv * tallyPub (prepend '02' to x-only pubkey)
   const tallyPoint = secp256k1.ProjectivePoint.fromHex('02' + tallyPubkey);
   const sharedPoint = tallyPoint.multiply(BigInt('0x' + ephemeral.privateKey));
+  if (sharedPoint.equals(secp256k1.ProjectivePoint.ZERO)) {
+    throw new Error('ECDH produced identity point — invalid public key');
+  }
   const sharedX = sharedPoint.toAffine().x;
   // SHA-256 of x-coordinate
   const sharedXBytes = hexToBytes(sharedX.toString(16).padStart(64, '0'));
@@ -222,6 +225,10 @@ export async function decryptBallotContent(
   encrypted: string,
   tallyPrivateKey: string,
 ): Promise<string> {
+  if (encrypted.length < 88) {
+    throw new Error('Encrypted ballot content too short');
+  }
+
   // Parse components
   const ephemeralPubkeyHex = encrypted.slice(0, 64);
   const nonceHex = encrypted.slice(64, 88);
@@ -233,6 +240,9 @@ export async function decryptBallotContent(
   // ECDH: tallyPriv * ephemeralPub
   const ephemeralPoint = secp256k1.ProjectivePoint.fromHex('02' + ephemeralPubkeyHex);
   const sharedPoint = ephemeralPoint.multiply(BigInt('0x' + tallyPrivateKey));
+  if (sharedPoint.equals(secp256k1.ProjectivePoint.ZERO)) {
+    throw new Error('ECDH produced identity point — invalid public key');
+  }
   const sharedX = sharedPoint.toAffine().x;
   const sharedXBytes = hexToBytes(sharedX.toString(16).padStart(64, '0'));
   const sharedSecret = sha256(sharedXBytes);
@@ -300,19 +310,22 @@ export async function castBallot(
   // Compute key image
   const keyImage = computeKeyImage(voterPrivateKey, voterPubkey, parsed.electionId);
 
-  // LSAG sign over "electionId:selectedOption"
-  const message = `${parsed.electionId}:${selectedOption}`;
-  const ringSig = lsagSign(message, eligibleRing, signerIndex, voterPrivateKey, parsed.electionId);
-
-  // Encrypt vote content to first tally pubkey
+  // Encrypt vote content to first tally pubkey BEFORE signing —
+  // the LSAG signs a commitment to the ciphertext, not the plaintext vote.
   const voteContent = JSON.stringify({ option: selectedOption });
   const encryptedVote = await encryptBallotContent(voteContent, parsed.tallyPubkeys[0]);
+
+  // LSAG signs "electionId:sha256(encryptedVote)" — binds the signature
+  // to the specific ciphertext without revealing the vote.
+  const voteHash = bytesToHex(sha256(utf8ToBytes(encryptedVote)));
+  const message = `${parsed.electionId}:${voteHash}`;
+  const ringSig = lsagSign(message, eligibleRing, signerIndex, voterPrivateKey, parsed.electionId);
 
   // Generate ephemeral keypair for ballot event
   const ephemeral = genKey();
 
   const tags: string[][] = [
-    ['d', `${parsed.electionId}:${keyImage}`],
+    ['d', `${parsed.electionId}:${bytesToHex(randomBytes(16))}`],
     ['election', election.id],
     ['key-image', keyImage],
     ['ring-sig', JSON.stringify(ringSig)],
@@ -397,6 +410,16 @@ export function verifyBallot(
   // Verify LSAG signature
   if (!lsagVerify(ringSig)) {
     errors.push('LSAG ring signature verification failed');
+  }
+
+  // Verify LSAG message is bound to the encrypted vote (not plaintext)
+  const encryptedVote = getTagValue(ballot, 'encrypted-vote');
+  if (encryptedVote) {
+    const expectedHash = bytesToHex(sha256(utf8ToBytes(encryptedVote)));
+    const expectedMessage = `${parsed.electionId}:${expectedHash}`;
+    if (ringSig.message !== expectedMessage) {
+      errors.push('Ring signature message does not match encrypted vote commitment');
+    }
   }
 
   // Verify key-image tag matches signature

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateKeyPair } from '../src/crypto.js';
 import {
+  MAX_RING_SIZE,
   ringSign,
   ringVerify,
   signCredentialRing,
@@ -74,6 +75,26 @@ describe('ring-signature', () => {
     it('rejects ring size 1', () => {
       const keys = generateKeyPair();
       expect(() => ringSign('test', [keys.publicKey], 0, keys.privateKey)).toThrow('at least 2');
+    });
+
+    it('rejects ring size exceeding MAX_RING_SIZE in ringSign', () => {
+      const dummyKey = 'a'.repeat(64);
+      const oversizedRing = Array(MAX_RING_SIZE + 1).fill(dummyKey);
+      expect(() => ringSign('test', oversizedRing, 0, 'b'.repeat(64))).toThrow(
+        `Ring size ${MAX_RING_SIZE + 1} exceeds maximum of ${MAX_RING_SIZE}`
+      );
+    });
+
+    it('rejects ring size exceeding MAX_RING_SIZE in ringVerify', () => {
+      const dummyKey = 'a'.repeat(64);
+      const oversizedRing = Array(MAX_RING_SIZE + 1).fill(dummyKey);
+      const sig = {
+        ring: oversizedRing,
+        c0: 'a'.repeat(64),
+        responses: Array(MAX_RING_SIZE + 1).fill('b'.repeat(64)),
+        message: 'test',
+      };
+      expect(ringVerify(sig)).toBe(false);
     });
   });
 

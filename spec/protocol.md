@@ -1924,4 +1924,44 @@ The recommended adoption path is:
 2. Enable Level 2 for viral peer vouching
 3. Level 3 for clients that want full verification capability
 
+## 26. Security Considerations — Privacy Design Trade-offs
+
+This section documents known privacy trade-offs in the Signet protocol design, the mitigations available to users and implementers, and the accepted trade-offs where transparency or continuity was deliberately chosen over maximum privacy.
+
+### 26.1 Credential Chain Privacy
+
+Credential chains (`supersedes`/`superseded-by` tags) create a publicly observable timeline of credential lifecycle events. An observer can follow the full history of a Natural Person's credential renewals, name changes, and tier upgrades through these links.
+
+**Mitigation options for privacy-sensitive users:**
+- Issue new credentials without `supersedes` tags, sacrificing continuity proof for privacy
+- Use a fresh keypair when replacing credentials (requires re-establishing trust)
+- Clients SHOULD warn users that supersedes chains are publicly visible
+
+**Accepted trade-off:** Credential chains provide important auditability and credential lifecycle management. For most users, the transparency is a feature (proving continuous identity). Users who need stronger privacy should avoid credential chains.
+
+### 26.2 Guardian Tag Privacy
+
+Guardian delegation tags (`["guardian", "<parent_pubkey>"]`) on child Persona credentials publicly link the child's anonymous account to their parent's verified Natural Person identity. This reveals:
+- That the account belongs to a child
+- Which specific adult is their guardian
+- The child's age range
+
+**Mitigation (future):** Guardian tags on Persona credentials SHOULD reference the parent's Persona pubkey rather than their Natural Person pubkey. This preserves the guardian relationship while maintaining the parent's anonymity. Implementations MUST validate that the referenced guardian holds a valid credential regardless of which pubkey is used.
+
+**Current status:** Implementations currently use the Natural Person pubkey for simplicity. A migration path will be defined in a future spec revision.
+
+### 26.3 Ring Intersection Attacks on Identity Bridges
+
+Identity bridge events (kind 30476) embed the full ring of public keys used for the ring signature. If a Persona issues multiple identity bridges over time with different randomly selected decoy members, an observer can intersect the ring sets to identify the common member — the actual signer.
+
+With a ring of size `n` and `k` independent bridge events, the expected intersection size is approximately `1 + (n-1) * (1/pool_size)^(k-1)`, which rapidly approaches 1 (the signer) as `k` increases.
+
+**Mitigations:**
+- Identity bridges SHOULD be issued at most once per Persona. Re-issuance MUST reuse the same ring members
+- Larger rings (50+ members) require more samples for intersection attacks to succeed
+- Clients MUST NOT automatically refresh identity bridges — manual re-issuance only, with a warning about ring intersection risks
+- Future: consider using zero-knowledge proofs of set membership instead of explicit rings
+
+---
+
 *This specification is a living document. It will evolve through community feedback and implementation experience.*

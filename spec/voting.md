@@ -120,7 +120,7 @@ Linkable ring signatures align with Signet's core principle of decentralisation 
 
 4. **Encrypted ballots** — The voter encrypts their vote content to the tally authority's public key(s). The encrypted vote is included in the ballot event. No one can read the vote until the tally phase.
 
-5. **Ring signature** — The voter produces a linkable ring signature over the ballot, proving they are a member of the eligible set without revealing which member.
+5. **Ring signature** — The voter produces a linkable ring signature over a commitment to the encrypted ballot (`electionId:SHA-256(encryptedVote)`), proving they are a member of the eligible set without revealing which member or how they voted. The signed message MUST NOT contain the plaintext vote.
 
 6. **Submission** — The voter publishes the ballot as a kind 30483 event on Nostr relays.
 
@@ -186,7 +186,7 @@ A replaceable event published by a voter. The voter's actual pubkey is NOT used 
   "kind": 30483,
   "pubkey": "<ephemeral_ballot_pubkey>",
   "tags": [
-    ["d", "<election_id>"],
+    ["d", "<election_id>:<random_16_bytes_hex>"],
     ["election", "<kind_30482_event_id>"],
     ["key-image", "<hex_encoded_key_image>"],
     ["ring-sig", "<hex_encoded_linkable_ring_signature>"],
@@ -200,9 +200,10 @@ A replaceable event published by a voter. The voter's actual pubkey is NOT used 
 ```
 
 **Field requirements:**
+- `d` tag MUST be `<election_id>:<random_16_bytes_hex>` where the 16 bytes are generated fresh for each ballot submission. The random suffix prevents relays and observers from correlating ballot submissions via the `d` tag (which would expose re-voting patterns). Key image deduplication is performed at tally time using the `key-image` tag, not via relay-level replaceable event semantics.
 - `election_id` MUST match a published kind 30482 election
 - `key-image` MUST be deterministically derived as `I = x * H_p(P || election_id)` where `x` is the voter's private key and `P` is their public key in the eligible set
-- `ring-sig` MUST be a valid linkable ring signature over the ballot content, verifiable against the eligible set
+- `ring-sig` MUST be a valid linkable ring signature over the message `<election_id>:SHA-256(<encrypted-vote>)`, verifiable against the eligible set. The signed message MUST be a commitment to the ciphertext, never the plaintext vote — this ensures ballot secrecy even if the ring signature is inspected
 - `encrypted-vote` MUST be the vote content encrypted to the tally authority pubkey(s) specified in the election definition
 - `content` MUST be empty (vote content is in the encrypted tag)
 - The ephemeral pubkey MUST NOT be reused across elections
@@ -262,7 +263,7 @@ The linkable ring signature scheme extends the Spontaneous Anonymous Group (SAG)
 
 ### 5.3 Signing
 
-Given a message `m` (the ballot content), ring `R`, signer index `s`, private key `x_s`, and election ID `e`:
+Given a message `m` (the commitment `<election_id>:SHA-256(<encrypted_vote>)` — never the plaintext vote), ring `R`, signer index `s`, private key `x_s`, and election ID `e`:
 
 1. Compute key image: `I = x_s * H_p(P_s || e)`
 2. Generate random scalar `α`

@@ -183,6 +183,14 @@ describe('shamir', () => {
         'Need at least 3',
       );
     });
+
+    it('throws when a share has ID 0', () => {
+      const shares = splitSecret(secret16, 2, 3);
+      const zeroIdShare = { id: 0, data: shares[0].data };
+      expect(() => reconstructSecret([zeroIdShare, shares[1]], 2)).toThrow(
+        'Invalid share ID: 0 is not a valid x-coordinate',
+      );
+    });
   });
 
   describe('BIP-39 word encoding', () => {
