@@ -198,7 +198,11 @@ export async function encryptBallotContent(
 
   // ECDH: ephemeralPriv * tallyPub (prepend '02' to x-only pubkey)
   const tallyPoint = secp256k1.ProjectivePoint.fromHex('02' + tallyPubkey);
-  const sharedPoint = tallyPoint.multiply(BigInt('0x' + ephemeral.privateKey));
+  const ephScalar = BigInt('0x' + ephemeral.privateKey) % secp256k1.CURVE.n;
+  if (ephScalar === 0n) {
+    throw new SignetCryptoError('Ephemeral private key is zero — cannot perform ECDH');
+  }
+  const sharedPoint = tallyPoint.multiply(ephScalar);
   if (sharedPoint.equals(secp256k1.ProjectivePoint.ZERO)) {
     throw new SignetCryptoError('ECDH produced identity point — invalid public key');
   }

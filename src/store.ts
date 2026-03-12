@@ -236,7 +236,8 @@ export class SignetStore {
         typeof item.created_at !== 'number' ||
         !Array.isArray(item.tags) ||
         typeof item.content !== 'string' ||
-        typeof item.sig !== 'string'
+        typeof item.sig !== 'string' ||
+        !item.tags.every((t: unknown) => Array.isArray(t) && t.every((v: unknown) => typeof v === 'string'))
       ) {
         continue; // skip malformed entries
       }
