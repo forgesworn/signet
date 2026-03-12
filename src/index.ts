@@ -340,9 +340,6 @@ export {
 
 // Shamir's Secret Sharing
 export {
-  gf256Add,
-  gf256Mul,
-  gf256Inv,
   splitSecret,
   reconstructSecret,
   shareToWords,

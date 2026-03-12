@@ -13,10 +13,14 @@ import { randomBytes } from '@noble/hashes/utils';
 import type { NostrEvent, UnsignedEvent, SignetTier, ParsedIdentityBridge, CryptoAlgorithm } from './types.js';
 import type { RingSignature } from './ring-signature.js';
 
-/** Generate a cryptographically secure random integer in [0, max) */
+/** Generate a cryptographically secure random integer in [0, max) using rejection sampling */
 function secureRandomInt(max: number): number {
-  const bytes = randomBytes(4);
-  const val = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+  const limit = Math.floor(0x100000000 / max) * max;
+  let val: number;
+  do {
+    const bytes = randomBytes(4);
+    val = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+  } while (val >= limit);
   return val % max;
 }
 
