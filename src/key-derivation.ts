@@ -7,6 +7,7 @@ import { hmac } from '@noble/hashes/hmac';
 import { sha512 } from '@noble/hashes/sha512';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { mnemonicToSeedSync } from '@scure/bip39';
+import { zeroBytes } from './utils.js';
 
 // --- Bech32 encoding/decoding (BIP-173) for NIP-19 nsec/npub ---
 
@@ -160,10 +161,10 @@ export function parsePath(path: string): number[] {
 /** Derive master key from seed (BIP-32) */
 function masterKeyFromSeed(seed: Uint8Array): ExtendedKey {
   const I = hmac(sha512, utf8ToBytes('Bitcoin seed'), seed);
-  return {
-    key: I.slice(0, 32),
-    chainCode: I.slice(32),
-  };
+  const key = I.slice(0, 32);
+  const chainCode = I.slice(32);
+  zeroBytes(I);
+  return { key, chainCode };
 }
 
 /** Derive a child key (BIP-32 hardened or normal) */
@@ -191,11 +192,14 @@ function deriveChild(parent: ExtendedKey, index: number): ExtendedKey {
   const I = hmac(sha512, parent.chainCode, data);
   const IL = I.slice(0, 32);
   const IR = I.slice(32);
+  zeroBytes(I);
+  zeroBytes(data);
 
   // Child key = (IL + kpar) mod n
   const parentKeyBigInt = BigInt('0x' + bytesToHex(parent.key));
   const ILBigInt = BigInt('0x' + bytesToHex(IL));
   const childKey = (ILBigInt + parentKeyBigInt) % secp256k1.CURVE.n;
+  zeroBytes(IL);
 
   if (childKey === 0n) {
     throw new Error('Derived key is zero — astronomically unlikely, try next index');
@@ -214,8 +218,12 @@ export function deriveKeyFromSeed(seed: Uint8Array, path: string): Uint8Array {
   const indices = parsePath(path);
   let current = masterKeyFromSeed(seed);
   for (const index of indices) {
+    const prev = current;
     current = deriveChild(current, index);
+    zeroBytes(prev.key);
+    zeroBytes(prev.chainCode);
   }
+  zeroBytes(current.chainCode);
   return current.key;
 }
 
@@ -226,12 +234,14 @@ export function deriveNostrKeyPair(
 ): { privateKey: string; publicKey: string } {
   const seed = mnemonicToSeedSync(mnemonic, passphrase);
   const privateKeyBytes = deriveKeyFromSeed(seed, NIP06_DERIVATION_PATH);
+  zeroBytes(seed);
   const privateKey = bytesToHex(privateKeyBytes);
 
   // x-only public key (BIP-340 / Nostr convention)
   const fullPubkey = secp256k1.getPublicKey(privateKeyBytes, true); // 33 bytes compressed
   // Drop the prefix byte to get x-only (32 bytes)
   const publicKey = bytesToHex(fullPubkey.slice(1));
+  zeroBytes(privateKeyBytes);
 
   return { privateKey, publicKey };
 }
@@ -254,10 +264,12 @@ export function deriveChildAccount(
   const seed = mnemonicToSeedSync(mnemonic, passphrase);
   const path = `m/44'/1237'/${accountIndex}'/0/0`;
   const privateKeyBytes = deriveKeyFromSeed(seed, path);
+  zeroBytes(seed);
   const privateKey = bytesToHex(privateKeyBytes);
 
   const fullPubkey = secp256k1.getPublicKey(privateKeyBytes, true);
   const publicKey = bytesToHex(fullPubkey.slice(1));
+  zeroBytes(privateKeyBytes);
 
   return { privateKey, publicKey };
 }
