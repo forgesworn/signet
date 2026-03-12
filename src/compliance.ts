@@ -569,6 +569,18 @@ function checkChildDataRequirements(
     maxAge = parseInt(maxStr, 10);
   }
 
+  if (isNaN(minAge) || isNaN(maxAge)) {
+    issues.push({
+      code: 'INVALID_AGE_RANGE',
+      severity: 'error',
+      jurisdiction: j.code,
+      message: `Malformed age-range tag "${ageRange}" — cannot determine age bounds.`,
+      regulation: j.childProtection.name,
+      remediation: 'Use a valid age-range format: "0-3", "4-7", "8-12", "13-17", or "18+".',
+    });
+    return issues;
+  }
+
   // Check if age range falls below digital consent age
   if (maxAge < j.childProtection.minAgeDigitalConsent) {
     issues.push({
