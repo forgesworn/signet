@@ -104,6 +104,7 @@ export function Settings({
   onSwitchAccount,
   onAddAccount,
 }: SettingsProps) {
+  // NOTE: ws:// default is for local development only. Production relays should use wss://.
   const [relayUrlInput, setRelayUrlInput] = useState(relay?.url ?? 'ws://localhost:7777');
   const [relayConnecting, setRelayConnecting] = useState(false);
 
@@ -136,8 +137,13 @@ export function Settings({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Export ──
+  // WARNING: The exported backup contains the private key and mnemonic in plaintext.
+  // Users must be warned before proceeding.
 
   const handleExport = useCallback(async () => {
+    if (!window.confirm('WARNING: This export contains your private key and mnemonic in plaintext. Only save to a trusted, encrypted location. Continue?')) {
+      return;
+    }
     try {
       const allConnections = await getConnections();
       const backup = {

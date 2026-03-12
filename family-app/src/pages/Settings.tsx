@@ -98,12 +98,16 @@ export function Settings({ identity, preferences, onSetTheme, onDeleteIdentity, 
       </div>
 
       {/* Export */}
+      {/* WARNING: The exported backup contains the mnemonic (private key material) in plaintext. */}
       <div className="card section">
         <div className="section-title">Export My Signet</div>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
           Take your identity to another app.
         </p>
         <button className="btn btn-secondary" onClick={() => {
+          if (!window.confirm('WARNING: This export contains your private key and mnemonic in plaintext. Only save to a trusted, encrypted location. Continue?')) {
+            return;
+          }
           const data = JSON.stringify({ mnemonic: identity.mnemonic, displayName: identity.displayName });
           const blob = new Blob([data], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
