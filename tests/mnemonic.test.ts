@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
-  generateEntropy,
   entropyToMnemonic,
   mnemonicToEntropy,
   validateMnemonic,
-  mnemonicToSeed,
+  mnemonicToSeedSync,
   generateMnemonic,
-} from '../src/mnemonic.js';
-import { BIP39_WORDLIST } from '../src/wordlist.js';
+} from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
+import { randomBytes } from '@noble/hashes/utils';
 import { TEST_MNEMONIC } from './fixtures.js';
 
 /** Convert a hex string to Uint8Array. */
@@ -31,26 +31,26 @@ describe('mnemonic', () => {
 
   describe('generateMnemonic', () => {
     it('produces 12 words with all words in the BIP-39 wordlist', () => {
-      const mnemonic = generateMnemonic();
+      const mnemonic = generateMnemonic(wordlist);
       const words = mnemonic.split(' ');
       expect(words).toHaveLength(12);
       for (const word of words) {
-        expect(BIP39_WORDLIST).toContain(word);
+        expect(wordlist).toContain(word);
       }
     });
 
     it('produces 24 words when given 256 bits', () => {
-      const mnemonic = generateMnemonic(256);
+      const mnemonic = generateMnemonic(wordlist, 256);
       const words = mnemonic.split(' ');
       expect(words).toHaveLength(24);
       for (const word of words) {
-        expect(BIP39_WORDLIST).toContain(word);
+        expect(wordlist).toContain(word);
       }
     });
 
     it('produces different results on successive calls', () => {
-      const a = generateMnemonic();
-      const b = generateMnemonic();
+      const a = generateMnemonic(wordlist);
+      const b = generateMnemonic(wordlist);
       // Statistically impossible for two random 128-bit mnemonics to collide
       expect(a).not.toBe(b);
     });
@@ -60,18 +60,18 @@ describe('mnemonic', () => {
 
   describe('validateMnemonic', () => {
     it('returns true for a valid mnemonic', () => {
-      const mnemonic = generateMnemonic();
-      expect(validateMnemonic(mnemonic)).toBe(true);
+      const mnemonic = generateMnemonic(wordlist);
+      expect(validateMnemonic(mnemonic, wordlist)).toBe(true);
     });
 
     it('returns false for wrong word count', () => {
-      expect(validateMnemonic('abandon abandon abandon')).toBe(false);
+      expect(validateMnemonic('abandon abandon abandon', wordlist)).toBe(false);
     });
 
     it('returns false for words not in the wordlist', () => {
       // 12 nonsense words
       const fake = Array(12).fill('zzzznotaword').join(' ');
-      expect(validateMnemonic(fake)).toBe(false);
+      expect(validateMnemonic(fake, wordlist)).toBe(false);
     });
 
     it('returns false for a bad checksum (two words swapped)', () => {
@@ -81,7 +81,7 @@ describe('mnemonic', () => {
       const swapped = [...words];
       [swapped[0], swapped[11]] = [swapped[11], swapped[0]];
       // "about abandon ... abandon" should fail checksum
-      expect(validateMnemonic(swapped.join(' '))).toBe(false);
+      expect(validateMnemonic(swapped.join(' '), wordlist)).toBe(false);
     });
   });
 
@@ -89,16 +89,16 @@ describe('mnemonic', () => {
 
   describe('roundtrip', () => {
     it('mnemonicToEntropy → entropyToMnemonic roundtrips', () => {
-      const mnemonic = generateMnemonic();
-      const entropy = mnemonicToEntropy(mnemonic);
-      const recovered = entropyToMnemonic(entropy);
+      const mnemonic = generateMnemonic(wordlist);
+      const entropy = mnemonicToEntropy(mnemonic, wordlist);
+      const recovered = entropyToMnemonic(entropy, wordlist);
       expect(recovered).toBe(mnemonic);
     });
 
     it('entropyToMnemonic → mnemonicToEntropy roundtrips', () => {
-      const entropy = generateEntropy();
-      const mnemonic = entropyToMnemonic(entropy);
-      const recovered = mnemonicToEntropy(mnemonic);
+      const entropy = randomBytes(16);
+      const mnemonic = entropyToMnemonic(entropy, wordlist);
+      const recovered = mnemonicToEntropy(mnemonic, wordlist);
       expect(bytesToHex(recovered)).toBe(bytesToHex(entropy));
     });
   });
@@ -107,43 +107,24 @@ describe('mnemonic', () => {
 
   describe('mnemonicToSeed', () => {
     it('produces a 64-byte seed', () => {
-      const mnemonic = generateMnemonic();
-      const seed = mnemonicToSeed(mnemonic);
+      const mnemonic = generateMnemonic(wordlist);
+      const seed = mnemonicToSeedSync(mnemonic);
       expect(seed).toHaveLength(64);
       expect(seed).toBeInstanceOf(Uint8Array);
     });
 
     it('produces a different seed with a passphrase than without', () => {
-      const mnemonic = generateMnemonic();
-      const seedNoPass = mnemonicToSeed(mnemonic);
-      const seedWithPass = mnemonicToSeed(mnemonic, 'my secret passphrase');
+      const mnemonic = generateMnemonic(wordlist);
+      const seedNoPass = mnemonicToSeedSync(mnemonic);
+      const seedWithPass = mnemonicToSeedSync(mnemonic, 'my secret passphrase');
       expect(bytesToHex(seedNoPass)).not.toBe(bytesToHex(seedWithPass));
     });
 
     it('is deterministic (same input yields same output)', () => {
-      const mnemonic = generateMnemonic();
-      const seed1 = mnemonicToSeed(mnemonic, 'test');
-      const seed2 = mnemonicToSeed(mnemonic, 'test');
+      const mnemonic = generateMnemonic(wordlist);
+      const seed1 = mnemonicToSeedSync(mnemonic, 'test');
+      const seed2 = mnemonicToSeedSync(mnemonic, 'test');
       expect(bytesToHex(seed1)).toBe(bytesToHex(seed2));
-    });
-  });
-
-  // ─── generateEntropy ──────────────────────────────────────────────
-
-  describe('generateEntropy', () => {
-    it('throws for invalid bit lengths', () => {
-      expect(() => generateEntropy(100)).toThrow();
-      expect(() => generateEntropy(0)).toThrow();
-      expect(() => generateEntropy(64)).toThrow();
-      expect(() => generateEntropy(512)).toThrow();
-    });
-
-    it('returns correct byte lengths for valid bit counts', () => {
-      expect(generateEntropy(128)).toHaveLength(16);
-      expect(generateEntropy(160)).toHaveLength(20);
-      expect(generateEntropy(192)).toHaveLength(24);
-      expect(generateEntropy(224)).toHaveLength(28);
-      expect(generateEntropy(256)).toHaveLength(32);
     });
   });
 
@@ -157,22 +138,22 @@ describe('mnemonic', () => {
 
     it('entropyToMnemonic produces the expected mnemonic', () => {
       const entropy = hexToBytes(entropyHex);
-      const mnemonic = entropyToMnemonic(entropy);
+      const mnemonic = entropyToMnemonic(entropy, wordlist);
       expect(mnemonic).toBe(expectedMnemonic);
     });
 
     it('mnemonicToEntropy recovers the original entropy', () => {
-      const entropy = mnemonicToEntropy(expectedMnemonic);
+      const entropy = mnemonicToEntropy(expectedMnemonic, wordlist);
       expect(bytesToHex(entropy)).toBe(entropyHex);
     });
 
     it('mnemonicToSeed (no passphrase) produces the expected seed', () => {
-      const seed = mnemonicToSeed(expectedMnemonic);
+      const seed = mnemonicToSeedSync(expectedMnemonic);
       expect(bytesToHex(seed)).toBe(expectedSeedHex);
     });
 
     it('validateMnemonic returns true for the test vector', () => {
-      expect(validateMnemonic(expectedMnemonic)).toBe(true);
+      expect(validateMnemonic(expectedMnemonic, wordlist)).toBe(true);
     });
   });
 });

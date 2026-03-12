@@ -314,17 +314,16 @@ export {
 } from './validation.js';
 
 // BIP-39 Wordlist
-export { BIP39_WORDLIST, wordIndex } from './wordlist.js';
+export { wordlist as BIP39_WORDLIST } from '@scure/bip39/wordlists/english.js';
 
 // Mnemonic (BIP-39)
 export {
-  generateEntropy,
-  entropyToMnemonic,
-  mnemonicToEntropy,
-  validateMnemonic,
-  mnemonicToSeed,
   generateMnemonic,
-} from './mnemonic.js';
+  mnemonicToEntropy,
+  entropyToMnemonic,
+  validateMnemonic,
+} from '@scure/bip39';
+export { mnemonicToSeedSync as mnemonicToSeed } from '@scure/bip39';
 
 // Key Derivation (BIP-32 / NIP-06) & nsec/npub encoding (NIP-19)
 export {
