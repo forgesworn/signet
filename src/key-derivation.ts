@@ -6,7 +6,7 @@ import { secp256k1 } from '@noble/curves/secp256k1';
 import { hmac } from '@noble/hashes/hmac';
 import { sha512 } from '@noble/hashes/sha512';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
-import { mnemonicToSeed } from './mnemonic.js';
+import { mnemonicToSeedSync } from '@scure/bip39';
 
 // --- Bech32 encoding/decoding (BIP-173) for NIP-19 nsec/npub ---
 
@@ -224,7 +224,7 @@ export function deriveNostrKeyPair(
   mnemonic: string,
   passphrase?: string
 ): { privateKey: string; publicKey: string } {
-  const seed = mnemonicToSeed(mnemonic, passphrase);
+  const seed = mnemonicToSeedSync(mnemonic, passphrase);
   const privateKeyBytes = deriveKeyFromSeed(seed, NIP06_DERIVATION_PATH);
   const privateKey = bytesToHex(privateKeyBytes);
 
@@ -251,7 +251,7 @@ export function deriveChildAccount(
   accountIndex: number,
   passphrase?: string
 ): { privateKey: string; publicKey: string } {
-  const seed = mnemonicToSeed(mnemonic, passphrase);
+  const seed = mnemonicToSeedSync(mnemonic, passphrase);
   const path = `m/44'/1237'/${accountIndex}'/0/0`;
   const privateKeyBytes = deriveKeyFromSeed(seed, path);
   const privateKey = bytesToHex(privateKeyBytes);

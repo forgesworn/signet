@@ -8,7 +8,7 @@ import {
   shareToWords,
   wordsToShare,
 } from '../src/shamir.js';
-import { BIP39_WORDLIST } from '../src/wordlist.js';
+import { wordlist as BIP39_WORDLIST } from '@scure/bip39/wordlists/english.js';
 
 describe('shamir', () => {
   // A known 16-byte secret (128-bit, standard for 12-word mnemonic entropy)

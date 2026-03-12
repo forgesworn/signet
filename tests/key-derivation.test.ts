@@ -9,7 +9,8 @@ import {
   deriveChildAccount,
   NIP06_DERIVATION_PATH,
 } from '../src/key-derivation.js';
-import { generateMnemonic, mnemonicToSeed } from '../src/mnemonic.js';
+import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { TEST_MNEMONIC } from './fixtures.js';
 
@@ -46,21 +47,21 @@ describe('parsePath', () => {
 
 describe('deriveKeyFromSeed', () => {
   it('derives a 32-byte key from a seed', () => {
-    const seed = mnemonicToSeed(TEST_MNEMONIC);
+    const seed = mnemonicToSeedSync(TEST_MNEMONIC);
     const key = deriveKeyFromSeed(seed, NIP06_DERIVATION_PATH);
     expect(key).toBeInstanceOf(Uint8Array);
     expect(key.length).toBe(32);
   });
 
   it('same seed + same path = same key (deterministic)', () => {
-    const seed = mnemonicToSeed(TEST_MNEMONIC);
+    const seed = mnemonicToSeedSync(TEST_MNEMONIC);
     const key1 = deriveKeyFromSeed(seed, NIP06_DERIVATION_PATH);
     const key2 = deriveKeyFromSeed(seed, NIP06_DERIVATION_PATH);
     expect(bytesToHex(key1)).toBe(bytesToHex(key2));
   });
 
   it('different paths produce different keys', () => {
-    const seed = mnemonicToSeed(TEST_MNEMONIC);
+    const seed = mnemonicToSeedSync(TEST_MNEMONIC);
     const key1 = deriveKeyFromSeed(seed, "m/44'/1237'/0'/0/0");
     const key2 = deriveKeyFromSeed(seed, "m/44'/1237'/1'/0/0");
     expect(bytesToHex(key1)).not.toBe(bytesToHex(key2));
@@ -100,7 +101,7 @@ describe('deriveNostrKeyPair', () => {
   });
 
   it('works with a freshly generated mnemonic', () => {
-    const mnemonic = generateMnemonic();
+    const mnemonic = generateMnemonic(wordlist);
     const { privateKey, publicKey } = deriveNostrKeyPair(mnemonic);
     expect(privateKey).toMatch(/^[0-9a-f]{64}$/);
     expect(publicKey).toMatch(/^[0-9a-f]{64}$/);
@@ -109,7 +110,7 @@ describe('deriveNostrKeyPair', () => {
 
 describe('createIdentityFromMnemonic', () => {
   it('returns mnemonic, privateKey, and publicKey', () => {
-    const mnemonic = generateMnemonic();
+    const mnemonic = generateMnemonic(wordlist);
     const identity = createIdentityFromMnemonic(mnemonic);
     expect(identity.mnemonic).toBe(mnemonic);
     expect(identity.privateKey).toMatch(/^[0-9a-f]{64}$/);
@@ -117,7 +118,7 @@ describe('createIdentityFromMnemonic', () => {
   });
 
   it('derived keys match deriveNostrKeyPair', () => {
-    const mnemonic = generateMnemonic();
+    const mnemonic = generateMnemonic(wordlist);
     const identity = createIdentityFromMnemonic(mnemonic);
     const kp = deriveNostrKeyPair(mnemonic);
     expect(identity.privateKey).toBe(kp.privateKey);

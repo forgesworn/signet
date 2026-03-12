@@ -2,7 +2,7 @@
 // Split secrets into threshold-of-n shares using polynomial interpolation
 
 import { randomBytes } from '@noble/hashes/utils';
-import { BIP39_WORDLIST } from './wordlist.js';
+import { wordlist as BIP39_WORDLIST } from '@scure/bip39/wordlists/english.js';
 
 // ---------------------------------------------------------------------------
 // Types
