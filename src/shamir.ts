@@ -4,6 +4,24 @@
 import { randomBytes } from '@noble/hashes/utils';
 import { wordlist as BIP39_WORDLIST } from '@scure/bip39/wordlists/english.js';
 
+/**
+ * Shamir's Secret Sharing over GF(256).
+ *
+ * INTENTIONAL DUPLICATION: Dominion Protocol has its own GF(256) Shamir
+ * implementation. The low-level maths is identical but the protocols serve
+ * different purposes:
+ *
+ *   - Signet: splits identity keys across PEOPLE (guardian recovery).
+ *     Shares are encoded as BIP-39 words for human exchange.
+ *   - Dominion: splits content keys across MACHINES (warden relays).
+ *     Shares are raw bytes for relay distribution.
+ *
+ * Coupling the protocols via a shared dependency is worse than ~100 lines
+ * of duplicated arithmetic. GF(256) is stable and will never change.
+ *
+ * See: trott-business/docs/plans/2026-03-12-fathom-alpha-live-design.md
+ */
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
