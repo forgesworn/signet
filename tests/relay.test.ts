@@ -89,9 +89,14 @@ describe('RelayClient', () => {
       expect(() => new RelayClient('relay.example.com')).toThrow('ws:// or wss://');
     });
 
-    it('accepts ws:// and wss:// URLs', () => {
+    it('accepts wss:// URLs and ws:// for localhost only', () => {
       expect(() => new RelayClient('wss://relay.example.com')).not.toThrow();
-      expect(() => new RelayClient('ws://relay.example.com')).not.toThrow();
+      expect(() => new RelayClient('ws://localhost:7777')).not.toThrow();
+      expect(() => new RelayClient('ws://127.0.0.1:7777')).not.toThrow();
+    });
+
+    it('rejects ws:// for non-localhost URLs', () => {
+      expect(() => new RelayClient('ws://relay.example.com')).toThrow('wss://');
     });
 
     it('notifies state changes via callback', async () => {

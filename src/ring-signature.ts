@@ -15,6 +15,7 @@ import {
   safeMultiply,
   scalarEqual,
 } from './secp256k1-utils.js';
+import { SignetValidationError, SignetCryptoError } from './errors.js';
 
 /** Maximum number of members in a ring, to prevent denial-of-service via unbounded computation. */
 export const MAX_RING_SIZE = 1000;
@@ -36,7 +37,7 @@ export interface RingSignature {
 /** Validate an x-only public key is exactly 64 hex characters. */
 function validatePubkeyHex(pubkeyHex: string): void {
   if (!/^[0-9a-f]{64}$/i.test(pubkeyHex)) {
-    throw new Error(`Invalid x-only public key: expected 64 hex chars, got ${pubkeyHex.length} chars`);
+    throw new SignetValidationError(`Invalid x-only public key: expected 64 hex chars, got ${pubkeyHex.length} chars`);
   }
 }
 
@@ -63,9 +64,9 @@ export function ringSign(
   signerIndex: number,
   privateKey: string
 ): RingSignature {
-  if (ring.length < 2) throw new Error('Ring must have at least 2 members');
-  if (ring.length > MAX_RING_SIZE) throw new Error(`Ring size ${ring.length} exceeds maximum of ${MAX_RING_SIZE}`);
-  if (signerIndex < 0 || signerIndex >= ring.length) throw new Error('Signer index out of range');
+  if (ring.length < 2) throw new SignetValidationError('Ring must have at least 2 members');
+  if (ring.length > MAX_RING_SIZE) throw new SignetValidationError(`Ring size ${ring.length} exceeds maximum of ${MAX_RING_SIZE}`);
+  if (signerIndex < 0 || signerIndex >= ring.length) throw new SignetValidationError('Signer index out of range');
 
   const n = ring.length;
   const pi = signerIndex;

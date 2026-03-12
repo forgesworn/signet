@@ -11,6 +11,7 @@ import { ringSign, ringVerify } from './ring-signature.js';
 import { getTagValue } from './validation.js';
 import { randomBytes } from '@noble/hashes/utils';
 import type { NostrEvent, UnsignedEvent, SignetTier, ParsedIdentityBridge, CryptoAlgorithm } from './types.js';
+import { SignetValidationError } from './errors.js';
 import type { RingSignature } from './ring-signature.js';
 
 /** Generate a cryptographically secure random integer in [0, max) using rejection sampling */
@@ -39,13 +40,13 @@ export function selectDecoyRing(
   ringSize: number = MIN_BRIDGE_RING_SIZE
 ): { ring: string[]; signerIndex: number } {
   if (ringSize < MIN_BRIDGE_RING_SIZE) {
-    throw new Error(`Ring size must be at least ${MIN_BRIDGE_RING_SIZE}`);
+    throw new SignetValidationError(`Ring size must be at least ${MIN_BRIDGE_RING_SIZE}`);
   }
   // Filter out the real pubkey from candidates
   const candidates = verifiedPubkeys.filter((pk) => pk !== realPubkey);
   const decoyCount = ringSize - 1;
   if (candidates.length < decoyCount) {
-    throw new Error(
+    throw new SignetValidationError(
       `Not enough verified pubkeys for ring: need ${decoyCount} decoys, have ${candidates.length}`
     );
   }
@@ -101,7 +102,7 @@ export async function createIdentityBridge(
   ringMinTier: SignetTier
 ): Promise<NostrEvent> {
   if (ring.length < MIN_BRIDGE_RING_SIZE) {
-    throw new Error(`Ring must have at least ${MIN_BRIDGE_RING_SIZE} members`);
+    throw new SignetValidationError(`Ring must have at least ${MIN_BRIDGE_RING_SIZE} members`);
   }
 
   const anonPubkey = getPublicKey(anonPrivateKey);

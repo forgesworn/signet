@@ -3,6 +3,7 @@
 
 import { signEvent, getPublicKey, verifyEvent } from './crypto.js';
 import type { NostrEvent, UnsignedEvent } from './types.js';
+import { SignetValidationError } from './errors.js';
 
 /** NIP-42 client authentication event kind */
 const NIP42_AUTH_KIND = 22242;
@@ -85,7 +86,11 @@ export class RelayClient {
     private options: RelayOptions = {}
   ) {
     if (!/^wss?:\/\//i.test(this.url)) {
-      throw new Error('Relay URL must use ws:// or wss:// scheme');
+      throw new SignetValidationError('Relay URL must use ws:// or wss:// scheme');
+    }
+    // Enforce TLS for non-localhost connections — identity data must not travel in cleartext
+    if (/^ws:\/\//i.test(this.url) && !/^ws:\/\/(localhost|127\.0\.0\.1)([:\/]|$)/i.test(this.url)) {
+      throw new SignetValidationError('Relay URL must use wss:// for non-localhost connections');
     }
     this.options = {
       connectTimeout: 5000,
@@ -180,7 +185,7 @@ export class RelayClient {
   /** Publish an event to the relay */
   async publish(event: NostrEvent): Promise<{ ok: boolean; message: string }> {
     if (this.state !== 'connected' || !this.ws) {
-      throw new Error('Not connected to relay');
+      throw new SignetValidationError('Not connected to relay');
     }
 
     return new Promise((resolve) => {
@@ -243,9 +248,10 @@ export class RelayClient {
         resolve(events);
       };
 
+      const maxEvents = 10_000;
       const subId = this.subscribe(
         filters,
-        (event) => events.push(event),
+        (event) => { events.push(event); if (events.length >= maxEvents) done(); },
         () => done(),
       );
 

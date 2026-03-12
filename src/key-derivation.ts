@@ -8,6 +8,7 @@ import { sha512 } from '@noble/hashes/sha512';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { zeroBytes } from './utils.js';
+import { SignetValidationError, SignetCryptoError } from './errors.js';
 
 // --- Bech32 encoding/decoding (BIP-173) for NIP-19 nsec/npub ---
 
@@ -57,23 +58,23 @@ function bech32Encode(hrp: string, data: number[]): string {
 function bech32Decode(str: string): { hrp: string; data: number[] } {
   const lower = str.toLowerCase();
   if (lower !== str && str.toUpperCase() !== str) {
-    throw new Error('Mixed-case bech32 string');
+    throw new SignetValidationError('Mixed-case bech32 string');
   }
   const s = lower;
   const pos = s.lastIndexOf('1');
   if (pos < 1 || pos + 7 > s.length || s.length > 90) {
-    throw new Error('Invalid bech32 string');
+    throw new SignetValidationError('Invalid bech32 string');
   }
   const hrp = s.slice(0, pos);
   const dataChars = s.slice(pos + 1);
   const data: number[] = [];
   for (const c of dataChars) {
     const idx = BECH32_CHARSET.indexOf(c);
-    if (idx === -1) throw new Error(`Invalid bech32 character: ${c}`);
+    if (idx === -1) throw new SignetValidationError(`Invalid bech32 character: ${c}`);
     data.push(idx);
   }
   if (!bech32VerifyChecksum(hrp, data)) {
-    throw new Error('Invalid bech32 checksum');
+    throw new SignetValidationError('Invalid bech32 checksum');
   }
   return { hrp, data: data.slice(0, data.length - 6) };
 }
@@ -84,7 +85,7 @@ function convertBits(data: number[], fromBits: number, toBits: number, pad: bool
   const ret: number[] = [];
   const maxv = (1 << toBits) - 1;
   for (const value of data) {
-    if (value < 0 || value >> fromBits !== 0) throw new Error('Invalid value for convertBits');
+    if (value < 0 || value >> fromBits !== 0) throw new SignetValidationError('Invalid value for convertBits');
     acc = (acc << fromBits) | value;
     bits += fromBits;
     while (bits >= toBits) {
@@ -95,7 +96,7 @@ function convertBits(data: number[], fromBits: number, toBits: number, pad: bool
   if (pad) {
     if (bits > 0) ret.push((acc << (toBits - bits)) & maxv);
   } else if (bits >= fromBits || ((acc << (toBits - bits)) & maxv) !== 0) {
-    throw new Error('Invalid padding in convertBits');
+    throw new SignetValidationError('Invalid padding in convertBits');
   }
   return ret;
 }
@@ -103,7 +104,7 @@ function convertBits(data: number[], fromBits: number, toBits: number, pad: bool
 /** Encode a 32-byte private key as an nsec bech32 string (NIP-19) */
 export function encodeNsec(privateKey: string): string {
   const bytes = hexToBytes(privateKey);
-  if (bytes.length !== 32) throw new Error('Private key must be 32 bytes');
+  if (bytes.length !== 32) throw new SignetValidationError('Private key must be 32 bytes');
   const data5bit = convertBits(Array.from(bytes), 8, 5, true);
   return bech32Encode('nsec', data5bit);
 }
@@ -111,7 +112,7 @@ export function encodeNsec(privateKey: string): string {
 /** Encode a 32-byte public key as an npub bech32 string (NIP-19) */
 export function encodeNpub(publicKey: string): string {
   const bytes = hexToBytes(publicKey);
-  if (bytes.length !== 32) throw new Error('Public key must be 32 bytes');
+  if (bytes.length !== 32) throw new SignetValidationError('Public key must be 32 bytes');
   const data5bit = convertBits(Array.from(bytes), 8, 5, true);
   return bech32Encode('npub', data5bit);
 }
@@ -119,9 +120,9 @@ export function encodeNpub(publicKey: string): string {
 /** Decode an nsec bech32 string to private + public key hex (NIP-19) */
 export function decodeNsec(nsec: string): { privateKey: string; publicKey: string } {
   const { hrp, data } = bech32Decode(nsec);
-  if (hrp !== 'nsec') throw new Error(`Expected nsec prefix, got ${hrp}`);
+  if (hrp !== 'nsec') throw new SignetValidationError(`Expected nsec prefix, got ${hrp}`);
   const bytes = convertBits(data, 5, 8, false);
-  if (bytes.length !== 32) throw new Error('Invalid nsec: decoded to wrong length');
+  if (bytes.length !== 32) throw new SignetValidationError('Invalid nsec: decoded to wrong length');
   const privateKey = bytesToHex(new Uint8Array(bytes));
   // Derive x-only public key from private key
   const fullPubkey = secp256k1.getPublicKey(new Uint8Array(bytes), true);
@@ -143,7 +144,7 @@ interface ExtendedKey {
 /** Parse a BIP-32 derivation path into numeric indices */
 export function parsePath(path: string): number[] {
   if (!path.startsWith('m/')) {
-    throw new Error('Derivation path must start with m/');
+    throw new SignetValidationError('Derivation path must start with m/');
   }
   return path
     .slice(2)
@@ -152,7 +153,7 @@ export function parsePath(path: string): number[] {
       const hardened = segment.endsWith("'") || segment.endsWith('h');
       const index = parseInt(hardened ? segment.slice(0, -1) : segment, 10);
       if (isNaN(index) || index < 0) {
-        throw new Error(`Invalid path segment: ${segment}`);
+        throw new SignetValidationError(`Invalid path segment: ${segment}`);
       }
       return hardened ? index + HARDENED_OFFSET : index;
     });
@@ -202,7 +203,7 @@ function deriveChild(parent: ExtendedKey, index: number): ExtendedKey {
   zeroBytes(IL);
 
   if (childKey === 0n) {
-    throw new Error('Derived key is zero — astronomically unlikely, try next index');
+    throw new SignetCryptoError('Derived key is zero — astronomically unlikely, try next index');
   }
 
   // Convert back to 32-byte Uint8Array

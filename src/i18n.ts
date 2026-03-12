@@ -2,6 +2,8 @@
 // Supports 15 languages for credential types, verification messages, legal terms,
 // professional titles, and UI strings.
 
+import { SignetValidationError } from './errors.js';
+
 export type LanguageCode =
   | 'en' | 'es' | 'fr' | 'de' | 'pt' | 'ja' | 'ko'
   | 'zh' | 'ar' | 'hi' | 'it' | 'nl' | 'tr' | 'id' | 'sw';
@@ -1285,7 +1287,7 @@ let currentLanguage: LanguageCode = 'en';
 
 /** Set the current language */
 export function setLanguage(lang: LanguageCode): void {
-  if (!TRANSLATIONS[lang]) throw new Error(`Unsupported language: ${lang}`);
+  if (!TRANSLATIONS[lang]) throw new SignetValidationError(`Unsupported language: ${lang}`);
   currentLanguage = lang;
 }
 

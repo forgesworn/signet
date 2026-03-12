@@ -3,6 +3,7 @@
 // across multiple uses of the same election, enabling double-vote detection.
 
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
+import { SignetValidationError, SignetCryptoError } from './errors.js';
 import {
   Point,
   N,
@@ -34,7 +35,7 @@ const LSAG_DOMAIN = utf8ToBytes('signet-lsag-v1');
 
 function validatePubkeyHex(pubkeyHex: string): void {
   if (!/^[0-9a-f]{64}$/i.test(pubkeyHex)) {
-    throw new Error(`Invalid x-only public key: expected 64 hex chars, got ${pubkeyHex.length} chars`);
+    throw new SignetValidationError(`Invalid x-only public key: expected 64 hex chars, got ${pubkeyHex.length} chars`);
   }
 }
 
@@ -93,9 +94,9 @@ export function lsagSign(
   privateKey: string,
   electionId: string,
 ): LsagSignature {
-  if (ring.length < 2) throw new Error('Ring must have at least 2 members');
-  if (ring.length > MAX_RING_SIZE) throw new Error(`Ring size ${ring.length} exceeds maximum of ${MAX_RING_SIZE}`);
-  if (signerIndex < 0 || signerIndex >= ring.length) throw new Error('Signer index out of range');
+  if (ring.length < 2) throw new SignetValidationError('Ring must have at least 2 members');
+  if (ring.length > MAX_RING_SIZE) throw new SignetValidationError(`Ring size ${ring.length} exceeds maximum of ${MAX_RING_SIZE}`);
+  if (signerIndex < 0 || signerIndex >= ring.length) throw new SignetValidationError('Signer index out of range');
 
   const n = ring.length;
   const pi = signerIndex;
