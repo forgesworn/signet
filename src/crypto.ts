@@ -4,16 +4,20 @@
 import { schnorr } from '@noble/curves/secp256k1';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
+import { zeroBytes } from './utils.js';
 import type { UnsignedEvent, NostrEvent } from './types.js';
 
 /** Generate a new secp256k1 keypair. Returns { privateKey, publicKey } as hex strings.
  *  Public key is x-only (32 bytes) per BIP-340 / Nostr convention. */
 export function generateKeyPair(): { privateKey: string; publicKey: string } {
-  const privateKey = schnorr.utils.randomPrivateKey();
-  const publicKey = schnorr.getPublicKey(privateKey);
+  const privateKeyRaw = schnorr.utils.randomPrivateKey();
+  const publicKey = schnorr.getPublicKey(privateKeyRaw);
+  const privateKey = bytesToHex(privateKeyRaw);
+  const publicKeyHex = bytesToHex(publicKey);
+  zeroBytes(privateKeyRaw);
   return {
-    privateKey: bytesToHex(privateKey),
-    publicKey: bytesToHex(publicKey),
+    privateKey,
+    publicKey: publicKeyHex,
   };
 }
 

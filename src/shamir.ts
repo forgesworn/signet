@@ -3,6 +3,7 @@
 
 import { randomBytes } from '@noble/hashes/utils';
 import { wordlist as BIP39_WORDLIST } from '@scure/bip39/wordlists/english.js';
+import { zeroBytes } from './utils.js';
 
 /**
  * Shamir's Secret Sharing over GF(256).
@@ -148,6 +149,9 @@ export function splitSecret(
     for (let i = 0; i < shares; i++) {
       result[i].data[byteIdx] = evalPoly(coeffs, i + 1);
     }
+
+    zeroBytes(coeffs);
+    zeroBytes(rand);
   }
 
   return result;
