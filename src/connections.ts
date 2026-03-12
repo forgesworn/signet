@@ -45,6 +45,9 @@ export function computeSharedSecret(myPrivateKey: string, theirPublicKey: string
   const privateKeyBigInt = BigInt('0x' + myPrivateKey) % secp256k1.CURVE.n;
   if (privateKeyBigInt === 0n) throw new Error('Invalid private key (zero after mod N reduction)');
   const sharedPoint = theirPoint.multiply(privateKeyBigInt);
+  if (sharedPoint.equals(secp256k1.ProjectivePoint.ZERO)) {
+    throw new Error('ECDH produced identity point — invalid public key');
+  }
 
   // Derive shared secret: SHA-256 of the x-coordinate (32 bytes big-endian)
   const xBytes = hexToBytes(sharedPoint.toAffine().x.toString(16).padStart(64, '0'));
