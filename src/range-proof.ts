@@ -16,6 +16,7 @@ import {
   G,
   H,
 } from './secp256k1-utils.js';
+import { SignetValidationError, SignetCryptoError } from './errors.js';
 
 function pointToBytes(p: ProjectivePoint): Uint8Array {
   return p.toRawBytes(true);
@@ -305,15 +306,15 @@ function verifySumBinding(
  * @returns A range proof and the commitment
  */
 export function createRangeProof(value: number, min: number, max: number, bindingContext?: string): RangeProof {
-  if (min < 0) throw new Error('Minimum must be non-negative');
-  if (max < min) throw new Error('Maximum must be >= minimum');
-  if (value < min || value > max) throw new Error(`Value ${value} not in range [${min}, ${max}]`);
+  if (min < 0) throw new SignetValidationError('Minimum must be non-negative');
+  if (max < min) throw new SignetValidationError('Maximum must be >= minimum');
+  if (value < min || value > max) throw new SignetValidationError(`Value ${value} not in range [${min}, ${max}]`);
 
   const context = bindingContext ? utf8ToBytes(bindingContext) : EMPTY_CONTEXT;
 
   const range = max - min;
   const bits = bitsNeeded(range);
-  if (bits > 32) throw new Error('Range too large for range proof (max 2^32)');
+  if (bits > 32) throw new SignetCryptoError('Range too large for range proof (max 2^32)');
 
   // Commit to the value
   const blinding = randomScalar();
@@ -452,7 +453,7 @@ export function createAgeRangeProof(age: number, ageRange: string, subjectPubkey
   // Handle "18+" format (adults, no upper bound — use 150 as practical max)
   if (ageRange.endsWith('+')) {
     const min = parseInt(ageRange.slice(0, -1), 10);
-    if (isNaN(min)) throw new Error(`Invalid age range format: ${ageRange}`);
+    if (isNaN(min)) throw new SignetValidationError(`Invalid age range format: ${ageRange}`);
     return createRangeProof(age, min, 150, subjectPubkey);
   }
 
@@ -460,7 +461,7 @@ export function createAgeRangeProof(age: number, ageRange: string, subjectPubkey
   const min = parseInt(minStr, 10);
   const max = parseInt(maxStr, 10);
 
-  if (isNaN(min) || isNaN(max)) throw new Error(`Invalid age range format: ${ageRange}`);
+  if (isNaN(min) || isNaN(max)) throw new SignetValidationError(`Invalid age range format: ${ageRange}`);
 
   return createRangeProof(age, min, max, subjectPubkey);
 }
@@ -484,32 +485,32 @@ export function serializeRangeProof(proof: RangeProof): string {
  */
 export function deserializeRangeProof(json: string): RangeProof {
   const parsed = JSON.parse(json);
-  if (typeof parsed !== 'object' || parsed === null) throw new Error('Invalid range proof: not an object');
+  if (typeof parsed !== 'object' || parsed === null) throw new SignetValidationError('Invalid range proof: not an object');
   if (typeof parsed.min !== 'number' || typeof parsed.max !== 'number') {
-    throw new Error('Invalid range proof: missing min/max');
+    throw new SignetValidationError('Invalid range proof: missing min/max');
   }
   if (typeof parsed.bits !== 'number' || typeof parsed.commitment !== 'string') {
-    throw new Error('Invalid range proof: missing bits or commitment');
+    throw new SignetValidationError('Invalid range proof: missing bits or commitment');
   }
   if (!Array.isArray(parsed.lowerProof) || !Array.isArray(parsed.upperProof)) {
-    throw new Error('Invalid range proof: missing lowerProof/upperProof');
+    throw new SignetValidationError('Invalid range proof: missing lowerProof/upperProof');
   }
   if (typeof parsed.lowerCommitment !== 'string' || typeof parsed.upperCommitment !== 'string') {
-    throw new Error('Invalid range proof: missing lowerCommitment/upperCommitment');
+    throw new SignetValidationError('Invalid range proof: missing lowerCommitment/upperCommitment');
   }
   if (typeof parsed.sumBindingE !== 'string' || typeof parsed.sumBindingS !== 'string') {
-    throw new Error('Invalid range proof: missing sumBindingE/sumBindingS');
+    throw new SignetValidationError('Invalid range proof: missing sumBindingE/sumBindingS');
   }
   // Validate bit proof array contents
   for (const bp of [...parsed.lowerProof, ...parsed.upperProof]) {
-    if (typeof bp !== 'object' || bp === null) throw new Error('Invalid range proof: bit proof is not an object');
+    if (typeof bp !== 'object' || bp === null) throw new SignetValidationError('Invalid range proof: bit proof is not an object');
     if (typeof bp.commitment !== 'string' || typeof bp.e0 !== 'string' ||
         typeof bp.s0 !== 'string' || typeof bp.e1 !== 'string' || typeof bp.s1 !== 'string') {
-      throw new Error('Invalid range proof: bit proof missing required fields');
+      throw new SignetValidationError('Invalid range proof: bit proof missing required fields');
     }
   }
   if (parsed.context !== undefined && typeof parsed.context !== 'string') {
-    throw new Error('Invalid range proof: context must be a string if present');
+    throw new SignetValidationError('Invalid range proof: context must be a string if present');
   }
   return parsed as RangeProof;
 }

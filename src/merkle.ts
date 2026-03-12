@@ -4,6 +4,7 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import type { MerkleProof, SelectiveDisclosure } from './types.js';
+import { SignetValidationError } from './errors.js';
 
 /**
  * Hash a leaf node with domain separation prefix 0x00.
@@ -44,7 +45,7 @@ function hashPair(left: string, right: string): string {
 
 /** Build a Merkle tree from leaf values. Returns all levels (bottom-up). */
 function buildTree(leaves: string[]): string[][] {
-  if (leaves.length === 0) throw new Error('Cannot build tree from empty leaves');
+  if (leaves.length === 0) throw new SignetValidationError('Cannot build tree from empty leaves');
 
   // Pad to power of 2
   const paddedLeaves = [...leaves];
@@ -89,7 +90,7 @@ export class MerkleTree {
   prove(key: string): MerkleProof {
     const entries = Object.entries(this.attributes).sort(([a], [b]) => a.localeCompare(b));
     const idx = entries.findIndex(([k]) => k === key);
-    if (idx === -1) throw new Error(`Attribute "${key}" not found`);
+    if (idx === -1) throw new SignetValidationError(`Attribute "${key}" not found`);
 
     const leafHash = this.leafHashes[idx];
     const siblings: string[] = [];
@@ -120,7 +121,7 @@ export class MerkleTree {
     for (const key of keys) {
       const entries = Object.entries(this.attributes).sort(([a], [b]) => a.localeCompare(b));
       const entry = entries.find(([k]) => k === key);
-      if (!entry) throw new Error(`Attribute "${key}" not found`);
+      if (!entry) throw new SignetValidationError(`Attribute "${key}" not found`);
 
       revealedAttributes[key] = entry[1];
       proofs.push(this.prove(key));

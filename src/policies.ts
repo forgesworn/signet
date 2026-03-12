@@ -4,6 +4,7 @@
 import { SIGNET_KINDS, SIGNET_LABEL, DEFAULT_CRYPTO_ALGORITHM } from './constants.js';
 import { signEvent, getPublicKey } from './crypto.js';
 import { getTagValue } from './validation.js';
+import { SignetValidationError } from './errors.js';
 import type {
   NostrEvent,
   UnsignedEvent,
@@ -127,7 +128,7 @@ export class PolicyChecker {
 
   constructor(policyEvent: NostrEvent) {
     const parsed = parsePolicy(policyEvent);
-    if (!parsed) throw new Error('Invalid policy event');
+    if (!parsed) throw new SignetValidationError('Invalid policy event');
     this.policy = parsed;
   }
 

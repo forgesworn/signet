@@ -4,6 +4,7 @@
 import { randomBytes } from '@noble/hashes/utils';
 import { wordlist as BIP39_WORDLIST } from '@scure/bip39/wordlists/english.js';
 import { zeroBytes } from './utils.js';
+import { SignetValidationError, SignetCryptoError } from './errors.js';
 
 /**
  * Shamir's Secret Sharing over GF(256).
@@ -83,7 +84,7 @@ export function gf256Mul(a: number, b: number): number {
 
 /** Multiplicative inverse in GF(256) */
 export function gf256Inv(a: number): number {
-  if (a === 0) throw new Error('No inverse for zero in GF(256)');
+  if (a === 0) throw new SignetCryptoError('No inverse for zero in GF(256)');
   return EXP[(255 - LOG[a]) % 255];
 }
 
@@ -117,13 +118,13 @@ export function splitSecret(
   shares: number,
 ): ShamirShare[] {
   if (threshold < 2) {
-    throw new Error('Threshold must be at least 2');
+    throw new SignetValidationError('Threshold must be at least 2');
   }
   if (shares < threshold) {
-    throw new Error('Number of shares must be >= threshold');
+    throw new SignetValidationError('Number of shares must be >= threshold');
   }
   if (shares > 255) {
-    throw new Error('Number of shares must be <= 255');
+    throw new SignetValidationError('Number of shares must be <= 255');
   }
 
   const secretLen = secret.length;
@@ -169,7 +170,7 @@ export function reconstructSecret(
   threshold: number,
 ): Uint8Array {
   if (shares.length < threshold) {
-    throw new Error(`Need at least ${threshold} shares, got ${shares.length}`);
+    throw new SignetValidationError(`Need at least ${threshold} shares, got ${shares.length}`);
   }
 
   // Use only the first `threshold` shares
@@ -178,19 +179,19 @@ export function reconstructSecret(
   // Validate no duplicate share IDs
   const ids = new Set(used.map(s => s.id));
   if (ids.size !== used.length) {
-    throw new Error('Duplicate share IDs detected — each share must have a unique ID');
+    throw new SignetValidationError('Duplicate share IDs detected — each share must have a unique ID');
   }
 
   // Reject shares with ID 0: x=0 is the secret itself, not a valid share x-coordinate
   for (const share of used) {
     if (share.id === 0) {
-      throw new Error('Invalid share ID: 0 is not a valid x-coordinate');
+      throw new SignetValidationError('Invalid share ID: 0 is not a valid x-coordinate');
     }
   }
   const secretLen = used[0].data.length;
   for (const share of used) {
     if (share.data.length !== secretLen) {
-      throw new Error('Inconsistent share lengths — shares may be from different secrets');
+      throw new SignetValidationError('Inconsistent share lengths — shares may be from different secrets');
     }
   }
   const result = new Uint8Array(secretLen);
@@ -268,7 +269,7 @@ export function wordsToShare(words: string[]): ShamirShare {
   const indices: number[] = [];
   for (const word of words) {
     const idx = BIP39_WORDLIST.indexOf(word.toLowerCase());
-    if (idx === -1) throw new Error(`Unknown BIP-39 word: "${word}"`);
+    if (idx === -1) throw new SignetValidationError(`Unknown BIP-39 word: "${word}"`);
     indices.push(idx);
   }
 

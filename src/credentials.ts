@@ -6,6 +6,7 @@ import { signEvent, verifyEvent, getPublicKey, hash } from './crypto.js';
 import { validateCredential, getTagValue, getTagValues } from './validation.js';
 import { ringSign, ringVerify, type RingSignature } from './ring-signature.js';
 import { createAgeRangeProof, verifyAgeRangeProof, type RangeProof } from './range-proof.js';
+import { SignetValidationError } from './errors.js';
 import type {
   NostrEvent,
   UnsignedEvent,
@@ -403,7 +404,7 @@ export async function renewCredential(
   newExpiresAt?: number
 ): Promise<NostrEvent> {
   const parsed = parseCredential(existingCredential);
-  if (!parsed) throw new Error('Invalid credential to renew');
+  if (!parsed) throw new SignetValidationError('Invalid credential to renew');
 
   const pubkey = getPublicKey(verifierPrivateKey);
   const expiresAt = newExpiresAt || Math.floor(Date.now() / 1000) + DEFAULT_CREDENTIAL_EXPIRY_SECONDS;
@@ -536,7 +537,7 @@ export async function createTwoCredentialCeremony(
 /** Compute age range string from ISO date of birth */
 function computeAgeRange(dateOfBirth: string): string {
   const dob = new Date(dateOfBirth);
-  if (isNaN(dob.getTime())) throw new Error(`Invalid date of birth: ${dateOfBirth}`);
+  if (isNaN(dob.getTime())) throw new SignetValidationError(`Invalid date of birth: ${dateOfBirth}`);
   const now = new Date();
   let age = now.getFullYear() - dob.getFullYear();
   const monthDiff = now.getMonth() - dob.getMonth();
@@ -563,7 +564,7 @@ export async function supersedeCredential(
   newParams: Partial<CredentialParams> & { subjectPubkey: string }
 ): Promise<{ newCredential: NostrEvent; oldCredential: NostrEvent }> {
   const parsed = parseCredential(oldCredential);
-  if (!parsed) throw new Error('Invalid credential to supersede');
+  if (!parsed) throw new SignetValidationError('Invalid credential to supersede');
 
   const verifierPubkey = getPublicKey(verifierPrivateKey);
   const expiresAt = newParams.expiresAt || Math.floor(Date.now() / 1000) + DEFAULT_CREDENTIAL_EXPIRY_SECONDS;
@@ -734,7 +735,7 @@ export interface NullifierFamily {
  */
 export function computeNullifierFamily(documents: DocumentDescriptor[]): NullifierFamily {
   if (documents.length === 0) {
-    throw new Error('At least one document is required for nullifier computation');
+    throw new SignetValidationError('At least one document is required for nullifier computation');
   }
 
   const nullifiers = documents.map(doc => ({

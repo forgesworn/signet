@@ -10,6 +10,7 @@ import { SIGNET_KINDS, SIGNET_LABEL, DEFAULT_CRYPTO_ALGORITHM } from './constant
 import { getTagValue, validateFieldSizeBounds } from './validation.js';
 import type { ValidationResult } from './validation.js';
 import { computeKeyImage, lsagSign, lsagVerify } from './lsag.js';
+import { SignetVotingError, SignetCryptoError, SignetValidationError } from './errors.js';
 import type { LsagSignature } from './lsag.js';
 import type {
   NostrEvent, UnsignedEvent, ElectionParams, ParsedElection,
@@ -33,13 +34,13 @@ export async function createElection(
 ): Promise<NostrEvent> {
   // Validations
   if (params.options.length < 2) {
-    throw new Error('Election must have at least 2 options');
+    throw new SignetVotingError('Election must have at least 2 options');
   }
   if (params.closes <= params.opens) {
-    throw new Error('Election closing time must be after opening time');
+    throw new SignetVotingError('Election closing time must be after opening time');
   }
   if (params.tallyPubkeys.length < 1) {
-    throw new Error('Election must have at least 1 tally pubkey');
+    throw new SignetVotingError('Election must have at least 1 tally pubkey');
   }
 
   const pubkey = getPublicKey(authorityPrivateKey);
@@ -189,7 +190,7 @@ export async function encryptBallotContent(
   const tallyPoint = secp256k1.ProjectivePoint.fromHex('02' + tallyPubkey);
   const sharedPoint = tallyPoint.multiply(BigInt('0x' + ephemeral.privateKey));
   if (sharedPoint.equals(secp256k1.ProjectivePoint.ZERO)) {
-    throw new Error('ECDH produced identity point — invalid public key');
+    throw new SignetCryptoError('ECDH produced identity point — invalid public key');
   }
   const sharedX = sharedPoint.toAffine().x;
   // SHA-256 of x-coordinate
@@ -225,8 +226,9 @@ export async function decryptBallotContent(
   encrypted: string,
   tallyPrivateKey: string,
 ): Promise<string> {
-  if (encrypted.length < 88) {
-    throw new Error('Encrypted ballot content too short');
+  // Minimum: ephemeralPubkey (64 hex) + nonce (24 hex) + AES-GCM tag (32 hex) = 120
+  if (encrypted.length < 120) {
+    throw new SignetValidationError('Encrypted ballot content too short');
   }
 
   // Parse components
@@ -241,7 +243,7 @@ export async function decryptBallotContent(
   const ephemeralPoint = secp256k1.ProjectivePoint.fromHex('02' + ephemeralPubkeyHex);
   const sharedPoint = ephemeralPoint.multiply(BigInt('0x' + tallyPrivateKey));
   if (sharedPoint.equals(secp256k1.ProjectivePoint.ZERO)) {
-    throw new Error('ECDH produced identity point — invalid public key');
+    throw new SignetCryptoError('ECDH produced identity point — invalid public key');
   }
   const sharedX = sharedPoint.toAffine().x;
   const sharedXBytes = hexToBytes(sharedX.toString(16).padStart(64, '0'));
@@ -283,28 +285,28 @@ export async function castBallot(
   eligibleRing: string[],
 ): Promise<{ event: NostrEvent; ephemeralPubkey: string }> {
   const parsed = parseElection(election);
-  if (!parsed) throw new Error('Invalid election event');
+  if (!parsed) throw new SignetVotingError('Invalid election event');
 
   const voterPubkey = getPublicKey(voterPrivateKey);
 
   // Validate voter is in the ring
   const signerIndex = eligibleRing.indexOf(voterPubkey);
   if (signerIndex === -1) {
-    throw new Error('Voter public key not found in eligible ring');
+    throw new SignetVotingError('Voter public key not found in eligible ring');
   }
 
   // Validate selected option
   if (!parsed.options.includes(selectedOption)) {
-    throw new Error('Selected option is not valid for this election');
+    throw new SignetVotingError('Selected option is not valid for this election');
   }
 
   // Validate election is open
   const now = Math.floor(Date.now() / 1000);
   if (now < parsed.opens) {
-    throw new Error('Election has not yet opened');
+    throw new SignetVotingError('Election has not yet opened');
   }
   if (now >= parsed.closes) {
-    throw new Error('Election has already closed');
+    throw new SignetVotingError('Election has already closed');
   }
 
   // Compute key image
@@ -465,7 +467,7 @@ export async function tallyElection(
   eligibleRing: string[],
 ): Promise<NostrEvent> {
   const parsed = parseElection(election);
-  if (!parsed) throw new Error('Invalid election event');
+  if (!parsed) throw new SignetVotingError('Invalid election event');
 
   // Step 1: Verify all ballots, collect valid ones with key images
   const validBallots: Array<{ ballot: NostrEvent; keyImage: string }> = [];
