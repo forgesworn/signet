@@ -1428,7 +1428,78 @@ with an independent adult credential.
 
 ---
 
-## 15. Corrupt Verifier Handling
+## 15. Document Renewal and Cross-Verification
+
+### 15.1 Cross-verification UX (same document, new verifier)
+
+When a user already has a verified credential and wants a second professional to confirm it (for a higher IQ score), they do NOT re-enter their details. The existing credential is reused:
+
+1. Open app, go to documents
+2. Tap the existing verified credential (e.g., passport)
+3. Tap "Get additional verification"
+4. Scan the new verifier's QR
+5. Existing details transfer to the verifier's phone — **read-only, no editing**
+6. Verifier compares to the physical document in their hand
+7. Confirm — a second credential is issued with the **same nullifier**
+
+The protocol recognises cross-verification via the nullifier: same nullifier + same pubkey + different verifier = independent confirmation of the same document. This is the most valuable IQ signal (25 points first time from a different verifier vs 15 from the same verifier for a new document).
+
+The data is frozen from the first verification. No risk of typos or formatting differences producing a different nullifier.
+
+### 15.2 Document renewal — new number (e.g., UK passport)
+
+UK passport numbers **change on every renewal.** A new passport = new document number = new nullifier. The protocol treats this as a new document:
+
+1. User receives new passport from HMPO (new number, new expiry, same name/nationality/DOB)
+2. User enters the new passport as a new document in the app
+3. Gets it verified by any professional
+4. New credential issued with new nullifier
+5. New credential **supersedes** the old one (`["supersedes", "<old_credential_id>"]`)
+6. Old credential's accelerated decay becomes irrelevant — the new one has replaced it
+7. IQ refreshes to full strength for that document
+
+The nullifier family links old and new passports because both are passport-type nullifiers bound to the same pubkey. The credential chain tells the full history.
+
+**Overlap period:** There is typically a period where both old and new passports exist (the old one is physically invalidated — corner cut off — before the new one arrives). This is a non-issue: the old credential is superseded as soon as the new one is verified. If the user hasn't renewed yet, accelerated decay on the expired credential nudges them.
+
+### 15.3 Document renewal — same number (e.g., UK driving licence)
+
+UK driving licence numbers **do not change on renewal.** The DVLA number is derived from name and DOB, so it stays the same for life (unless name changes). Same number = same nullifier:
+
+1. User receives renewed photocard from DVLA (same number, new expiry)
+2. In the app, tap existing driving licence credential
+3. Tap "Update expiry" — change the one field
+4. Get it re-verified (any professional, even the same one)
+5. New credential issued, **same nullifier**, new expiry in Merkle tree
+6. Old credential superseded, IQ refreshes
+
+The protocol recognises this as re-verification: same nullifier + same pubkey = legitimate renewal. The verifier glances at the new photocard, confirms the expiry matches, signs it. Thirty seconds.
+
+The document number is the **stable anchor** across renewals. The nullifier stays the same, the number stays the same, only the expiry rotates. Pre-filling everything except expiry makes this near-frictionless.
+
+### 15.4 Name change (marriage, deed poll)
+
+When a legal name changes:
+- Documents are reissued with new name (passport, driving licence)
+- New passport = new number = new nullifier (see §15.2)
+- New driving licence = same number = same nullifier, but Merkle tree has updated name
+- The supersedes chain tracks the name change: old credential (maiden name) → new credential (married name)
+- The Persona credential is **unaffected** — it carries no name
+
+### 15.5 Summary: nullifier behaviour by scenario
+
+| Scenario | Nullifier | Pubkey | Protocol interpretation |
+|---|---|---|---|
+| First verification | New | User's | New identity — record it |
+| Cross-verification (same doc, new verifier) | Same | Same | Independent confirmation — reward it |
+| Document renewal (new number, e.g., passport) | New | Same | New document — supersedes old credential |
+| Document renewal (same number, e.g., driving licence) | Same | Same | Re-verification — supersedes old credential |
+| Fraud (someone else uses your document) | Same | Different | Duplicate detected — flag for investigation |
+| Name change | New or Same (depends on doc type) | Same | Supersedes — name updated in Merkle tree |
+
+---
+
+## 16. Corrupt Verifier Handling
 
 ### 15.1 The problem
 
@@ -1477,17 +1548,17 @@ This is another incentive for progressive verification with different profession
 
 ---
 
-## 16. PIN Mode for Kids
+## 17. PIN Mode for Kids
 
-### 16.1 The problem
+### 17.1 The problem
 
 Young children can't read words like "nebula" or "falcon." The spoken-clarity wordlist is designed for adults.
 
-### 16.2 PIN encoding
+### 17.2 PIN encoding
 
 Canary-kit supports `encodeAsPin(bytes, digits)` — converting the same HMAC output into a numeric code instead of words. Same cryptography, different presentation.
 
-### 16.3 How it works
+### 17.3 How it works
 
 In Settings → Verification Security, alongside the word count tiers, there's a format toggle:
 
@@ -1519,7 +1590,7 @@ When PIN mode is selected:
 
 Still directional (different PINs for each side). Still rotates every 30 seconds. Same security properties — just numbers instead of words.
 
-### 16.4 PIN digit count follows security tier
+### 17.4 PIN digit count follows security tier
 
 | Tier | Words | PIN equivalent |
 |------|-------|---------------|
@@ -1527,7 +1598,7 @@ Still directional (different PINs for each side). Still rotates every 30 seconds
 | Standard | 2 words (22 bits) | 7 digits (~23 bits) |
 | Expert | 3 words (33 bits) | 10 digits (~33 bits) |
 
-### 16.5 When to use PIN mode
+### 17.5 When to use PIN mode
 
 - Children under ~8 who can read numbers but not complex words
 - Users with reading difficulties
@@ -1537,13 +1608,13 @@ The parent can set PIN mode on a per-child-account basis, or the child's account
 
 ---
 
-## 17. Offline Verification Trust
+## 18. Offline Verification Trust
 
-### 17.1 The problem
+### 18.1 The problem
 
 At a venue with no connectivity, the steward scans your credential QR. They can verify the Schnorr signature locally (pure maths, no network). But how do they know the verifier who signed it is legitimate, without checking the Kind 30473 on a relay?
 
-### 17.2 Solution: local trust cache + mutual QR verification
+### 18.2 Solution: local trust cache + mutual QR verification
 
 **For venue scenarios (e.g., Belper FC):**
 
@@ -1561,9 +1632,9 @@ If both parties have the Signet app, they can verify each other through a mutual
 
 ---
 
-## 18. Notifications
+## 19. Notifications
 
-### 18.1 When the app notifies
+### 19.1 When the app notifies
 
 | Event | Notification | Priority |
 |-------|-------------|----------|
@@ -1575,7 +1646,7 @@ If both parties have the Signet app, they can verify each other through a mutual
 | Child age boundary | "Sophie turned 13. Update her credential at your next appointment." | Low — shown on next app open |
 | Photo getting stale | "Your verified photo is 18 months old. Consider updating." | Low — shown on next app open |
 
-### 18.2 Signet Me via notification
+### 19.2 Signet Me via notification
 
 When someone wants to verify you, they don't both need to have the app open simultaneously. The flow:
 
@@ -1587,15 +1658,15 @@ When someone wants to verify you, they don't both need to have the app open simu
 
 **Only one person needs to launch the app first.** The other person is pulled in by the notification. This reduces friction — no "hey, open your app" coordination needed.
 
-### 18.3 User control
+### 19.3 User control
 
 Notifications are opt-in. The app works without them — events are shown on the home screen when you next open the app. Push notifications just reduce friction for time-sensitive events (Signet Me requests, verifier deregistration).
 
 ---
 
-## 19. Accessibility
+## 20. Accessibility
 
-### 19.1 Design philosophy
+### 20.1 Design philosophy
 
 The app defaults to an emphasis on design — clean, minimal, beautiful. Accessibility features are available within 1-2 taps from Settings, not buried deep. The accessible version should feel like a first-class experience, not an afterthought bolted on.
 
@@ -1610,7 +1681,7 @@ Settings → Accessibility
   └── Verification format: Words / PIN / Audio
 ```
 
-### 19.2 Screen reader support
+### 20.2 Screen reader support
 
 The app must work fully with VoiceOver (iOS) and TalkBack (Android).
 
@@ -1624,7 +1695,7 @@ The app must work fully with VoiceOver (iOS) and TalkBack (Android).
 
 **Implementation:** Use semantic HTML elements (`button`, `heading`, `img` with alt text), ARIA labels where semantics are insufficient, and `aria-live` regions for dynamic content (word countdown, verification results).
 
-### 19.3 Visual accessibility
+### 20.3 Visual accessibility
 
 **Colour and contrast:**
 - All text meets WCAG 2.1 AA contrast ratios (4.5:1 for body text, 3:1 for large text)
@@ -1643,7 +1714,7 @@ The app must work fully with VoiceOver (iOS) and TalkBack (Android).
 - Affected: fade-in animations, checkmark animation, countdown transitions
 - Reduced motion replaces animations with instant state changes
 
-### 19.4 Motor accessibility
+### 20.4 Motor accessibility
 
 **Touch targets:**
 - Minimum 48×48px for all interactive elements (Apple/Google standard)
@@ -1675,7 +1746,7 @@ The app must work fully with VoiceOver (iOS) and TalkBack (Android).
 └─────────────────────────────┘
 ```
 
-### 19.5 Cognitive and literacy accessibility
+### 20.5 Cognitive and literacy accessibility
 
 **PIN mode (§16):**
 - Numeric codes instead of words
@@ -1698,7 +1769,7 @@ The app must work fully with VoiceOver (iOS) and TalkBack (Android).
 - No jargon, no technical terms, no acronyms without explanation
 - Error messages explain what to do, not what went wrong
 
-### 19.6 Audio verification mode
+### 20.6 Audio verification mode
 
 For users who can't see the screen well enough to read words or PINs:
 
@@ -1716,7 +1787,7 @@ The verification input can also be voice: "Say the word they told you" → speec
 
 **Note:** Audio mode in a noisy environment (pub, football ground) may not work well. PIN mode displayed at large size may be more practical in those contexts.
 
-### 19.7 What's NOT covered here (needs further work)
+### 20.7 What's NOT covered here (needs further work)
 
 These accessibility concerns require additional design work beyond the app's UI:
 
@@ -1727,11 +1798,11 @@ These accessibility concerns require additional design work beyond the app's UI:
 
 ---
 
-## 20. Verifier IQ (Verifier Trust Scoring)
+## 21. Verifier IQ (Verifier Trust Scoring)
 
 Not all verifiers are equal. A verifier confirmed by their professional body is worth more than one who's only cross-verified by peers. The **Verifier IQ** determines how much IQ their credentials contribute to users.
 
-### 20.1 Verifier confirmation methods (ranked by strength)
+### 21.1 Verifier confirmation methods (ranked by strength)
 
 | Method | Code | Verifier IQ | Effect on user's IQ | Description |
 |---|---|---|---|---|
@@ -1744,7 +1815,7 @@ Not all verifiers are equal. A verifier confirmed by their professional body is 
 
 **Bootstrap strategy:** Start with C (cross-verification) to get the network moving. Everyone has an incentive to upgrade to A or B because it makes their credentials worth more.
 
-### 20.2 Separate professional keypair
+### 21.2 Separate professional keypair
 
 Verifiers MUST use a **dedicated professional keypair** for signing credentials, separate from their personal Nostr identity. This keypair:
 - Only signs Kind 30470 credentials and Kind 30473 verifier events
@@ -1754,7 +1825,7 @@ Verifiers MUST use a **dedicated professional keypair** for signing credentials,
 
 This keeps professional and personal identities separate and prevents the verifier's personal Nostr account from being discoverable through their professional role.
 
-### 20.3 Verifier registration checks (verification bot)
+### 21.3 Verifier registration checks (verification bot)
 
 A reference verification bot checks verifier claims against public professional registers:
 
@@ -1771,7 +1842,7 @@ The bot publishes its findings as Nostr events. Multiple independent bots checki
 
 **Funding:** Initially run at own cost as a reference server. Target model: community-funded via Lightning micropayments (see §22).
 
-### 20.4 Priority checks via L402
+### 21.4 Priority checks via L402
 
 Users can trigger an immediate check of their verifier's status by paying a small Lightning invoice via the L402 protocol:
 
@@ -1785,11 +1856,11 @@ Users who don't want to pay wait for the next scheduled free run (e.g., every 24
 
 ---
 
-## 21. Acceptable Verifiers (UK Countersigning Standard)
+## 22. Acceptable Verifiers (UK Countersigning Standard)
 
 The spec previously named only "solicitors, doctors, notaries" as acceptable verifiers. This is far too narrow. The acceptable verifier list aligns with the **UK passport countersigning standard** — 40+ professions, each with a registered professional body.
 
-### 21.1 Acceptable professions
+### 22.1 Acceptable professions
 
 | Category | Professions |
 |---|---|
@@ -1804,7 +1875,7 @@ The spec previously named only "solicitors, doctors, notaries" as acceptable ver
 
 Everyone already knows someone on this list. Your GP. Your kids' teacher. Your accountant. The solicitor who did your house purchase. Verification should be bundled with existing appointments — zero additional cost.
 
-### 21.2 Teachers as the primary child verification channel
+### 22.2 Teachers as the primary child verification channel
 
 Teachers are the most efficient verifier for children:
 
@@ -1818,7 +1889,7 @@ A parent at parents' evening shows their passport, teacher confirms the child �
 
 **Professional knowledge counts as evidence.** A teacher doesn't need to re-verify what the school already verified at enrollment. Their professional standing (regulated by the Teaching Regulation Agency) and daily knowledge of the child is the evidence. If the TRA can strike them off for misconduct, they have skin in the game.
 
-### 21.3 Verifier role clarity
+### 22.3 Verifier role clarity
 
 The verifier's role is exactly one thing: **"I confirm this person is real."**
 
@@ -1828,13 +1899,13 @@ Not "I endorse Signet." Not "I understand the protocol." Not "I advocate for how
 
 ---
 
-## 22. Infrastructure and Funding
+## 23. Infrastructure and Funding
 
-### 22.1 Verification bot
+### 23.1 Verification bot
 
 A reference verification bot runs the checks described in §20.3. Initially self-funded by the project. Open source — anyone can fork and run their own.
 
-### 22.2 Lightning meter model
+### 23.2 Lightning meter model
 
 Target funding model: community-funded via Lightning micropayments using toll-booth (L402 middleware).
 
@@ -1851,19 +1922,19 @@ Target funding model: community-funded via Lightning micropayments using toll-bo
 
 If there is ANY wallet in between — even an auto-forwarding one — the model breaks. The no-custody constraint is non-negotiable.
 
-### 22.3 Bootstrap phase
+### 23.3 Bootstrap phase
 
 Run a reference verification bot at own cost. The Lightning meter is the target but isn't blocking. Get the bot running first, figure out direct-to-provider Lightning payment later.
 
 ---
 
-## 23. Market Positioning (IQ Benchmarking)
+## 24. Market Positioning (IQ Benchmarking)
 
 The global identity verification market is $14-16 billion (2025-2026). The age verification sub-sector is $2.5 billion, projected to reach $7.1 billion by 2033. Key players: Onfido (acquired by Entrust for $650M), Yoti ($39M revenue in 2025, 62% YoY growth), Jumio, Veriff, Sumsub.
 
 Every player in this market sits between IQ 5 and IQ 75 on our scale. None achieve what a single Signet professional verification does.
 
-### 23.1 Every verification method scored on Signet IQ
+### 24.1 Every verification method scored on Signet IQ
 
 **IQ 0-5: Proves nothing**
 
@@ -1917,7 +1988,7 @@ Every player in this market sits between IQ 5 and IQ 75 on our scale. None achie
 | + multiple document types + longevity | 140 | Passport + driving licence + NI card + years of account history. |
 | + cross-verification + identity bridges | 160-200 | Maximum possible confidence. |
 
-### 23.2 Contextual IQ prompting (no gamification)
+### 24.2 Contextual IQ prompting (no gamification)
 
 The app NEVER tells users their score isn't good enough. External demand drives upgrades:
 
@@ -1931,7 +2002,7 @@ The IQ score is visible if you look for it, but the app never pushes. Motivation
 
 ---
 
-## 24. Protocol Changes Required
+## 25. Protocol Changes Required
 
 These changes to `spec/protocol.md` are required to support the v2 app:
 
@@ -1948,17 +2019,17 @@ These changes to `spec/protocol.md` are required to support the v2 app:
 
 ---
 
-## 25. Open Questions (Pre-Production)
+## 26. Open Questions (Pre-Production)
 
 These items require further thought before production. They are acknowledged gaps, not oversights.
 
-### 25.1 Credential portability
+### 26.1 Credential portability
 
 Users may switch from My Signet to another Signet-compatible app (e.g., Fathom). Credentials are standard Nostr events and can be exported. Merkle proofs could be transferred via QR or recovered from Blossom (if the user opted for Blossom backup).
 
 **Vulnerability concern:** The transfer of Merkle proofs is a sensitive operation — the proofs contain private attribute data (name, DOB, etc.). The transfer mechanism must be end-to-end encrypted and authenticated. QR exchange (in person) is safe. Remote transfer via relay needs encryption. **This needs careful design before production — it is a potential vulnerability point.**
 
-### 25.2 Printed QR card (non-smartphone users)
+### 26.2 Printed QR card (non-smartphone users)
 
 A downstream app concern, not a protocol issue. The protocol provides everything needed: a published credential with a QR-encodable pubkey, a photo hash in the Merkle tree, and optional Blossom storage for remote photo retrieval. Any app or third-party service can produce a physical card from this data.
 
@@ -1968,7 +2039,7 @@ Two tiers envisioned:
 
 **This is an app-level feature, not a protocol change.** To be designed as part of the app's settings/ordering flow.
 
-### 25.3 Physical ID fallback principle
+### 26.3 Physical ID fallback principle
 
 Signet is an enhancement, never a gate. Any venue, service, or platform that accepts Signet SHOULD also accept traditional physical ID (passport, driving licence). Signet provides better privacy and stronger verification, but must never exclude someone who only has a passport.
 
