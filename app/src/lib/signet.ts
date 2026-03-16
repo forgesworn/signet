@@ -15,6 +15,9 @@ import {
   createVouch,
   computeBadge,
   buildBadgeFilters,
+  splitSecret,
+  shareToWords,
+  mnemonicToEntropy,
 } from 'signet-protocol';
 import type { SignetIdentity } from '../types';
 
@@ -38,6 +41,9 @@ export {
   createVouch,
   computeBadge,
   buildBadgeFilters,
+  splitSecret,
+  shareToWords,
+  mnemonicToEntropy,
 };
 
 /** Create a new identity with two keypairs from a fresh mnemonic */
