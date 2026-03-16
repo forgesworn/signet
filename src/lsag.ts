@@ -3,7 +3,7 @@
 // across multiple uses of the same election, enabling double-vote detection.
 
 import { bytesToHex, hexToBytes, utf8ToBytes, concatBytes } from '@noble/hashes/utils';
-import { SignetValidationError, SignetCryptoError } from './errors.js';
+import { SignetValidationError } from './errors.js';
 import { constantTimeEqual } from './utils.js';
 import {
   Point,

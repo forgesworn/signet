@@ -61,7 +61,7 @@ export function Settings({ identity, preferences, securityTier, onSetTheme, onSe
   }
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" role="main">
       {/* Name */}
       <div className="card section">
         <div className="section-title">My Name</div>

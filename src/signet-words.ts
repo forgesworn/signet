@@ -10,7 +10,7 @@
 // Tracking: https://github.com/TheCryptoDonkey/signet/issues — M13
 
 import { deriveTokenBytes } from 'canary-kit/token';
-import { encodeAsWords, type TokenEncoding } from 'canary-kit/encoding';
+import { encodeAsWords } from 'canary-kit/encoding';
 import { WORDLIST } from 'canary-kit/wordlist';
 import { constantTimeEqual } from './utils.js';
 import { utf8ToBytes } from '@noble/hashes/utils';

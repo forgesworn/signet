@@ -15,7 +15,7 @@ export function FamilyMemberDetail({ member, identity, onRemove, wordCount }: Pr
   const [confirmRemove, setConfirmRemove] = useState(false);
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" role="main">
       {/* Member info — compact */}
       <div className="card section" style={{ textAlign: 'center' }}>
         <h1 style={{ marginBottom: 4 }}>{member.displayName}</h1>

@@ -108,7 +108,7 @@ export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
   // --- Render ---
   if (flow === 'welcome') {
     return (
-      <div className="page fade-in" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '80vh' }}>
+      <div className="page fade-in" role="main" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '80vh' }}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
           <h1 style={{ marginBottom: 8 }}>Welcome to Signet</h1>
           <p style={{ color: 'var(--text-secondary)' }}>
@@ -127,7 +127,7 @@ export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
   if (flow === 'create') {
     if (createStep === 'name-choice') {
       return (
-        <div className="page fade-in">
+        <div className="page fade-in" role="main">
           <h1 style={{ marginBottom: 8 }}>How do you want to appear?</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
             Do you want to use your real name, or a nickname?
@@ -145,7 +145,7 @@ export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
 
     if (createStep === 'name') {
       return (
-        <div className="page fade-in">
+        <div className="page fade-in" role="main">
           <h1 style={{ marginBottom: 8 }}>What should we call you?</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>
             Your name, a nickname, whatever you like. You can change it anytime.
@@ -173,7 +173,7 @@ export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
 
     if (createStep === 'child-check') {
       return (
-        <div className="page fade-in">
+        <div className="page fade-in" role="main">
           <h1 style={{ marginBottom: 8 }}>Is this account for a child?</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
             Child accounts are linked to a parent for safety.
@@ -191,7 +191,7 @@ export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
 
     if (createStep === 'guardian') {
       return (
-        <div className="page fade-in">
+        <div className="page fade-in" role="main">
           <h1 style={{ marginBottom: 8 }}>Link to parent</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
             Ask the parent to open their Signet app, go to the home screen, and tap "Copy" under their Signet ID. Then paste it here.
@@ -225,7 +225,7 @@ export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
   if (flow === 'import') {
     if (importStep === 'phrase') {
       return (
-        <div className="page fade-in">
+        <div className="page fade-in" role="main">
           <h1 style={{ marginBottom: 8 }}>Enter your 12 backup words</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>Type or paste your 12 words, separated by spaces.</p>
           {error && (
@@ -254,7 +254,7 @@ export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
 
     if (importStep === 'name-choice') {
       return (
-        <div className="page fade-in">
+        <div className="page fade-in" role="main">
           <h1 style={{ marginBottom: 8 }}>How do you want to appear?</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
             Do you want to use your real name, or a nickname?
@@ -272,7 +272,7 @@ export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
 
     if (importStep === 'name') {
       return (
-        <div className="page fade-in">
+        <div className="page fade-in" role="main">
           <h1 style={{ marginBottom: 8 }}>What should we call you?</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>
             Your name, a nickname, whatever you like. You can change it anytime.
@@ -304,7 +304,7 @@ export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
   if (flow === 'import-nsec') {
     if (nsecStep === 'nsec') {
       return (
-        <div className="page fade-in">
+        <div className="page fade-in" role="main">
           <h1 style={{ marginBottom: 8 }}>Enter your Nostr private key</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
             Paste your nsec key to import your existing Nostr account into Signet.
@@ -335,7 +335,7 @@ export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
 
     if (nsecStep === 'name-choice') {
       return (
-        <div className="page fade-in">
+        <div className="page fade-in" role="main">
           <h1 style={{ marginBottom: 8 }}>How do you want to appear?</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
             Do you want to use your real name, or a nickname?
@@ -353,7 +353,7 @@ export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
 
     if (nsecStep === 'name') {
       return (
-        <div className="page fade-in">
+        <div className="page fade-in" role="main">
           <h1 style={{ marginBottom: 8 }}>What should we call you?</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>
             Your name, a nickname, whatever you like. You can change it anytime.

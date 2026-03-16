@@ -31,7 +31,7 @@ export function IdentityBridge({ identity, onBack }: Props) {
   }
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" role="main">
       {/* Page header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
         {onBack && (
@@ -185,7 +185,7 @@ export function IdentityBridge({ identity, onBack }: Props) {
             style={{ width: '100%' }}
             onClick={() => setShowComingSoon(true)}
           >
-            Create Identity Bridge
+            Learn more
           </button>
         ) : (
           <div
