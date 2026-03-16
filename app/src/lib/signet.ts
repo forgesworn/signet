@@ -48,6 +48,7 @@ export {
   mnemonicToEntropy,
   createTwoCredentialCeremony,
   decodeNsec,
+  BIP39_WORDLIST,
 };
 
 /** Create a new identity with two keypairs from a fresh mnemonic */

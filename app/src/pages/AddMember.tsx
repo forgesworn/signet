@@ -66,7 +66,7 @@ export function AddMember({ identity, onAddMember, onDone, wordCount }: Props) {
 
   if (step === 'choose') {
     return (
-      <div className="fade-in">
+      <div className="fade-in" role="main">
         <div className="section">
           <h2 style={{ marginBottom: 4 }}>In person?</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 12 }}>
@@ -100,7 +100,7 @@ export function AddMember({ identity, onAddMember, onDone, wordCount }: Props) {
 
   if (step === 'scan') {
     return (
-      <div className="fade-in">
+      <div className="fade-in" role="main">
         <h2 style={{ marginBottom: 16 }}>Scan their QR code</h2>
         {cameraError && (
           <div style={{ padding: 8, background: 'var(--danger-light)', borderRadius: 'var(--radius-sm)', marginBottom: 12, color: 'var(--danger)', fontSize: '0.9rem' }}>
@@ -127,7 +127,7 @@ export function AddMember({ identity, onAddMember, onDone, wordCount }: Props) {
 
   if (step === 'show-qr') {
     return (
-      <div className="fade-in" style={{ textAlign: 'center' }}>
+      <div className="fade-in" role="main" style={{ textAlign: 'center' }}>
         <h2 style={{ marginBottom: 8 }}>Show this to them</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 16 }}>
           Ask them to scan this QR code with their Signet app.
@@ -142,7 +142,7 @@ export function AddMember({ identity, onAddMember, onDone, wordCount }: Props) {
 
   if (step === 'enter-id') {
     return (
-      <div className="fade-in">
+      <div className="fade-in" role="main">
         <h2 style={{ marginBottom: 8 }}>Enter their Signet ID</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 16 }}>
           Ask them to copy their Signet ID and send it to you.
@@ -171,7 +171,7 @@ export function AddMember({ identity, onAddMember, onDone, wordCount }: Props) {
 
   if (step === 'preview') {
     return (
-      <div className="fade-in" style={{ textAlign: 'center' }}>
+      <div className="fade-in" role="main" style={{ textAlign: 'center' }}>
         <h2 style={{ marginBottom: 16 }}>Add to family?</h2>
         <div className="card" style={{ marginBottom: 24 }}>
           <div style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 4 }}>
@@ -205,7 +205,7 @@ export function AddMember({ identity, onAddMember, onDone, wordCount }: Props) {
 
   if (step === 'success') {
     return (
-      <div className="fade-in" style={{ textAlign: 'center' }}>
+      <div className="fade-in" role="main" style={{ textAlign: 'center' }}>
         <div className="checkmark-anim" style={{ fontSize: '3rem', marginBottom: 8 }}>&#10003;</div>
         <h2 style={{ marginBottom: 8 }}>{theirName || 'Family member'} added</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 24 }}>

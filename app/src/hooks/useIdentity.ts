@@ -80,5 +80,13 @@ export function useIdentity() {
     await loadAll();
   }, [activeIdentity, loadAll]);
 
-  return { identity: activeIdentity, identities, loading, create, restore, importNsec, remove, markBackedUp };
+  const switchPrimary = useCallback(async (keypair: 'natural-person' | 'persona') => {
+    if (!activeIdentity) return;
+    const updated = { ...activeIdentity, primaryKeypair: keypair, id: keypair === 'natural-person' ? activeIdentity.naturalPerson.publicKey : activeIdentity.persona.publicKey };
+    await db.saveIdentity(updated);
+    await db.savePreferences({ ...(await db.getPreferences()), activeAccountId: updated.id });
+    await loadAll();
+  }, [activeIdentity, loadAll]);
+
+  return { identity: activeIdentity, identities, loading, create, restore, importNsec, remove, markBackedUp, switchPrimary };
 }

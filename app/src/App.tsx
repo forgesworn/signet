@@ -1,8 +1,11 @@
 import { useState, useCallback } from 'react';
 import type { Page } from './types';
+import type { StoredCredential } from './types';
 import { useIdentity } from './hooks/useIdentity';
 import { useFamily } from './hooks/useFamily';
 import { usePreferences } from './hooks/usePreferences';
+import { useDocuments } from './hooks/useDocuments';
+import { useCredentials } from './hooks/useCredentials';
 import { Layout } from './components/Layout';
 import { Onboarding } from './pages/Onboarding';
 import { Home } from './pages/Home';
@@ -16,15 +19,21 @@ import { MyDocuments } from './pages/MyDocuments';
 import { VerifySomeone } from './pages/VerifySomeone';
 import { ShamirBackup } from './pages/ShamirBackup';
 import { IdentityBridge } from './pages/IdentityBridge';
-import { getActiveDisplayName, getActivePubkey, getActivePrivateKey } from './lib/signet';
+import { CredentialDetail } from './pages/CredentialDetail';
+import { getActivePubkey } from './lib/signet';
+// getActiveDisplayName, getActivePrivateKey used by child components via props
 
 export function App() {
-  const { identity, identities, loading: identityLoading, create, restore, importNsec, remove, markBackedUp } = useIdentity();
+  const { identity, identities, loading: identityLoading, create, restore, importNsec, remove, markBackedUp, switchPrimary } = useIdentity();
   const { members, addMember, removeMember } = useFamily(identity?.id);
   const { preferences, loading: prefsLoading, setTheme, securityTier, wordCount, setSecurityTier } = usePreferences();
+  const activePubkey = identity ? getActivePubkey(identity) : undefined;
+  const { documents } = useDocuments(activePubkey);
+  const { credentials } = useCredentials();
 
   const [page, setPage] = useState<Page>('home');
   const [selectedMemberPubkey, setSelectedMemberPubkey] = useState<string | null>(null);
+  const [selectedCredential, setSelectedCredential] = useState<StoredCredential | null>(null);
   const [powerMode, setPowerMode] = useState(false);
 
   const handleCreate = useCallback(async (displayName: string, primaryKeypair: 'natural-person' | 'persona', isChild: boolean, guardianPubkey?: string) => {
@@ -88,7 +97,7 @@ export function App() {
           onSetPowerMode={setPowerMode}
           onNavigateShamir={() => setPage('shamir')}
           onNavigateBridge={() => setPage('identity-bridge')}
-          onSwitchPrimary={(_kp) => { /* placeholder: switch primary keypair */ }}
+          onSwitchPrimary={(kp) => switchPrimary(kp)}
         />
       </Layout>
     );
@@ -145,7 +154,7 @@ export function App() {
   if (page === 'my-documents') {
     return (
       <Layout activePage={page} onNavigate={setPage} onSettingsOpen={() => setPage('settings')} title="My Documents" showBack onBack={() => setPage('home')}>
-        <MyDocuments documents={[]} onAddDocument={() => setPage('add-document')} onSelectDocument={() => {}} />
+        <MyDocuments documents={documents} onAddDocument={() => setPage('add-document')} onSelectDocument={() => {}} />
       </Layout>
     );
   }
@@ -177,16 +186,27 @@ export function App() {
     );
   }
 
+  // Credential Detail
+  if (page === 'credential-detail' && selectedCredential) {
+    return (
+      <Layout activePage={page} onNavigate={setPage} onSettingsOpen={() => setPage('settings')} title="Credential" showBack onBack={() => { setSelectedCredential(null); setPage('home'); }}>
+        <CredentialDetail credential={selectedCredential} onBack={() => { setSelectedCredential(null); setPage('home'); }} />
+      </Layout>
+    );
+  }
+
   // Home (default) — shows family members front and centre
   return (
     <Layout activePage="home" onNavigate={setPage} onSettingsOpen={() => setPage('settings')}>
       <Home
         identity={identity}
         members={members}
+        credentials={credentials}
         onSelectMember={handleSelectMember}
         onNavigateAdd={() => setPage('add')}
         onNavigateGetVerified={() => setPage('get-verified')}
         onNavigateDocuments={() => setPage('my-documents')}
+        onSelectCredential={(cred) => { setSelectedCredential(cred); setPage('credential-detail'); }}
       />
     </Layout>
   );

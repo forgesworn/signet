@@ -2,7 +2,7 @@
 // Validates structure and required fields for all 6 event kinds
 
 import { SIGNET_KINDS, SIGNET_LABEL } from './constants.js';
-import type { NostrEvent, SignetTier } from './types.js';
+import type { NostrEvent } from './types.js';
 
 export const MAX_CONTENT_LENGTH = 65536;
 export const MAX_TAG_VALUE_LENGTH = 1024;

@@ -1,4 +1,4 @@
-import type { SignetIdentity, FamilyMember } from '../types';
+import type { SignetIdentity, FamilyMember, StoredCredential } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { encodeNpub, getActivePubkey, getActiveDisplayName } from '../lib/signet';
 import { useState } from 'react';
@@ -6,13 +6,15 @@ import { useState } from 'react';
 interface Props {
   identity: SignetIdentity;
   members: FamilyMember[];
+  credentials: StoredCredential[];
   onSelectMember: (pubkey: string) => void;
   onNavigateAdd: () => void;
   onNavigateGetVerified: () => void;
   onNavigateDocuments: () => void;
+  onSelectCredential: (cred: StoredCredential) => void;
 }
 
-export function Home({ identity, members, onSelectMember, onNavigateAdd, onNavigateGetVerified, onNavigateDocuments: _onNavigateDocuments }: Props) {
+export function Home({ identity, members, credentials, onSelectMember, onNavigateAdd, onNavigateGetVerified, onNavigateDocuments: _onNavigateDocuments, onSelectCredential: _onSelectCredential }: Props) {
   const [copied, setCopied] = useState(false);
   const activePubkey = getActivePubkey(identity);
   const npub = encodeNpub(activePubkey);
@@ -24,13 +26,18 @@ export function Home({ identity, members, onSelectMember, onNavigateAdd, onNavig
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Derive credential-based badge state
+  const hasConfirmed = credentials.some(c => c.verifierStatus === 'confirmed');
+  const hasPending = credentials.length > 0 && credentials.every(c => c.verifierStatus === 'pending');
+  const credentialStatus: 'confirmed' | 'pending' | null = hasConfirmed ? 'confirmed' : hasPending ? 'pending' : null;
+
   return (
-    <div className="fade-in">
+    <div className="fade-in" role="main">
       {/* Greeting */}
       <div className="section" style={{ marginBottom: 20 }}>
         <h1 style={{ marginBottom: 4 }}>{getActiveDisplayName(identity)}</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <StatusBadge isVerified={members.length > 0} isChild={identity.isChild} />
+          <StatusBadge isVerified={credentialStatus === 'confirmed' || members.length > 0} credentialStatus={credentialStatus} isChild={identity.isChild} />
           {identity.isChild && identity.guardianPubkey && (
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Linked to parent

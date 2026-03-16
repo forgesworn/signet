@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { QRScanner } from '../components/QRScanner';
+import { useCamera } from '../hooks/useCamera';
+import * as db from '../lib/db';
+import type { StoredCredential } from '../types';
 
 interface Props {
   identity: {
@@ -8,11 +12,22 @@ interface Props {
   onMarkBackedUp: () => void;
 }
 
-type Phase = 'education' | 'backup' | 'with-verifier';
+type Phase = 'education' | 'backup' | 'with-verifier' | 'receive-credentials';
 
 export function GetVerified({ identity, onMarkBackedUp }: Props) {
   const [phase, setPhase] = useState<Phase>('education');
   const [backedUpChecked, setBackedUpChecked] = useState(false);
+
+  // QR scanner state for verifier scan
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const [verifierConnected, setVerifierConnected] = useState(false);
+  const { hasPermission, error: cameraError, requestPermission } = useCamera();
+
+  // QR scanner state for credential receive
+  const [credScanning, setCredScanning] = useState(false);
+  const [credScanError, setCredScanError] = useState('');
+  const [credentialSaved, setCredentialSaved] = useState(false);
 
   const handleEnterDetails = () => {
     if (!identity.backedUp) {
@@ -27,9 +42,89 @@ export function GetVerified({ identity, onMarkBackedUp }: Props) {
     setPhase('with-verifier');
   };
 
+  const handleScanVerifier = async () => {
+    setScanError('');
+    if (hasPermission === null || hasPermission === false) {
+      await requestPermission();
+    }
+    setScanning(true);
+  };
+
+  const handleVerifierScan = (data: string) => {
+    setScanning(false);
+    try {
+      const payload = JSON.parse(data) as unknown;
+      if (
+        typeof payload !== 'object' ||
+        payload === null ||
+        (payload as Record<string, unknown>)['type'] !== 'signet-verifier' ||
+        typeof (payload as Record<string, unknown>)['pubkey'] !== 'string'
+      ) {
+        setScanError('Invalid verifier QR code. Ask your verifier to show their Signet QR.');
+        return;
+      }
+      const pubkey = (payload as Record<string, unknown>)['pubkey'] as string;
+      if (!/^[0-9a-fA-F]{64}$/.test(pubkey)) {
+        setScanError('Verifier pubkey is not valid. Please try again.');
+        return;
+      }
+      setVerifierConnected(true);
+    } catch {
+      setScanError('Could not read QR code. Please try again.');
+    }
+  };
+
+  const handleCredentialScan = async (data: string) => {
+    setCredScanning(false);
+    try {
+      const payload = JSON.parse(data) as unknown;
+      if (
+        typeof payload !== 'object' ||
+        payload === null ||
+        (payload as Record<string, unknown>)['type'] !== 'signet-credentials-v1'
+      ) {
+        setCredScanError('Invalid credential QR code. Ask your verifier to show the credentials QR.');
+        return;
+      }
+      const p = payload as Record<string, unknown>;
+      const npCred = p['naturalPerson'] as Partial<StoredCredential> | undefined;
+      const personaCred = p['persona'] as Partial<StoredCredential> | undefined;
+
+      if (npCred && npCred.id && npCred.verifierPubkey) {
+        const cred: StoredCredential = {
+          id: String(npCred.id),
+          documentId: String(npCred.documentId ?? ''),
+          keypairType: 'natural-person',
+          event: String(npCred.event ?? ''),
+          verifierPubkey: String(npCred.verifierPubkey),
+          verifiedAt: typeof npCred.verifiedAt === 'number' ? npCred.verifiedAt : Math.floor(Date.now() / 1000),
+          verifierStatus: 'pending',
+          ...(npCred.merkleLeaves !== undefined ? { merkleLeaves: npCred.merkleLeaves } : {}),
+        };
+        await db.saveCredential(cred);
+      }
+      if (personaCred && personaCred.id && personaCred.verifierPubkey) {
+        const cred: StoredCredential = {
+          id: String(personaCred.id),
+          documentId: String(personaCred.documentId ?? ''),
+          keypairType: 'persona',
+          event: String(personaCred.event ?? ''),
+          verifierPubkey: String(personaCred.verifierPubkey),
+          verifiedAt: typeof personaCred.verifiedAt === 'number' ? personaCred.verifiedAt : Math.floor(Date.now() / 1000),
+          verifierStatus: 'pending',
+          ...(personaCred.merkleLeaves !== undefined ? { merkleLeaves: personaCred.merkleLeaves } : {}),
+        };
+        await db.saveCredential(cred);
+      }
+      setCredentialSaved(true);
+    } catch {
+      setCredScanError('Could not read credential QR code. Please try again.');
+    }
+  };
+
   if (phase === 'education') {
     return (
-      <div className="fade-in">
+      <div className="fade-in" role="main">
         <div className="section">
           <h2 style={{ marginBottom: 4 }}>How verification works</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
@@ -98,9 +193,6 @@ export function GetVerified({ identity, onMarkBackedUp }: Props) {
           <button className="btn btn-primary" onClick={handleEnterDetails}>
             Enter my details
           </button>
-          <button className="btn btn-secondary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
-            Find a verifier near me — Coming soon
-          </button>
         </div>
       </div>
     );
@@ -110,7 +202,7 @@ export function GetVerified({ identity, onMarkBackedUp }: Props) {
     const words = identity.mnemonic.split(' ');
 
     return (
-      <div className="fade-in">
+      <div className="fade-in" role="main">
         <div className="section">
           <h2 style={{ marginBottom: 8 }}>Before you verify</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
@@ -170,22 +262,162 @@ export function GetVerified({ identity, onMarkBackedUp }: Props) {
     );
   }
 
+  if (phase === 'receive-credentials') {
+    return (
+      <div className="fade-in" role="main">
+        <div className="section">
+          <h2 style={{ marginBottom: 8 }}>Receive credentials</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
+            Waiting for credentials from your verifier. When they show you the credentials QR, tap the button below.
+          </p>
+
+          {credentialSaved ? (
+            <div
+              style={{
+                padding: '16px',
+                background: 'var(--success-light, #e8f5e9)',
+                border: '1px solid var(--success, #43a047)',
+                borderRadius: 'var(--radius)',
+                color: 'var(--success, #2e7d32)',
+                fontWeight: 600,
+                textAlign: 'center',
+              }}
+            >
+              Verified! Your credentials have been saved.
+            </div>
+          ) : (
+            <>
+              {credScanError && (
+                <div
+                  style={{
+                    padding: '12px',
+                    background: 'var(--danger-light)',
+                    border: '1px solid var(--danger)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--danger)',
+                    fontSize: '0.9rem',
+                    marginBottom: 16,
+                  }}
+                >
+                  {credScanError}
+                </div>
+              )}
+
+              {credScanning ? (
+                <div style={{ marginBottom: 16 }}>
+                  <QRScanner active={credScanning} onScan={handleCredentialScan} />
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => { setCredScanning(false); setCredScanError(''); }}
+                    style={{ marginTop: 12 }}
+                    aria-label="Cancel QR scan"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => { setCredScanError(''); setCredScanning(true); }}
+                >
+                  Scan credential QR
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // phase === 'with-verifier'
   return (
-    <div className="fade-in">
+    <div className="fade-in" role="main">
       <div className="section">
         <h2 style={{ marginBottom: 8 }}>I'm with my verifier</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
           Ask them to show you their verifier QR code on their phone.
         </p>
 
-        <button
-          className="btn btn-primary"
-          onClick={() => alert('Coming soon')}
-          style={{ marginBottom: 16 }}
-        >
-          Scan verifier's QR
-        </button>
+        {verifierConnected ? (
+          <div style={{ marginBottom: 16 }}>
+            <div
+              style={{
+                padding: '12px 16px',
+                background: 'var(--success-light, #e8f5e9)',
+                border: '1px solid var(--success, #43a047)',
+                borderRadius: 'var(--radius)',
+                color: 'var(--success, #2e7d32)',
+                fontSize: '0.9rem',
+                marginBottom: 16,
+              }}
+            >
+              Connected to verifier. Your details have been sent. Wait for them to confirm.
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={() => setPhase('receive-credentials')}
+            >
+              Receive credentials
+            </button>
+          </div>
+        ) : (
+          <>
+            {cameraError && (
+              <div
+                style={{
+                  padding: '12px',
+                  background: 'var(--danger-light)',
+                  border: '1px solid var(--danger)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--danger)',
+                  fontSize: '0.9rem',
+                  marginBottom: 16,
+                }}
+              >
+                {cameraError}
+              </div>
+            )}
+
+            {scanError && (
+              <div
+                style={{
+                  padding: '12px',
+                  background: 'var(--danger-light)',
+                  border: '1px solid var(--danger)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--danger)',
+                  fontSize: '0.9rem',
+                  marginBottom: 16,
+                }}
+              >
+                {scanError}
+              </div>
+            )}
+
+            {scanning ? (
+              <div style={{ marginBottom: 16 }}>
+                <QRScanner active={scanning} onScan={handleVerifierScan} />
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => { setScanning(false); setScanError(''); }}
+                  style={{ marginTop: 12 }}
+                  aria-label="Cancel QR scan"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                className="btn btn-primary"
+                onClick={handleScanVerifier}
+                style={{ marginBottom: 16 }}
+              >
+                Scan verifier's QR
+              </button>
+            )}
+          </>
+        )}
 
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
           This will send your details to their app for confirmation.

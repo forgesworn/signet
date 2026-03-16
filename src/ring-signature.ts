@@ -15,7 +15,7 @@ import {
   safeMultiply,
   scalarEqual,
 } from './secp256k1-utils.js';
-import { SignetValidationError, SignetCryptoError } from './errors.js';
+import { SignetValidationError } from './errors.js';
 
 /** Maximum number of members in a ring, to prevent denial-of-service via unbounded computation. */
 export const MAX_RING_SIZE = 1000;

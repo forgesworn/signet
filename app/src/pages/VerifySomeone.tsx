@@ -304,7 +304,7 @@ export function VerifySomeone({ identity }: Props) {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="fade-in" style={{ maxWidth: 480, margin: '0 auto', width: '100%' }}>
+    <div className="fade-in" role="main" style={{ maxWidth: 480, margin: '0 auto', width: '100%' }}>
 
       <StepIndicator current={stepNumber()} total={4} />
 

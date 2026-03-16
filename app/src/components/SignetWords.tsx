@@ -59,7 +59,7 @@ export function SignetWords({ sharedSecret, myPubkey, theirPubkey, wordCount = 1
         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
           You say
         </div>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }} aria-live="polite" aria-label="Your Signet words">
           {myWords.map((word, i) => (
             <span key={i} className="signet-word">{word}</span>
           ))}
@@ -71,7 +71,7 @@ export function SignetWords({ sharedSecret, myPubkey, theirPubkey, wordCount = 1
         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
           They say
         </div>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }} aria-live="polite" aria-label="Their Signet words">
           {theirWords.map((word, i) => (
             <span key={i} className="signet-word" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>{word}</span>
           ))}

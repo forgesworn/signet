@@ -38,7 +38,7 @@ export function ChildSettingsPage({ identity, childIdentities }: Props) {
 
   if (childIdentities.length === 0) {
     return (
-      <div className="fade-in" style={{ textAlign: 'center', paddingTop: 64 }}>
+      <div className="fade-in" role="main" style={{ textAlign: 'center', paddingTop: 64 }}>
         <h2 style={{ marginBottom: 8 }}>No child accounts</h2>
         <p style={{ color: 'var(--text-secondary)' }}>
           Create a child account to manage their settings here.
@@ -48,7 +48,7 @@ export function ChildSettingsPage({ identity, childIdentities }: Props) {
   }
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" role="main">
       {childIdentities.map(child => {
         const s = settings.get(child.id);
         return (

@@ -9,7 +9,7 @@ interface Props {
 export function Family({ members, onSelectMember }: Props) {
   if (members.length === 0) {
     return (
-      <div className="fade-in" style={{ textAlign: 'center', paddingTop: 64 }}>
+      <div className="fade-in" role="main" style={{ textAlign: 'center', paddingTop: 64 }}>
         <h2 style={{ marginBottom: 8 }}>No family members yet</h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
           Tap the + button to add someone and verify it's really them.
@@ -19,7 +19,7 @@ export function Family({ members, onSelectMember }: Props) {
   }
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" role="main">
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {members.map((member, i) => (
           <button

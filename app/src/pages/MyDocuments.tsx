@@ -40,7 +40,7 @@ function maskDocumentNumber(documentNumber: string): string {
 export function MyDocuments({ documents, onAddDocument, onSelectDocument }: Props) {
   if (documents.length === 0) {
     return (
-      <div className="fade-in">
+      <div className="fade-in" role="main">
         <div className="card section" style={{ textAlign: 'center', padding: 32 }}>
           <div style={{ fontSize: '2.5rem', marginBottom: 12, color: 'var(--text-muted)' }}>ID</div>
           <h2 style={{ marginBottom: 8 }}>No documents yet</h2>
@@ -56,7 +56,7 @@ export function MyDocuments({ documents, onAddDocument, onSelectDocument }: Prop
   }
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" role="main">
       <div className="section">
         <div className="section-title">My Documents</div>
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
