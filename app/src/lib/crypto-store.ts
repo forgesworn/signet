@@ -1,11 +1,13 @@
 /**
  * Encrypt/decrypt secrets for IndexedDB storage using a user passphrase.
- * Uses PBKDF2 (100,000 iterations, SHA-256) to derive an AES-256-GCM key.
+ * Uses PBKDF2 (600,000 iterations, SHA-256) to derive an AES-256-GCM key.
+ * Iteration count follows OWASP 2023 recommendation for PBKDF2-SHA-256.
+ * Last reviewed: 2026-03-16.
  *
  * Wire format: base64(salt[16] || iv[12] || ciphertext)
  */
 
-const PBKDF2_ITERATIONS = 100_000;
+const PBKDF2_ITERATIONS = 600_000;
 const SALT_LENGTH = 16;
 const IV_LENGTH = 12;
 

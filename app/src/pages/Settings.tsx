@@ -143,12 +143,17 @@ export function Settings({ identity, preferences, securityTier, onSetTheme, onSe
               navigator.clipboard?.writeText(identity.mnemonic);
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
+              // Clear clipboard after 60 seconds
+              setTimeout(() => navigator.clipboard?.writeText(''), 60_000);
             }}>
               {copied ? 'Copied!' : 'Copy to clipboard'}
             </button>
             <button className="btn btn-ghost" onClick={() => setShowBackup(false)}>
               Hide
             </button>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 8 }}>
+              Words auto-hide after 90 seconds. Clipboard clears after 60 seconds.
+            </p>
           </div>
         )}
       </div>
