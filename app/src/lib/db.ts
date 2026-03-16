@@ -1,131 +1,32 @@
+// IndexedDB storage for My Signet family app
+
 import { openDB, type IDBPDatabase } from 'idb';
-import type { EntityType } from 'signet-protocol';
+import type { FamilyIdentity, FamilyMember, ChildSettings, AppPreferences } from '../types';
 import { encryptSecret, decryptSecret } from './crypto-store';
 
-export type { EntityType };
 export { encryptSecret, decryptSecret } from './crypto-store';
 
-const DB_NAME = 'signet';
-const DB_VERSION = 3;
-
-export interface StoredIdentity {
-  id: string; // pubkey (was 'current' in v1)
-  mnemonic?: string; // optional — nsec imports have none
-  publicKey: string;
-  privateKey: string;
-  role: 'adult' | 'child' | 'verifier';
-  displayName: string;
-  createdAt: number;
-  importMethod: 'mnemonic' | 'nsec';
-  entityType?: EntityType;
-  guardianPubkey?: string; // for child accounts
-  linkedPersonaPubkey?: string; // link between Natural Person and Persona
-  ageRange?: string;
-  isChild?: boolean;
-  /** Whether privateKey (and mnemonic, if present) are encrypted with encryptSecret(). Defaults to false for backwards compatibility. */
-  encrypted?: boolean;
-}
-
-export interface CachedBadge {
-  tier: 1 | 2 | 3 | 4;
-  tierLabel: string;
-  score: number;
-  entityType?: EntityType;
-  isVerified: boolean;
-  credentialCount: number;
-  vouchCount: number;
-  fetchedAt: number;
-}
-
-export interface StoredConnection {
-  pubkey: string;
-  sharedSecret: string;
-  ownerPubkey: string; // which account owns this connection
-  theirInfo: {
-    name?: string;
-    mobile?: string;
-    email?: string;
-    address?: string;
-    childPubkeys?: string[];
-  };
-  ourInfo: {
-    name?: string;
-    mobile?: string;
-    email?: string;
-    address?: string;
-    childPubkeys?: string[];
-  };
-  connectedAt: number;
-  method: string;
-  /** How this contact was added: 'mutual' (QR scan) or 'follow' (pubkey lookup) */
-  connectionType: 'mutual' | 'follow';
-  /** Cached badge data from relay */
-  badge?: CachedBadge;
-}
-
-export interface StoredPreferences {
-  id: 'current';
-  theme: 'system' | 'light' | 'dark';
-  activeAccountId?: string; // pubkey of active account
-  relayUrl?: string;
-}
+const DB_NAME = 'my-signet';
+const DB_VERSION = 1;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
-function getDB() {
+function getDB(): Promise<IDBPDatabase> {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion, _newVersion, transaction) {
-        // v1: create stores
-        if (oldVersion < 1) {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains('identity')) {
           db.createObjectStore('identity', { keyPath: 'id' });
-          db.createObjectStore('connections', { keyPath: 'pubkey' });
+        }
+        if (!db.objectStoreNames.contains('family')) {
+          const family = db.createObjectStore('family', { keyPath: 'pubkey' });
+          family.createIndex('ownerPubkey', 'ownerPubkey');
+        }
+        if (!db.objectStoreNames.contains('child-settings')) {
+          db.createObjectStore('child-settings', { keyPath: 'childPubkey' });
+        }
+        if (!db.objectStoreNames.contains('preferences')) {
           db.createObjectStore('preferences', { keyPath: 'id' });
-        }
-
-        // v1 → v2: migrate identity id from 'current' to pubkey, add ownerPubkey to connections
-        if (oldVersion < 2) {
-          const identityStore = transaction.objectStore('identity');
-          const connectionsStore = transaction.objectStore('connections');
-          const prefsStore = transaction.objectStore('preferences');
-
-          // Migrate existing identity (idb wraps stores — .get()/.getAll() return Promises)
-          identityStore.get('current').then((old: Record<string, unknown> | undefined) => {
-            if (old && old.publicKey) {
-              const pubkey = old.publicKey as string;
-              identityStore.delete('current');
-              identityStore.put({
-                ...old,
-                id: pubkey,
-                importMethod: (old.importMethod as string) || 'mnemonic',
-              });
-
-              prefsStore.get('current').then((prefs: Record<string, unknown> | undefined) => {
-                const p = prefs || { id: 'current', theme: 'system' };
-                prefsStore.put({ ...p, activeAccountId: pubkey });
-              });
-
-              connectionsStore.getAll().then((conns: Record<string, unknown>[]) => {
-                for (const conn of conns) {
-                  if (!conn.ownerPubkey) {
-                    connectionsStore.put({ ...conn, ownerPubkey: pubkey });
-                  }
-                }
-              });
-            }
-          });
-        }
-
-        // v2 → v3: add connectionType to existing connections
-        if (oldVersion < 3) {
-          const connectionsStore = transaction.objectStore('connections');
-          connectionsStore.getAll().then((conns: Record<string, unknown>[]) => {
-            for (const conn of conns) {
-              if (!conn.connectionType) {
-                connectionsStore.put({ ...conn, connectionType: 'mutual' });
-              }
-            }
-          });
         }
       },
     });
@@ -133,32 +34,23 @@ function getDB() {
   return dbPromise;
 }
 
-// Identity — multi-account
-export async function getIdentity(pubkey: string): Promise<StoredIdentity | undefined> {
+// --- Identity ---
+
+export async function getIdentity(pubkey: string): Promise<FamilyIdentity | undefined> {
   const db = await getDB();
   return db.get('identity', pubkey);
 }
 
-export async function getAllIdentities(): Promise<StoredIdentity[]> {
+export async function getAllIdentities(): Promise<FamilyIdentity[]> {
   const db = await getDB();
   return db.getAll('identity');
-}
-
-export async function getActiveIdentity(): Promise<StoredIdentity | undefined> {
-  const prefs = await getPreferences();
-  if (!prefs.activeAccountId) {
-    // Fallback: return first identity
-    const all = await getAllIdentities();
-    return all[0];
-  }
-  return getIdentity(prefs.activeAccountId);
 }
 
 /**
  * @deprecated Stores privateKey and mnemonic in plaintext.
  * Use saveIdentityEncrypted instead to protect private key material at rest.
  */
-export async function saveIdentity(identity: StoredIdentity): Promise<void> {
+export async function saveIdentity(identity: FamilyIdentity): Promise<void> {
   const db = await getDB();
   await db.put('identity', identity);
 }
@@ -167,13 +59,11 @@ export async function saveIdentity(identity: StoredIdentity): Promise<void> {
  * Encrypt privateKey and mnemonic with a passphrase-derived AES-256-GCM key before storing.
  * The stored record has encrypted: true so callers know to decrypt on load.
  */
-export async function saveIdentityEncrypted(identity: StoredIdentity, passphrase: string): Promise<void> {
+export async function saveIdentityEncrypted(identity: FamilyIdentity, passphrase: string): Promise<void> {
   const encryptedPrivateKey = await encryptSecret(identity.privateKey, passphrase);
-  const encryptedMnemonic = identity.mnemonic !== undefined
-    ? await encryptSecret(identity.mnemonic, passphrase)
-    : undefined;
+  const encryptedMnemonic = await encryptSecret(identity.mnemonic, passphrase);
 
-  const encryptedIdentity: StoredIdentity = {
+  const encryptedIdentity: FamilyIdentity = {
     ...identity,
     privateKey: encryptedPrivateKey,
     mnemonic: encryptedMnemonic,
@@ -189,83 +79,67 @@ export async function saveIdentityEncrypted(identity: StoredIdentity, passphrase
  * Returns undefined if no identity exists for the given pubkey.
  * Throws if decryption fails (wrong passphrase).
  */
-export async function loadIdentityDecrypted(pubkey: string, passphrase: string): Promise<StoredIdentity | undefined> {
+export async function loadIdentityDecrypted(pubkey: string, passphrase: string): Promise<FamilyIdentity | undefined> {
   const db = await getDB();
-  const stored: StoredIdentity | undefined = await db.get('identity', pubkey);
+  const stored: FamilyIdentity | undefined = await db.get('identity', pubkey);
   if (!stored) return undefined;
 
   if (!stored.encrypted) return stored;
 
   const privateKey = await decryptSecret(stored.privateKey, passphrase);
-  const mnemonic = stored.mnemonic !== undefined
-    ? await decryptSecret(stored.mnemonic, passphrase)
-    : undefined;
+  const mnemonic = await decryptSecret(stored.mnemonic, passphrase);
 
   return { ...stored, privateKey, mnemonic, encrypted: false };
 }
 
-/**
- * Load the active identity and decrypt sensitive fields if encrypted.
- * Returns undefined if no active identity is set.
- * Throws if decryption fails (wrong passphrase).
- */
-export async function loadActiveIdentityDecrypted(passphrase: string): Promise<StoredIdentity | undefined> {
-  const prefs = await getPreferences();
-  const pubkey = prefs.activeAccountId ?? (await getAllIdentities())[0]?.id;
-  if (!pubkey) return undefined;
-  return loadIdentityDecrypted(pubkey, passphrase);
-}
-
-export async function deleteIdentity(pubkey: string): Promise<void> {
+export async function deleteIdentityRecord(pubkey: string): Promise<void> {
   const db = await getDB();
   await db.delete('identity', pubkey);
 }
 
-export async function setActiveAccount(pubkey: string): Promise<void> {
-  const prefs = await getPreferences();
-  prefs.activeAccountId = pubkey;
-  await savePreferences(prefs);
-}
+// --- Family Members ---
 
-// Connections — scoped by owner
-export async function getConnections(): Promise<StoredConnection[]> {
+export async function getFamilyMembers(ownerPubkey: string): Promise<FamilyMember[]> {
   const db = await getDB();
-  return db.getAll('connections');
+  return db.getAllFromIndex('family', 'ownerPubkey', ownerPubkey);
 }
 
-export async function getConnectionsForAccount(ownerPubkey: string): Promise<StoredConnection[]> {
-  const all = await getConnections();
-  return all.filter((c) => c.ownerPubkey === ownerPubkey);
-}
-
-export async function getConnection(pubkey: string): Promise<StoredConnection | undefined> {
+export async function getFamilyMember(pubkey: string): Promise<FamilyMember | undefined> {
   const db = await getDB();
-  return db.get('connections', pubkey);
+  return db.get('family', pubkey);
 }
 
-export async function saveConnection(connection: StoredConnection): Promise<void> {
+export async function saveFamilyMember(member: FamilyMember): Promise<void> {
   const db = await getDB();
-  await db.put('connections', connection);
+  await db.put('family', member);
 }
 
-export async function deleteConnection(pubkey: string): Promise<void> {
+export async function deleteFamilyMember(pubkey: string): Promise<void> {
   const db = await getDB();
-  await db.delete('connections', pubkey);
+  await db.delete('family', pubkey);
 }
 
-export async function clearConnections(): Promise<void> {
+// --- Child Settings ---
+
+export async function getChildSettings(childPubkey: string): Promise<ChildSettings | undefined> {
   const db = await getDB();
-  await db.clear('connections');
+  return db.get('child-settings', childPubkey);
 }
 
-// Preferences
-export async function getPreferences(): Promise<StoredPreferences> {
+export async function saveChildSettings(settings: ChildSettings): Promise<void> {
+  const db = await getDB();
+  await db.put('child-settings', settings);
+}
+
+// --- Preferences ---
+
+export async function getPreferences(): Promise<AppPreferences> {
   const db = await getDB();
   const prefs = await db.get('preferences', 'current');
-  return prefs ?? { id: 'current', theme: 'system' };
+  return prefs || { id: 'current', theme: 'system' };
 }
 
-export async function savePreferences(prefs: StoredPreferences): Promise<void> {
+export async function savePreferences(prefs: AppPreferences): Promise<void> {
   const db = await getDB();
   await db.put('preferences', prefs);
 }

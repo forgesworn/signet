@@ -1,341 +1,104 @@
-import { useState, useCallback, useMemo } from 'react';
-import { computeTrustScore, type NostrEvent } from 'signet-protocol';
-import type { StoredIdentity } from '../lib/db';
-import { createQRPayload, serializeQRPayload, ENTITY_LABELS } from '../lib/signet';
-import { QRCode } from '../components/QRCode';
-import { TierBadge } from '../components/TierBadge';
-import { SignetIQ } from '../components/SignetIQ';
-import { truncatePubkey } from '../lib/utils';
+import type { FamilyIdentity, FamilyMember } from '../types';
+import { StatusBadge } from '../components/StatusBadge';
+import { encodeNpub } from '../lib/signet';
+import { useState } from 'react';
 
-interface HomeProps {
-  identity: StoredIdentity;
-  credentials?: NostrEvent[];
-  vouches?: NostrEvent[];
-  bridges?: NostrEvent[];
+interface Props {
+  identity: FamilyIdentity;
+  members: FamilyMember[];
+  onSelectMember: (pubkey: string) => void;
+  onNavigateAdd: () => void;
 }
 
-const roleLabels: Record<StoredIdentity['role'], string> = {
-  adult: 'Adult',
-  child: 'Child',
-  verifier: 'Verifier',
-};
-
-export function Home({ identity, credentials = [], vouches = [], bridges = [] }: HomeProps) {
+export function Home({ identity, members, onSelectMember, onNavigateAdd }: Props) {
   const [copied, setCopied] = useState(false);
+  const npub = encodeNpub(identity.publicKey);
+  const shortNpub = npub.slice(0, 12) + '...' + npub.slice(-8);
 
-  const trustBreakdown = useMemo(
-    () => computeTrustScore(identity.publicKey, credentials, vouches, identity.createdAt, bridges),
-    [identity.publicKey, identity.createdAt, credentials, vouches, bridges],
-  );
-
-  const hasBridge = bridges.length > 0;
-
-  const qrData = useMemo(() => {
-    const payload = createQRPayload(identity.publicKey, {
-      name: identity.displayName,
-    });
-    return serializeQRPayload(payload);
-  }, [identity.publicKey, identity.displayName]);
-
-  const handleCopyKey = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(identity.publicKey);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback for older browsers or non-secure contexts
-      const textArea = document.createElement('textarea');
-      textArea.value = identity.publicKey;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-9999px';
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  }, [identity.publicKey]);
-
-  const handleShare = useCallback(() => {
-    alert('Sharing is not yet implemented. Use the QR code for in-person connections.');
-  }, []);
+  const copyPubkey = () => {
+    navigator.clipboard?.writeText(identity.publicKey);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        maxWidth: 480,
-        margin: '0 auto',
-        width: '100%',
-      }}
-    >
-      {/* Display name */}
-      <h1
-        style={{
-          fontSize: 28,
-          fontWeight: 700,
-          color: 'var(--text-primary)',
-          textAlign: 'center',
-          marginBottom: 8,
-          wordBreak: 'break-word',
-        }}
-      >
-        {identity.displayName}
-      </h1>
-
-      {/* Role badge */}
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 20,
-        }}
-      >
-        <span
-          style={{
-            display: 'inline-block',
-            padding: '4px 12px',
-            borderRadius: 999,
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: 0.3,
-            textTransform: 'uppercase',
-            background: 'var(--bg-input)',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border-subtle)',
-          }}
-        >
-          {roleLabels[identity.role]}
-        </span>
-        <TierBadge tier={trustBreakdown.tier} size="md" />
-        {identity.importMethod === 'nsec' && (
-          <span
-            style={{
-              display: 'inline-block',
-              padding: '4px 8px',
-              borderRadius: 999,
-              fontSize: 10,
-              fontWeight: 600,
-              background: 'var(--warning)',
-              color: '#000',
-            }}
-          >
-            nsec
-          </span>
-        )}
+    <div className="fade-in">
+      {/* Greeting */}
+      <div className="section" style={{ marginBottom: 20 }}>
+        <h1 style={{ marginBottom: 4 }}>{identity.displayName}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <StatusBadge isVerified={members.length > 0} isChild={identity.isChild} />
+          {identity.isChild && identity.guardianPubkey && (
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Linked to parent
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Entity info card */}
-      {(identity.entityType || identity.ageRange || identity.isChild || identity.guardianPubkey || identity.linkedPersonaPubkey) && (
-        <div
-          className="card"
-          style={{
-            width: '100%',
-            marginBottom: 16,
-            padding: '12px 16px',
-            background: 'var(--bg-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-          }}
-        >
-          {/* Entity type + age range + child badge row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {identity.entityType && (
-              <span
+      {/* Family Members — the heart of the app */}
+      {members.length > 0 ? (
+        <div className="section">
+          <div className="section-title">My Family</div>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {members.map((member, i) => (
+              <button
+                key={member.pubkey}
+                onClick={() => onSelectMember(member.pubkey)}
                 style={{
-                  display: 'inline-block',
-                  padding: '3px 10px',
-                  borderRadius: 999,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  letterSpacing: 0.3,
-                  background: 'var(--bg-input)',
-                  color: 'var(--text-secondary)',
-                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  width: '100%',
+                  padding: '14px 16px',
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: i < members.length - 1 ? '1px solid var(--border)' : 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  color: 'var(--text-primary)',
                 }}
               >
-                {ENTITY_LABELS[identity.entityType]}
-              </span>
-            )}
-            {identity.ageRange && (
-              <span
-                style={{
-                  display: 'inline-block',
-                  padding: '3px 10px',
-                  borderRadius: 999,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  background: 'var(--bg-input)',
-                  color: 'var(--text-secondary)',
-                  border: '1px solid var(--border-subtle)',
-                }}
-              >
-                {identity.ageRange}
-              </span>
-            )}
-            {identity.isChild && (
-              <span
-                style={{
-                  display: 'inline-block',
-                  padding: '3px 10px',
-                  borderRadius: 999,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  background: 'var(--warning)',
-                  color: '#000',
-                }}
-              >
-                Child Account
-              </span>
-            )}
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 2 }}>{member.displayName}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Tap to verify
+                  </div>
+                </div>
+                <StatusBadge isVerified={true} isChild={member.isChild} />
+              </button>
+            ))}
           </div>
-
-          {/* Guardian pubkey */}
-          {identity.guardianPubkey && (
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              <span style={{ fontWeight: 600 }}>Guardian: </span>
-              <span
-                style={{
-                  fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', monospace",
-                  letterSpacing: 0.3,
-                }}
-              >
-                {truncatePubkey(identity.guardianPubkey)}
-              </span>
-            </div>
-          )}
-
-          {/* Linked persona pubkey */}
-          {identity.linkedPersonaPubkey && (
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              <span style={{ fontWeight: 600 }}>Linked Persona: </span>
-              <span
-                style={{
-                  fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', monospace",
-                  letterSpacing: 0.3,
-                }}
-              >
-                {truncatePubkey(identity.linkedPersonaPubkey)}
-              </span>
-            </div>
-          )}
+        </div>
+      ) : (
+        <div className="card section" style={{ textAlign: 'center', padding: 32 }}>
+          <h2 style={{ marginBottom: 8 }}>Add your first family member</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: 16, fontSize: '0.9rem' }}>
+            Once connected, you can verify it's really them — not a deepfake — with Signet Me.
+          </p>
+          <button className="btn btn-primary" onClick={onNavigateAdd}>
+            Add someone
+          </button>
         </div>
       )}
 
-      {/* QR Code card */}
-      <div
-        className="card"
-        style={{
-          width: '100%',
-          marginBottom: 16,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          padding: 24,
-        }}
-      >
-        <QRCode data={qrData} size={200} />
-
-        {/* Public key */}
-        <button
-          onClick={handleCopyKey}
-          style={{
-            marginTop: 16,
-            padding: '8px 16px',
-            background: 'var(--bg-input)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-sm)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            minHeight: 44,
-            width: '100%',
-            justifyContent: 'center',
-            transition: 'background 0.15s',
-          }}
-          title="Tap to copy public key"
-          aria-label="Copy public key to clipboard"
-        >
-          <span
-            style={{
-              fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', monospace",
-              fontSize: 13,
-              color: 'var(--text-secondary)',
-              letterSpacing: 0.5,
-            }}
-          >
-            {truncatePubkey(identity.publicKey)}
-          </span>
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: copied ? 'var(--success)' : 'var(--accent)',
-              whiteSpace: 'nowrap',
-              transition: 'color 0.15s',
-            }}
-          >
+      {/* Signet ID — small, at bottom */}
+      <div className="card section">
+        <div className="section-title">Your Signet ID</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', wordBreak: 'break-all', marginBottom: 8, color: 'var(--text-secondary)' }}>
+          {shortNpub}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={copyPubkey} style={{ flex: 1 }}>
             {copied ? 'Copied!' : 'Copy'}
-          </span>
-        </button>
-      </div>
-
-      {/* Bridge indicator */}
-      {hasBridge && (
-        <div
-          className="card"
-          style={{
-            width: '100%',
-            marginBottom: 16,
-            padding: '12px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            background: 'var(--bg-card)',
-          }}
-        >
-          <span style={{ fontSize: 18 }}>&#128279;</span>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-              Linked to verified identity
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Ring signature bridge active (+{trustBreakdown.signals.find(s => s.type === 'identity-bridge')?.weight.toFixed(0) ?? '0'} trust)
-            </div>
-          </div>
+          </button>
+          <button className="btn btn-secondary" onClick={() => {
+            navigator.share?.({ title: 'My Signet', text: identity.publicKey });
+          }} style={{ flex: 1 }}>
+            Share
+          </button>
         </div>
-      )}
-
-      {/* Signet IQ card */}
-      <div
-        className="card"
-        style={{
-          width: '100%',
-          marginBottom: 16,
-        }}
-      >
-        <SignetIQ breakdown={trustBreakdown} showBreakdown={credentials.length > 0 || vouches.length > 0 || bridges.length > 0} />
       </div>
-
-      {/* Share button */}
-      <button
-        className="btn btn-primary"
-        onClick={handleShare}
-        style={{
-          width: '100%',
-          minHeight: 48,
-          fontSize: 16,
-          marginTop: 4,
-        }}
-      >
-        Share my QR
-      </button>
     </div>
   );
 }

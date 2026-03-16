@@ -1,200 +1,90 @@
-import { useState, useCallback } from 'react';
-import { useSignetWords } from '../hooks/useSignetWords';
-import { verifySignetWords } from '../lib/signet';
-import { ProgressBar } from './ProgressBar';
+import { useState } from 'react';
+import { useSignetMe } from '../hooks/useSignetMe';
+import { verifySignetMe } from '../lib/signet-me';
+import { WordInput } from './WordInput';
 
-const SIGNET_EPOCH_SECONDS = 30;
-
-interface SignetWordsProps {
+interface Props {
   sharedSecret: string;
+  myPubkey: string;
+  theirPubkey: string;
+  /** Number of words per side (1 = Basic, 2 = Standard, 3 = Expert) */
+  wordCount?: number;
 }
 
-export function SignetWords({ sharedSecret }: SignetWordsProps) {
-  const { formatted, expiresIn } = useSignetWords(sharedSecret);
+export function SignetWords({ sharedSecret, myPubkey, theirPubkey, wordCount = 1 }: Props) {
+  const { myWords, theirWords, expiresIn } = useSignetMe(sharedSecret, myPubkey, theirPubkey, wordCount);
   const [mode, setMode] = useState<'display' | 'verify'>('display');
-  const [word1, setWord1] = useState('');
-  const [word2, setWord2] = useState('');
-  const [word3, setWord3] = useState('');
   const [result, setResult] = useState<'match' | 'no-match' | null>(null);
 
-  const handleVerify = useCallback(() => {
-    const words = [word1.trim().toLowerCase(), word2.trim().toLowerCase(), word3.trim().toLowerCase()];
-    const ok = verifySignetWords(sharedSecret, words);
-    setResult(ok ? 'match' : 'no-match');
-  }, [sharedSecret, word1, word2, word3]);
-
-  const handleCancel = useCallback(() => {
-    setMode('display');
-    setWord1('');
-    setWord2('');
-    setWord3('');
-    setResult(null);
-  }, []);
-
-  const handleStartVerify = useCallback(() => {
-    setMode('verify');
-    setResult(null);
-    setWord1('');
-    setWord2('');
-    setWord3('');
-  }, []);
-
-  const inputStyle: React.CSSProperties = {
-    flex: 1,
-    minWidth: 0,
-    padding: '10px 12px',
-    fontSize: 16,
-    fontWeight: 600,
-    textAlign: 'center',
-    borderRadius: 'var(--radius-sm)',
-    border: '1px solid var(--border)',
-    background: 'var(--bg-input)',
-    color: 'var(--text-primary)',
-    outline: 'none',
-    minHeight: 44,
+  const handleVerify = (inputWords: string[]) => {
+    const matched = verifySignetMe(sharedSecret, myPubkey, theirPubkey, inputWords, wordCount);
+    setResult(matched ? 'match' : 'no-match');
+    if (matched) {
+      setTimeout(() => { setResult(null); setMode('display'); }, 2000);
+    }
   };
 
-  // Display mode
-  if (mode === 'display') {
+  if (mode === 'verify') {
     return (
-      <div
-        style={{
-          background: 'var(--bg-card)',
-          borderRadius: 'var(--radius)',
-          border: '1px solid var(--border)',
-          padding: 24,
-          boxShadow: 'var(--shadow)',
-        }}
-      >
-        {/* Signet words */}
-        <div
-          key={formatted}
-          style={{
-            fontSize: 26,
-            fontWeight: 700,
-            color: 'var(--signet-word)',
-            textAlign: 'center',
-            padding: '16px 0',
-            letterSpacing: 0.3,
-            lineHeight: 1.4,
-            animation: 'signetFadeIn 0.3s ease-out',
-          }}
-        >
-          {formatted || '\u00b7 \u00b7 \u00b7'}
-        </div>
-
-        {/* Progress bar */}
-        <div style={{ margin: '12px 0 16px' }}>
-          <ProgressBar expiresIn={expiresIn} total={SIGNET_EPOCH_SECONDS} />
-        </div>
-
-        {/* Verify button */}
-        <button
-          className="btn btn-secondary"
-          style={{ width: '100%' }}
-          onClick={handleStartVerify}
-        >
-          Verify words read to me
+      <div className="card section">
+        <h3 style={{ marginBottom: 8 }}>What did they say?</h3>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 16 }}>
+          Enter the {wordCount === 1 ? 'word' : `${wordCount} words`} they said to you:
+        </p>
+        {result === 'no-match' && (
+          <div style={{ padding: 8, background: 'var(--danger-light)', borderRadius: 'var(--radius-sm)', marginBottom: 12, color: 'var(--danger)', fontSize: '0.9rem' }}>
+            Doesn't match. This might not be who they claim to be.
+          </div>
+        )}
+        <WordInput onSubmit={handleVerify} wordCount={wordCount} />
+        <button className="btn btn-ghost" onClick={() => { setMode('display'); setResult(null); }} style={{ marginTop: 8 }}>
+          Cancel
         </button>
-
-        {/* Inline keyframe for fade-in animation */}
-        <style>{`
-          @keyframes signetFadeIn {
-            from { opacity: 0.4; transform: scale(0.97); }
-            to   { opacity: 1;   transform: scale(1); }
-          }
-        `}</style>
       </div>
     );
   }
 
-  // Verify mode
   return (
-    <div
-      style={{
-        background: 'var(--bg-card)',
-        borderRadius: 'var(--radius)',
-        border: '1px solid var(--border)',
-        padding: 24,
-        boxShadow: 'var(--shadow)',
-      }}
-    >
-      <p
-        style={{
-          fontSize: 14,
-          fontWeight: 600,
-          color: 'var(--text-primary)',
-          marginBottom: 12,
-          textAlign: 'center',
-        }}
-      >
-        Enter the 3 words read to you
-      </p>
+    <div className="card section">
+      <h3 style={{ marginBottom: 12 }}>Signet Me</h3>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <input
-          style={inputStyle}
-          type="text"
-          placeholder="Word 1"
-          value={word1}
-          onChange={(e) => { setWord1(e.target.value); setResult(null); }}
-          autoCapitalize="none"
-          autoCorrect="off"
-          autoFocus
-        />
-        <input
-          style={inputStyle}
-          type="text"
-          placeholder="Word 2"
-          value={word2}
-          onChange={(e) => { setWord2(e.target.value); setResult(null); }}
-          autoCapitalize="none"
-          autoCorrect="off"
-        />
-        <input
-          style={inputStyle}
-          type="text"
-          placeholder="Word 3"
-          value={word3}
-          onChange={(e) => { setWord3(e.target.value); setResult(null); }}
-          autoCapitalize="none"
-          autoCorrect="off"
-        />
-      </div>
-
-      {/* Result feedback */}
-      {result !== null && (
-        <div
-          style={{
-            textAlign: 'center',
-            marginBottom: 12,
-            fontSize: 16,
-            fontWeight: 600,
-            color: result === 'match' ? 'var(--success)' : 'var(--danger)',
-          }}
-        >
-          {result === 'match' ? '\u2713 Words match — identity verified!' : '\u2717 Words do not match'}
+      {result === 'match' && (
+        <div className="checkmark-anim" style={{ padding: 8, background: 'var(--success-light)', borderRadius: 'var(--radius-sm)', marginBottom: 12, color: 'var(--success)', textAlign: 'center', fontWeight: 600 }}>
+          Confirmed — it's really them.
         </div>
       )}
 
-      {/* Action buttons */}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          className="btn btn-secondary"
-          style={{ flex: 1 }}
-          onClick={handleCancel}
-        >
-          Cancel
-        </button>
-        <button
-          className="btn btn-primary"
-          style={{ flex: 1 }}
-          disabled={!word1.trim() || !word2.trim() || !word3.trim()}
-          onClick={handleVerify}
-        >
-          Check
-        </button>
+      {/* What I say */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+          You say
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+          {myWords.map((word, i) => (
+            <span key={i} className="signet-word">{word}</span>
+          ))}
+        </div>
       </div>
+
+      {/* What they say */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+          They say
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+          {theirWords.map((word, i) => (
+            <span key={i} className="signet-word" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>{word}</span>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+        Refreshes in {expiresIn}s
+      </div>
+
+      <button className="btn btn-secondary" onClick={() => setMode('verify')}>
+        Verify what they said
+      </button>
     </div>
   );
 }

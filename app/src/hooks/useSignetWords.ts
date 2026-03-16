@@ -1,35 +1,21 @@
 import { useState, useEffect } from 'react';
-import { getSignetDisplay } from 'signet-protocol';
-
-interface SignetWordsState {
-  words: string[];
-  formatted: string;
-  expiresIn: number;
-}
+import { getSignetDisplay } from '../lib/signet';
 
 export function useSignetWords(sharedSecret: string | null) {
-  const [state, setState] = useState<SignetWordsState>({
-    words: [],
-    formatted: '',
-    expiresIn: 0,
+  const [display, setDisplay] = useState<{ words: string[]; formatted: string; expiresIn: number }>({
+    words: [], formatted: '', expiresIn: 0,
   });
 
   useEffect(() => {
     if (!sharedSecret) return;
-
-    function update() {
-      const display = getSignetDisplay(sharedSecret!);
-      setState({
-        words: display.words,
-        formatted: display.formatted,
-        expiresIn: display.expiresIn,
-      });
-    }
-
+    const update = () => {
+      const result = getSignetDisplay(sharedSecret);
+      setDisplay(result);
+    };
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
   }, [sharedSecret]);
 
-  return state;
+  return display;
 }

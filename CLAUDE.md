@@ -8,8 +8,8 @@ This repo contains:
 - `spec/protocol.md` — the full protocol specification
 - `spec/voting.md` — voting extension specification (linkable ring signatures, elections)
 - `src/` — TypeScript protocol library (npm publishable)
-- `app/` — Reference web app (React + Vite, imports the protocol library)
-- `family-app/` — My Signet family app (React + Vite, production-ready, normie-friendly)
+- `app/` — My Signet family app (React + Vite, production-ready, normie-friendly)
+- `dev-app/` — Developer reference app (React + Vite, imports the protocol library)
 - `examples/` — example event payloads and flows
 - `legal/` — legal documents in multiple languages
 - `docs/plans/` — design and implementation plans
@@ -65,8 +65,8 @@ The spec (`spec/protocol.md`) is the source of truth. If implementation reveals 
 Signet/
 ├── src/          — Protocol library (TypeScript, no framework dependencies)
 ├── tests/        — Protocol tests (vitest)
-├── app/          — Reference web app (React + Vite + TypeScript)
-├── family-app/   — My Signet family app (React + Vite + TypeScript)
+├── app/          — My Signet family app (React + Vite + TypeScript)
+├── dev-app/      — Developer reference app (React + Vite + TypeScript)
 ├── spec/         — Protocol specification
 ├── examples/     — Example flows
 ├── legal/        — Legal documents (multi-language)
@@ -84,21 +84,21 @@ node node_modules/vitest/vitest.mjs run tests/voting.test.ts   # run a single te
 node node_modules/typescript/bin/tsc --noEmit                   # typecheck protocol
 npm run build                                                   # compile to dist/
 
-# App (from app/ directory)
-npm run dev                                     # start dev server
+# App — My Signet (from app/ directory)
+npm run dev                                     # start dev server (port 5174)
 npm run build                                   # production build
 npm run typecheck                               # typecheck app
 
-# Family App (from family-app/ directory)
+# Dev App (from dev-app/ directory)
 npm run dev                                     # start dev server (port 5175)
 npm run build                                   # production build
-npm run typecheck                               # typecheck family app
+npm run typecheck                               # typecheck dev app
 ```
 
 ## Port Allocation
 
-- **5174** — Signet reference app (HTTPS, self-signed cert)
-- **5175** — My Signet family app (HTTPS, self-signed cert)
+- **5174** — My Signet app (HTTPS, self-signed cert)
+- **5175** — Signet dev app (HTTPS, self-signed cert)
 - Avoid: 3000, 5173, 7777, 7778, 8787 (in use by other services)
 
 ## Security Conventions
@@ -123,7 +123,7 @@ These conventions were established during the security hardening review (2026-03
 - **npm publication** — `signet-protocol` is not yet published to npm. Fathom currently uses a `file:` reference. Publishing requires the canary-kit dep fix above.
 - **App typecheck uses its own tsconfig** — running `tsc --noEmit` from the project root only checks `src/`. The apps have their own tsconfigs and must be checked separately from their directories.
 - **`@noble/hashes` deprecation warnings** — `sha256`, `ProjectivePoint`, etc. show as deprecated in diagnostics. These are re-export deprecations, not functional deprecations. The functions work correctly. Ignore these warnings.
-- **CSP in dev mode** — The `script-src 'self'` CSP in `app/index.html` and `family-app/index.html` may log violations during Vite dev server (HMR uses inline scripts). This is expected in dev; the CSP protects production builds.
+- **CSP in dev mode** — The `script-src 'self'` CSP in `app/index.html` and `dev-app/index.html` may log violations during Vite dev server (HMR uses inline scripts). This is expected in dev; the CSP protects production builds.
 
 ## Security Review Process
 

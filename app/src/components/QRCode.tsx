@@ -1,50 +1,32 @@
 import { useEffect, useRef } from 'react';
 import QRCodeLib from 'qrcode';
 
-interface QRCodeProps {
+interface Props {
   data: string;
   size?: number;
 }
 
-export function QRCode({ data, size = 200 }: QRCodeProps) {
+export function QRCode({ data, size = 200 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    QRCodeLib.toCanvas(canvas, data, {
+    if (!canvasRef.current) return;
+    QRCodeLib.toCanvas(canvasRef.current, data, {
       width: size,
-      margin: 2,
-      color: {
-        dark: '#000000ff',
-        light: '#00000000', // transparent background
-      },
-    }).catch((err: unknown) => {
-      console.error('QR code generation failed:', err);
+      margin: 1,
+      color: { dark: '#1A1A2E', light: '#FFFFFF' },
     });
   }, [data, size]);
 
   return (
-    <div
+    <canvas
+      ref={canvasRef}
       style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
+        borderRadius: 'var(--radius)',
+        background: '#FFFFFF',
+        padding: 8,
+        border: '1px solid var(--border)',
       }}
-    >
-      <canvas
-        ref={canvasRef}
-        style={{
-          borderRadius: 'var(--radius)',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow)',
-          padding: 8,
-          maxWidth: '100%',
-          height: 'auto',
-        }}
-      />
-    </div>
+    />
   );
 }
