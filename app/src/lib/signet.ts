@@ -5,6 +5,7 @@ import {
   validateMnemonic as _validateMnemonic,
   BIP39_WORDLIST,
   deriveNostrKeyPair,
+  deriveChildAccount,
   computeSharedSecret,
   createQRPayload,
   serializeQRPayload,
@@ -81,9 +82,9 @@ function buildIdentity(
   guardianPubkey?: string
 ): SignetIdentity {
   // Natural Person keypair at account index 0 (m/44'/1237'/0'/0/0)
-  const np = deriveNostrKeyPair(mnemonic, 0);
+  const np = deriveChildAccount(mnemonic, 0);
   // Persona keypair at account index 1 (m/44'/1237'/1'/0/0)
-  const persona = deriveNostrKeyPair(mnemonic, 1);
+  const persona = deriveChildAccount(mnemonic, 1);
 
   const primaryPub = primaryKeypair === 'natural-person' ? np.publicKey : persona.publicKey;
 
