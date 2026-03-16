@@ -19,7 +19,7 @@ import { IdentityBridge } from './pages/IdentityBridge';
 import { getActiveDisplayName, getActivePubkey, getActivePrivateKey } from './lib/signet';
 
 export function App() {
-  const { identity, identities, loading: identityLoading, create, restore, remove, markBackedUp } = useIdentity();
+  const { identity, identities, loading: identityLoading, create, restore, importNsec, remove, markBackedUp } = useIdentity();
   const { members, addMember, removeMember } = useFamily(identity?.id);
   const { preferences, loading: prefsLoading, setTheme, securityTier, wordCount, setSecurityTier } = usePreferences();
 
@@ -54,10 +54,9 @@ export function App() {
     setPage('family');
   }, []);
 
-  const handleImportNsec = useCallback(async (_nsec: string, _displayName: string, _primaryKeypair: 'natural-person' | 'persona') => {
-    // TODO: implement nsec import — call decodeNsec, build identity, saveIdentityEncrypted
-    setPage('home');
-  }, []);
+  const handleImportNsec = useCallback(async (nsec: string, displayName: string, primaryKeypair: 'natural-person' | 'persona') => {
+    await importNsec(nsec, displayName, primaryKeypair);
+  }, [importNsec]);
 
   // Loading
   if (identityLoading || prefsLoading) {

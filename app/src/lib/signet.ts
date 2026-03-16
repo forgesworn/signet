@@ -5,6 +5,7 @@ import {
   validateMnemonic as _validateMnemonic,
   BIP39_WORDLIST,
   deriveChildAccount,
+  decodeNsec,
   computeSharedSecret,
   createQRPayload,
   serializeQRPayload,
@@ -46,6 +47,7 @@ export {
   shareToWords,
   mnemonicToEntropy,
   createTwoCredentialCeremony,
+  decodeNsec,
 };
 
 /** Create a new identity with two keypairs from a fresh mnemonic */
@@ -105,6 +107,31 @@ function buildIdentity(
     guardianPubkey,
     createdAt: Math.floor(Date.now() / 1000),
     backedUp: false,
+  };
+}
+
+/** Import an identity from an nsec (single-keypair, no mnemonic) */
+export function importFromNsec(
+  nsec: string,
+  displayName: string,
+  primaryKeypair: 'natural-person' | 'persona',
+): SignetIdentity {
+  const { privateKey, publicKey } = decodeNsec(nsec);
+  const emptyKeypair = { publicKey: '', privateKey: '', displayName: '' };
+
+  return {
+    id: publicKey,
+    mnemonic: '', // nsec import has no mnemonic — Shamir/backup unavailable
+    naturalPerson: primaryKeypair === 'natural-person'
+      ? { publicKey, privateKey, displayName }
+      : emptyKeypair,
+    persona: primaryKeypair === 'persona'
+      ? { publicKey, privateKey, displayName }
+      : emptyKeypair,
+    primaryKeypair,
+    isChild: false,
+    createdAt: Math.floor(Date.now() / 1000),
+    backedUp: true, // no mnemonic to back up — suppress backup nag
   };
 }
 
