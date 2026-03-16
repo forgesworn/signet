@@ -1856,6 +1856,53 @@ Users who don't want to pay wait for the next scheduled free run (e.g., every 24
 
 ---
 
+## 21.5 Jurisdiction Confidence and Anti-Bribery
+
+The Verifier IQ (§21.1) is further weighted by the **jurisdiction confidence score** defined in the protocol (spec §24). This means a verification from a high-integrity jurisdiction carries more IQ than one from a jurisdiction with high corruption.
+
+The jurisdiction confidence score (0-100) factors in the Transparency International Corruption Perceptions Index (CPI), professional body coverage, public register availability, and digital credential maturity. A credential from a Danish solicitor (CPI: 90) carries near-full weight. A credential from a jurisdiction with CPI 20 carries significantly less.
+
+**The anti-bribery flip:** In jurisdictions where bribery in document issuance is common, Signet makes that bribery self-documenting. Every corrupt verification creates a permanent, public, traceable record — volume anomalies, geographic impossibilities, nullifier collisions. The corruption that was invisible becomes the evidence that catches itself. This has the potential to reduce bribery in document issuance, not by preventing it, but by making it permanently traceable.
+
+**IQ formula with jurisdiction confidence:**
+```
+credential_iq = base_points × verifier_iq_percentage × (jurisdiction_confidence / 100)
+```
+
+Example: A passport verified by a cross-verified-only verifier (25%) in a jurisdiction with confidence 60:
+```
+80 × 0.25 × 0.60 = 12 IQ points
+```
+
+Same passport, NIP-05 confirmed verifier (90%), jurisdiction confidence 95:
+```
+80 × 0.90 × 0.95 = 68 IQ points
+```
+
+### 21.6 Document Type Registry
+
+The app pulls document types, field definitions, and country-specific attributes from the **Signet Document Registry** — a separate open-source resource maintained alongside the protocol. The registry defines:
+
+- Available document types per country (passport, national ID, driving licence, etc.)
+- Required and optional fields for each document type
+- Which fields contribute to nullifier computation
+- Whether the document number changes on renewal
+- Country-specific attributes (`gb:nationalInsurance`, `in:aadhaar`, `us:ssn`, etc.)
+- Human-readable labels (for the app UI)
+
+The UX flow is:
+1. User taps "Add document"
+2. Select country (dropdown, searchable)
+3. Select document type (filtered by country)
+4. App shows the right fields — auto-generated from the registry
+5. User fills in their details
+
+Adding a new country or document type is a registry update — no protocol revision, no library change, no app release needed. The app fetches the latest registry periodically.
+
+The registry starts comprehensive — covering the top 50 countries by population (~90% of the world) with universal document types (passport, driving licence, national ID, birth certificate) plus country-specific documents for major jurisdictions. Community contributors add the rest.
+
+---
+
 ## 22. Acceptable Verifiers (UK Countersigning Standard)
 
 The spec previously named only "solicitors, doctors, notaries" as acceptable verifiers. This is far too narrow. The acceptable verifier list aligns with the **UK passport countersigning standard** — 40+ professions, each with a registered professional body.
