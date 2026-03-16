@@ -107,4 +107,4 @@ export interface AppPreferences {
   securityTier?: SecurityTier;
 }
 
-export type Page = 'home' | 'family' | 'add' | 'member-detail' | 'settings' | 'child-settings' | 'get-verified' | 'my-documents' | 'add-document';
+export type Page = 'home' | 'family' | 'add' | 'member-detail' | 'settings' | 'child-settings' | 'get-verified' | 'my-documents' | 'add-document' | 'verify-someone' | 'shamir' | 'identity-bridge' | 'import-nsec';

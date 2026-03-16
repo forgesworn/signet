@@ -13,6 +13,9 @@ import { Settings } from './pages/Settings';
 import { ChildSettingsPage } from './pages/ChildSettings';
 import { GetVerified } from './pages/GetVerified';
 import { MyDocuments } from './pages/MyDocuments';
+import { VerifySomeone } from './pages/VerifySomeone';
+import { ShamirBackup } from './pages/ShamirBackup';
+import { IdentityBridge } from './pages/IdentityBridge';
 import { getActiveDisplayName, getActivePubkey, getActivePrivateKey } from './lib/signet';
 
 export function App() {
@@ -22,6 +25,7 @@ export function App() {
 
   const [page, setPage] = useState<Page>('home');
   const [selectedMemberPubkey, setSelectedMemberPubkey] = useState<string | null>(null);
+  const [powerMode, setPowerMode] = useState(false);
 
   const handleCreate = useCallback(async (displayName: string, primaryKeypair: 'natural-person' | 'persona', isChild: boolean, guardianPubkey?: string) => {
     await create(displayName, primaryKeypair, isChild, guardianPubkey);
@@ -50,6 +54,11 @@ export function App() {
     setPage('family');
   }, []);
 
+  const handleImportNsec = useCallback(async (nsec: string, _displayName: string, _primaryKeypair: 'natural-person' | 'persona') => {
+    console.log('Import nsec:', nsec.slice(0, 8) + '...');
+    setPage('home');
+  }, []);
+
   // Loading
   if (identityLoading || prefsLoading) {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--text-secondary)' }}>Loading...</div>;
@@ -57,7 +66,7 @@ export function App() {
 
   // No identity — show onboarding
   if (!identity) {
-    return <Onboarding onCreate={handleCreate} onImport={handleImport} />;
+    return <Onboarding onCreate={handleCreate} onImport={handleImport} onImportNsec={handleImportNsec} />;
   }
 
   // Child identities (for parent's child settings)
@@ -76,6 +85,11 @@ export function App() {
           onDeleteIdentity={remove}
           onOpenChildSettings={() => setPage('child-settings')}
           hasChildren={childIdentities.length > 0}
+          powerMode={powerMode}
+          onSetPowerMode={setPowerMode}
+          onNavigateShamir={() => setPage('shamir')}
+          onNavigateBridge={() => setPage('identity-bridge')}
+          onSwitchPrimary={(_kp) => { /* placeholder: switch primary keypair */ }}
         />
       </Layout>
     );
@@ -133,6 +147,33 @@ export function App() {
     return (
       <Layout activePage={page} onNavigate={setPage} onSettingsOpen={() => setPage('settings')} title="My Documents" showBack onBack={() => setPage('home')}>
         <MyDocuments documents={[]} onAddDocument={() => setPage('add-document')} onSelectDocument={() => {}} />
+      </Layout>
+    );
+  }
+
+  // Verify Someone
+  if (page === 'verify-someone') {
+    return (
+      <Layout activePage={page} onNavigate={setPage} onSettingsOpen={() => setPage('settings')} title="Verify Someone" showBack onBack={() => setPage('home')}>
+        <VerifySomeone identity={identity} />
+      </Layout>
+    );
+  }
+
+  // Shamir Backup
+  if (page === 'shamir') {
+    return (
+      <Layout activePage={page} onNavigate={setPage} onSettingsOpen={() => setPage('settings')} title="Shamir Backup" showBack onBack={() => setPage('settings')}>
+        <ShamirBackup identity={identity} onBack={() => setPage('settings')} />
+      </Layout>
+    );
+  }
+
+  // Identity Bridge
+  if (page === 'identity-bridge') {
+    return (
+      <Layout activePage={page} onNavigate={setPage} onSettingsOpen={() => setPage('settings')} title="Identity Bridge" showBack onBack={() => setPage('settings')}>
+        <IdentityBridge identity={identity} onBack={() => setPage('settings')} />
       </Layout>
     );
   }

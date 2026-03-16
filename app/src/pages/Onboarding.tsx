@@ -4,13 +4,14 @@ import { validateMnemonic } from '../lib/signet';
 interface Props {
   onCreate: (displayName: string, primaryKeypair: 'natural-person' | 'persona', isChild: boolean, guardianPubkey?: string) => Promise<void>;
   onImport: (mnemonic: string, displayName: string, primaryKeypair: 'natural-person' | 'persona', isChild: boolean, guardianPubkey?: string) => Promise<void>;
+  onImportNsec: (nsec: string, displayName: string, primaryKeypair: 'natural-person' | 'persona') => Promise<void>;
 }
 
-type Flow = 'welcome' | 'create' | 'import';
+type Flow = 'welcome' | 'create' | 'import' | 'import-nsec';
 type CreateStep = 'name-choice' | 'name' | 'child-check' | 'guardian' | 'done';
 type ImportStep = 'phrase' | 'name-choice' | 'name' | 'done';
 
-export function Onboarding({ onCreate, onImport }: Props) {
+export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
   const [flow, setFlow] = useState<Flow>('welcome');
   const [createStep, setCreateStep] = useState<CreateStep>('name-choice');
   const [importStep, setImportStep] = useState<ImportStep>('phrase');
@@ -21,6 +22,8 @@ export function Onboarding({ onCreate, onImport }: Props) {
   const [isChild, setIsChild] = useState(false);
   const [guardianPubkey, setGuardianPubkey] = useState('');
   const [importWords, setImportWords] = useState('');
+  const [nsecInput, setNsecInput] = useState('');
+  const [nsecStep, setNsecStep] = useState<'nsec' | 'name-choice' | 'name'>('nsec');
   const [error, setError] = useState('');
 
   // --- Create flow ---
@@ -79,6 +82,27 @@ export function Onboarding({ onCreate, onImport }: Props) {
     await onImport(importWords.trim().toLowerCase(), displayName.trim(), primaryKeypair, isChild, guardianPubkey || undefined);
   };
 
+  // --- Import nsec flow ---
+  const handleNsecSubmit = () => {
+    const trimmed = nsecInput.trim();
+    if (!trimmed.startsWith('nsec1') || trimmed.length < 60) {
+      setError("That doesn't look like a valid Nostr private key. It should start with 'nsec1' and be at least 60 characters.");
+      return;
+    }
+    setError('');
+    setNsecStep('name-choice');
+  };
+
+  const handleNsecNameChoice = (choice: 'natural-person' | 'persona') => {
+    setPrimaryKeypair(choice);
+    setNsecStep('name');
+  };
+
+  const handleNsecComplete = async () => {
+    if (!displayName.trim()) return;
+    await onImportNsec(nsecInput.trim(), displayName.trim(), primaryKeypair);
+  };
+
   // --- Render ---
   if (flow === 'welcome') {
     return (
@@ -92,6 +116,7 @@ export function Onboarding({ onCreate, onImport }: Props) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <button className="btn btn-primary" onClick={() => setFlow('create')}>Create My Signet</button>
           <button className="btn btn-secondary" onClick={() => setFlow('import')}>I have my 12 backup words</button>
+          <button className="btn btn-secondary" onClick={() => setFlow('import-nsec')}>I have a Nostr account</button>
         </div>
       </div>
     );
@@ -265,6 +290,87 @@ export function Onboarding({ onCreate, onImport }: Props) {
             Restore My Signet
           </button>
           <button className="btn btn-ghost" onClick={() => setImportStep('name-choice')} style={{ marginTop: 8 }}>
+            Back
+          </button>
+        </div>
+      );
+    }
+
+    return null;
+  }
+
+  if (flow === 'import-nsec') {
+    if (nsecStep === 'nsec') {
+      return (
+        <div className="page fade-in">
+          <h1 style={{ marginBottom: 8 }}>Enter your Nostr private key</h1>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
+            Paste your nsec key to import your existing Nostr account into Signet.
+          </p>
+          {error && (
+            <div style={{ padding: 8, background: 'var(--danger-light)', borderRadius: 'var(--radius-sm)', marginBottom: 12, color: 'var(--danger)', fontSize: '0.9rem' }}>
+              {error}
+            </div>
+          )}
+          <textarea
+            className="input"
+            rows={3}
+            placeholder="nsec1..."
+            value={nsecInput}
+            onChange={e => setNsecInput(e.target.value)}
+            style={{ resize: 'none', fontFamily: 'monospace', fontSize: '0.9rem' }}
+            autoFocus
+          />
+          <button className="btn btn-primary" onClick={handleNsecSubmit} style={{ marginTop: 16 }}>
+            Continue
+          </button>
+          <button className="btn btn-ghost" onClick={() => setFlow('welcome')} style={{ marginTop: 8 }}>
+            Back
+          </button>
+        </div>
+      );
+    }
+
+    if (nsecStep === 'name-choice') {
+      return (
+        <div className="page fade-in">
+          <h1 style={{ marginBottom: 8 }}>How do you want to appear?</h1>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
+            Do you want to use your real name, or a nickname?
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <button className="btn btn-primary" onClick={() => handleNsecNameChoice('natural-person')}>Use my real name</button>
+            <button className="btn btn-secondary" onClick={() => handleNsecNameChoice('persona')}>Use a nickname</button>
+          </div>
+          <button className="btn btn-ghost" onClick={() => setNsecStep('nsec')} style={{ marginTop: 8 }}>
+            Back
+          </button>
+        </div>
+      );
+    }
+
+    if (nsecStep === 'name') {
+      return (
+        <div className="page fade-in">
+          <h1 style={{ marginBottom: 8 }}>What should we call you?</h1>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>
+            Your name, a nickname, whatever you like. You can change it anytime.
+          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 24 }}>
+            e.g. "Margaret Smith" or "DarkWolf99"
+          </p>
+          <input
+            className="input"
+            placeholder="Your name or nickname"
+            value={displayName}
+            onChange={e => setDisplayName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleNsecComplete()}
+            autoFocus
+          />
+          <button className="btn btn-primary" onClick={handleNsecComplete} disabled={!displayName.trim()} style={{ marginTop: 16 }}>
+            Import My Account
+          </button>
+          <button className="btn btn-ghost" onClick={() => setNsecStep('name-choice')} style={{ marginTop: 8 }}>
             Back
           </button>
         </div>
