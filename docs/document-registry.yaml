@@ -1,0 +1,1173 @@
+# Signet Document Type Registry
+# Version: 1.0.0
+# Maintained separately from the protocol spec.
+# Adding a new country or document type does not require a protocol revision.
+#
+# Referenced by: spec/protocol.md §24.6
+# Used by: family-app (document entry forms), protocol library (nullifier computation)
+#
+# Nullifier computation (spec §20.7):
+#   nullifier = SHA-256(
+#     LP(document_type) || LP(country_code) || LP(document_number) || LP("signet-nullifier-v2")
+#   )
+#   where LP(x) = uint16be(len(x)) || x
+#
+# nullifier_fields lists the three semantic slot values [docType, country, docNumber].
+# The domain tag "signet-nullifier-v2" is always appended by the library — do not include it here.
+#
+# number_changes_on_renewal: true  — a new document means a new nullifier (new number)
+# number_changes_on_renewal: false — the same number persists across renewals (stable nullifier)
+#
+# Field key namespaces:
+#   signet:  — universal fields defined by the Signet protocol
+#   <cc>:    — country-specific fields (lowercase ISO 3166-1 alpha-2, e.g. gb:, us:, in:)
+
+version: "1.0.0"
+updated: "2026-03-16"
+
+# ---------------------------------------------------------------------------
+# Universal fields — present (with these exact keys) across all document types
+# ---------------------------------------------------------------------------
+universal_fields:
+  - key: "signet:name"
+    label: "Full name"
+    required: true
+  - key: "signet:dateOfBirth"
+    label: "Date of birth"
+    required: true
+
+# ---------------------------------------------------------------------------
+# Countries
+# ---------------------------------------------------------------------------
+countries:
+
+  # ---------- United Kingdom ----------
+  GB:
+    name: "United Kingdom"
+    documents:
+
+      passport:
+        label: "Passport"
+        fields:
+          - { key: "signet:name",           label: "Full name",        required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",    required: true  }
+          - { key: "signet:nationality",     label: "Nationality",      required: true  }
+          - { key: "signet:documentNumber",  label: "Passport number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",      required: true  }
+          - { key: "signet:documentIssued",  label: "Issue date",       required: false }
+          - { key: "signet:placeOfBirth",    label: "Place of birth",   required: false }
+        nullifier_fields: ["passport", "GB", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      driving_licence:
+        label: "Driving Licence"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "Licence number",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+          - { key: "signet:address",         label: "Address",                      required: false }
+          - { key: "gb:dvlaCategories",      label: "Driving categories",           required: false }
+        nullifier_fields: ["driving_licence", "GB", "signet:documentNumber"]
+        # UK driving licence number encodes name and DOB; it does NOT change on renewal
+        # (the encoded number persists unless the name or DOB changes)
+        number_changes_on_renewal: false
+
+      national_insurance_card:
+        label: "National Insurance Card"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: false }
+          - { key: "gb:nationalInsurance",  label: "National Insurance number",    required: true  }
+        nullifier_fields: ["national_insurance", "GB", "gb:nationalInsurance"]
+        # NI number is assigned for life and never changes
+        number_changes_on_renewal: false
+
+      birth_certificate:
+        label: "Birth Certificate"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:placeOfBirth",    label: "Place of birth",               required: true  }
+          - { key: "gb:registrationNumber", label: "Registration number",          required: true  }
+          - { key: "gb:registrationDistrict", label: "Registration district",      required: false }
+        nullifier_fields: ["birth_certificate", "GB", "gb:registrationNumber"]
+        number_changes_on_renewal: false
+
+  # ---------- United States ----------
+  US:
+    name: "United States"
+    documents:
+
+      passport:
+        label: "Passport"
+        fields:
+          - { key: "signet:name",           label: "Full name",        required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",    required: true  }
+          - { key: "signet:nationality",     label: "Nationality",      required: true  }
+          - { key: "signet:documentNumber",  label: "Passport number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",      required: true  }
+          - { key: "signet:documentIssued",  label: "Issue date",       required: false }
+          - { key: "signet:placeOfBirth",    label: "Place of birth",   required: false }
+        nullifier_fields: ["passport", "US", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      drivers_license:
+        label: "Driver's License"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "License number",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+          - { key: "signet:address",         label: "Address",                      required: false }
+          - { key: "us:issuingState",        label: "Issuing state",                required: true  }
+          - { key: "us:licenseClass",        label: "License class",                required: false }
+        nullifier_fields: ["drivers_license", "US", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      social_security_card:
+        label: "Social Security Card"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: false }
+          - { key: "us:ssn",                label: "Social Security Number",       required: true  }
+        nullifier_fields: ["social_security", "US", "us:ssn"]
+        # SSN is assigned once and never changes (even if card is replaced)
+        number_changes_on_renewal: false
+
+      state_id:
+        label: "State ID Card"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "ID number",                    required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+          - { key: "signet:address",         label: "Address",                      required: false }
+          - { key: "us:issuingState",        label: "Issuing state",                required: true  }
+        nullifier_fields: ["state_id", "US", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      birth_certificate:
+        label: "Birth Certificate"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:placeOfBirth",    label: "Place of birth",               required: true  }
+          - { key: "us:certificateNumber",  label: "Certificate number",           required: true  }
+          - { key: "us:issuingState",        label: "Issuing state",                required: true  }
+        nullifier_fields: ["birth_certificate", "US", "us:certificateNumber"]
+        number_changes_on_renewal: false
+
+  # ---------- India ----------
+  IN:
+    name: "India"
+    documents:
+
+      passport:
+        label: "Passport"
+        fields:
+          - { key: "signet:name",           label: "Full name",        required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",    required: true  }
+          - { key: "signet:nationality",     label: "Nationality",      required: true  }
+          - { key: "signet:documentNumber",  label: "Passport number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",      required: true  }
+          - { key: "signet:documentIssued",  label: "Issue date",       required: false }
+          - { key: "signet:placeOfBirth",    label: "Place of birth",   required: false }
+        nullifier_fields: ["passport", "IN", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      aadhaar:
+        label: "Aadhaar Card"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:address",         label: "Address",                      required: false }
+          - { key: "in:aadhaar",            label: "Aadhaar number (12 digits)",   required: true  }
+        nullifier_fields: ["aadhaar", "IN", "in:aadhaar"]
+        # Aadhaar number is permanent; a replacement card carries the same number
+        number_changes_on_renewal: false
+
+      pan_card:
+        label: "PAN Card"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "in:pan",                label: "PAN (10-character alphanumeric)", required: true }
+        nullifier_fields: ["pan_card", "IN", "in:pan"]
+        # PAN is permanent; replacement carries the same number
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Driving Licence"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "Licence number",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+          - { key: "in:issuingRTO",         label: "Issuing RTO",                  required: false }
+        nullifier_fields: ["driving_licence", "IN", "signet:documentNumber"]
+        number_changes_on_renewal: false
+
+      voter_id:
+        label: "Voter ID (EPIC)"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:address",         label: "Address",                      required: false }
+          - { key: "in:epicNumber",         label: "EPIC number",                  required: true  }
+          - { key: "in:assembly",           label: "Assembly constituency",        required: false }
+        nullifier_fields: ["voter_id", "IN", "in:epicNumber"]
+        number_changes_on_renewal: false
+
+  # ---------- China ----------
+  CN:
+    name: "China"
+    documents:
+
+      passport:
+        label: "Passport (护照)"
+        fields:
+          - { key: "signet:name",           label: "Full name",        required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",    required: true  }
+          - { key: "signet:nationality",     label: "Nationality",      required: true  }
+          - { key: "signet:documentNumber",  label: "Passport number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",      required: true  }
+          - { key: "signet:documentIssued",  label: "Issue date",       required: false }
+          - { key: "signet:placeOfBirth",    label: "Place of birth",   required: false }
+        nullifier_fields: ["passport", "CN", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      resident_identity_card:
+        label: "Resident Identity Card (居民身份证)"
+        fields:
+          - { key: "signet:name",           label: "Full name (姓名)",             required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:address",         label: "Registered address (户籍)",    required: false }
+          - { key: "cn:citizenId",          label: "Citizen ID number (18 digits)", required: true }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+        nullifier_fields: ["resident_identity_card", "CN", "cn:citizenId"]
+        # The 18-digit Citizen ID encodes birth data and is stable across renewals
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Driving Licence (驾驶证)"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "Licence number",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+        nullifier_fields: ["driving_licence", "CN", "signet:documentNumber"]
+        number_changes_on_renewal: false
+
+  # ---------- Brazil ----------
+  BR:
+    name: "Brazil"
+    documents:
+
+      passport:
+        label: "Passaporte"
+        fields:
+          - { key: "signet:name",           label: "Nome completo",    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Data de nascimento", required: true }
+          - { key: "signet:nationality",     label: "Nacionalidade",    required: true  }
+          - { key: "signet:documentNumber",  label: "Número do passaporte", required: true }
+          - { key: "signet:documentExpiry",  label: "Data de validade", required: true  }
+          - { key: "signet:documentIssued",  label: "Data de emissão",  required: false }
+        nullifier_fields: ["passport", "BR", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      cpf:
+        label: "CPF (Cadastro de Pessoas Físicas)"
+        fields:
+          - { key: "signet:name",           label: "Nome completo",                required: true  }
+          - { key: "signet:dateOfBirth",     label: "Data de nascimento",           required: true  }
+          - { key: "br:cpf",                label: "Número do CPF (11 dígitos)",   required: true  }
+        nullifier_fields: ["cpf", "BR", "br:cpf"]
+        # CPF is permanent; the number never changes
+        number_changes_on_renewal: false
+
+      rg:
+        label: "RG (Cédula de Identidade)"
+        fields:
+          - { key: "signet:name",           label: "Nome completo",                required: true  }
+          - { key: "signet:dateOfBirth",     label: "Data de nascimento",           required: true  }
+          - { key: "signet:documentNumber",  label: "Número do RG",                 required: true  }
+          - { key: "br:rgIssuingState",     label: "Estado emissor",               required: true  }
+          - { key: "br:rgIssuingBody",      label: "Órgão emissor",                required: false }
+        nullifier_fields: ["rg", "BR", "signet:documentNumber"]
+        # RG number can vary by state; a new RG in another state gets a new number
+        number_changes_on_renewal: true
+
+      cnh:
+        label: "CNH (Carteira Nacional de Habilitação)"
+        fields:
+          - { key: "signet:name",           label: "Nome completo",                required: true  }
+          - { key: "signet:dateOfBirth",     label: "Data de nascimento",           required: true  }
+          - { key: "signet:documentNumber",  label: "Número do registro (CNH)",     required: true  }
+          - { key: "signet:documentExpiry",  label: "Data de validade",             required: true  }
+          - { key: "br:cnhCategory",        label: "Categoria",                    required: false }
+        nullifier_fields: ["driving_licence", "BR", "signet:documentNumber"]
+        number_changes_on_renewal: false
+
+  # ---------- Nigeria ----------
+  NG:
+    name: "Nigeria"
+    documents:
+
+      passport:
+        label: "International Passport"
+        fields:
+          - { key: "signet:name",           label: "Full name",        required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",    required: true  }
+          - { key: "signet:nationality",     label: "Nationality",      required: true  }
+          - { key: "signet:documentNumber",  label: "Passport number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",      required: true  }
+          - { key: "signet:documentIssued",  label: "Issue date",       required: false }
+        nullifier_fields: ["passport", "NG", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      nin:
+        label: "NIN Slip / NIMC Card (National Identification Number)"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "ng:nin",                label: "NIN (11 digits)",              required: true  }
+        nullifier_fields: ["nin", "NG", "ng:nin"]
+        # NIN is assigned for life and never changes
+        number_changes_on_renewal: false
+
+      voters_card:
+        label: "Permanent Voter's Card (PVC)"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "ng:vincNumber",         label: "VINC number",                  required: true  }
+          - { key: "ng:pollingUnit",        label: "Polling unit",                 required: false }
+        nullifier_fields: ["voters_card", "NG", "ng:vincNumber"]
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Driving Licence"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "Licence number",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+        nullifier_fields: ["driving_licence", "NG", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+  # ---------- Germany ----------
+  DE:
+    name: "Germany"
+    documents:
+
+      passport:
+        label: "Reisepass"
+        fields:
+          - { key: "signet:name",           label: "Name",             required: true  }
+          - { key: "signet:dateOfBirth",     label: "Geburtsdatum",     required: true  }
+          - { key: "signet:nationality",     label: "Staatsangehörigkeit", required: true }
+          - { key: "signet:documentNumber",  label: "Passnummer",       required: true  }
+          - { key: "signet:documentExpiry",  label: "Gültig bis",       required: true  }
+          - { key: "signet:documentIssued",  label: "Ausgestellt am",   required: false }
+          - { key: "signet:placeOfBirth",    label: "Geburtsort",       required: false }
+        nullifier_fields: ["passport", "DE", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      personalausweis:
+        label: "Personalausweis (National ID)"
+        fields:
+          - { key: "signet:name",           label: "Name",                         required: true  }
+          - { key: "signet:dateOfBirth",     label: "Geburtsdatum",                 required: true  }
+          - { key: "signet:documentNumber",  label: "Ausweisnummer",                required: true  }
+          - { key: "signet:documentExpiry",  label: "Gültig bis",                   required: true  }
+          - { key: "signet:nationality",     label: "Staatsangehörigkeit",          required: true  }
+          - { key: "signet:address",         label: "Anschrift",                    required: false }
+        nullifier_fields: ["national_id", "DE", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      driving_licence:
+        label: "Führerschein"
+        fields:
+          - { key: "signet:name",           label: "Name",                         required: true  }
+          - { key: "signet:dateOfBirth",     label: "Geburtsdatum",                 required: true  }
+          - { key: "signet:documentNumber",  label: "Führerscheinnummer",           required: true  }
+          - { key: "signet:documentExpiry",  label: "Gültig bis",                   required: true  }
+          - { key: "de:licenceClasses",     label: "Klassen",                      required: false }
+        nullifier_fields: ["driving_licence", "DE", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      steuer_id:
+        label: "Steuerliche Identifikationsnummer (Steuer-ID)"
+        fields:
+          - { key: "signet:name",           label: "Name",                         required: true  }
+          - { key: "signet:dateOfBirth",     label: "Geburtsdatum",                 required: true  }
+          - { key: "de:steuerId",           label: "Steuer-ID (11 Stellen)",       required: true  }
+        nullifier_fields: ["steuer_id", "DE", "de:steuerId"]
+        # Steuer-ID is assigned at birth (or on registration) and never changes
+        number_changes_on_renewal: false
+
+  # ---------- France ----------
+  FR:
+    name: "France"
+    documents:
+
+      passport:
+        label: "Passeport"
+        fields:
+          - { key: "signet:name",           label: "Nom et prénoms",   required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date de naissance", required: true }
+          - { key: "signet:nationality",     label: "Nationalité",      required: true  }
+          - { key: "signet:documentNumber",  label: "Numéro de passeport", required: true }
+          - { key: "signet:documentExpiry",  label: "Date d'expiration", required: true }
+          - { key: "signet:documentIssued",  label: "Date de délivrance", required: false }
+          - { key: "signet:placeOfBirth",    label: "Lieu de naissance", required: false }
+        nullifier_fields: ["passport", "FR", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      carte_nationale_identite:
+        label: "Carte nationale d'identité (CNI)"
+        fields:
+          - { key: "signet:name",           label: "Nom et prénoms",               required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date de naissance",            required: true  }
+          - { key: "signet:documentNumber",  label: "Numéro de la carte",           required: true  }
+          - { key: "signet:documentExpiry",  label: "Date d'expiration",            required: true  }
+          - { key: "signet:nationality",     label: "Nationalité",                  required: true  }
+          - { key: "signet:placeOfBirth",    label: "Lieu de naissance",            required: false }
+        nullifier_fields: ["national_id", "FR", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      carte_vitale:
+        label: "Carte Vitale (Sécurité sociale)"
+        fields:
+          - { key: "signet:name",           label: "Nom et prénoms",               required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date de naissance",            required: true  }
+          - { key: "fr:nir",                label: "Numéro de sécurité sociale (NIR, 15 chiffres)", required: true }
+        nullifier_fields: ["carte_vitale", "FR", "fr:nir"]
+        # NIR is assigned at birth and never changes
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Permis de conduire"
+        fields:
+          - { key: "signet:name",           label: "Nom et prénoms",               required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date de naissance",            required: true  }
+          - { key: "signet:documentNumber",  label: "Numéro du permis",             required: true  }
+          - { key: "signet:documentExpiry",  label: "Date d'expiration",            required: true  }
+          - { key: "fr:licenceCategories",  label: "Catégories",                   required: false }
+        nullifier_fields: ["driving_licence", "FR", "signet:documentNumber"]
+        number_changes_on_renewal: false
+
+  # ---------- Japan ----------
+  JP:
+    name: "Japan"
+    documents:
+
+      passport:
+        label: "旅券 (Passport)"
+        fields:
+          - { key: "signet:name",           label: "氏名 / Full name", required: true  }
+          - { key: "signet:dateOfBirth",     label: "生年月日 / Date of birth", required: true }
+          - { key: "signet:nationality",     label: "国籍 / Nationality", required: true }
+          - { key: "signet:documentNumber",  label: "旅券番号 / Passport number", required: true }
+          - { key: "signet:documentExpiry",  label: "有効期限 / Expiry date", required: true }
+          - { key: "signet:documentIssued",  label: "発行日 / Issue date", required: false }
+        nullifier_fields: ["passport", "JP", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      my_number_card:
+        label: "マイナンバーカード (My Number Card)"
+        fields:
+          - { key: "signet:name",           label: "氏名 / Full name",             required: true  }
+          - { key: "signet:dateOfBirth",     label: "生年月日 / Date of birth",     required: true  }
+          - { key: "signet:address",         label: "住所 / Address",               required: false }
+          - { key: "jp:myNumber",           label: "個人番号 / My Number (12 digits)", required: true }
+          - { key: "signet:documentExpiry",  label: "有効期限 / Expiry date",       required: true  }
+        nullifier_fields: ["my_number_card", "JP", "jp:myNumber"]
+        # My Number is assigned at birth and is lifetime; the card expires but the number does not
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "運転免許証 (Driving Licence)"
+        fields:
+          - { key: "signet:name",           label: "氏名 / Full name",             required: true  }
+          - { key: "signet:dateOfBirth",     label: "生年月日 / Date of birth",     required: true  }
+          - { key: "signet:documentNumber",  label: "免許証番号 / Licence number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "有効期限 / Expiry date",       required: true  }
+          - { key: "signet:address",         label: "住所 / Address",               required: false }
+          - { key: "jp:licenceClasses",     label: "免許種類 / Licence classes",   required: false }
+        nullifier_fields: ["driving_licence", "JP", "signet:documentNumber"]
+        # JP licence number is a 12-digit number that stays stable across renewals
+        number_changes_on_renewal: false
+
+  # ---------- Australia ----------
+  AU:
+    name: "Australia"
+    documents:
+
+      passport:
+        label: "Passport"
+        fields:
+          - { key: "signet:name",           label: "Full name",        required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",    required: true  }
+          - { key: "signet:nationality",     label: "Nationality",      required: true  }
+          - { key: "signet:documentNumber",  label: "Passport number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",      required: true  }
+          - { key: "signet:documentIssued",  label: "Issue date",       required: false }
+        nullifier_fields: ["passport", "AU", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      driving_licence:
+        label: "Driving Licence"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "Licence number",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+          - { key: "signet:address",         label: "Address",                      required: false }
+          - { key: "au:issuingState",        label: "Issuing state/territory",      required: true  }
+          - { key: "au:licenceClasses",     label: "Licence classes",              required: false }
+        nullifier_fields: ["driving_licence", "AU", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      medicare_card:
+        label: "Medicare Card"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "au:medicareNumber",     label: "Medicare number (10 digits)",  required: true  }
+          - { key: "au:medicareIRN",        label: "Individual Reference Number (IRN)", required: true }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+        nullifier_fields: ["medicare_card", "AU", "au:medicareNumber"]
+        # Medicare number stays stable; a new card issued for the same person keeps the same number
+        number_changes_on_renewal: false
+
+      birth_certificate:
+        label: "Birth Certificate"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:placeOfBirth",    label: "Place of birth",               required: true  }
+          - { key: "au:registrationNumber", label: "Registration number",          required: true  }
+          - { key: "au:issuingState",        label: "Issuing state/territory",      required: true  }
+        nullifier_fields: ["birth_certificate", "AU", "au:registrationNumber"]
+        number_changes_on_renewal: false
+
+  # ---------- Canada ----------
+  CA:
+    name: "Canada"
+    documents:
+
+      passport:
+        label: "Passport / Passeport"
+        fields:
+          - { key: "signet:name",           label: "Full name / Nom complet", required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth / Date de naissance", required: true }
+          - { key: "signet:nationality",     label: "Nationality / Nationalité", required: true }
+          - { key: "signet:documentNumber",  label: "Passport number / Numéro de passeport", required: true }
+          - { key: "signet:documentExpiry",  label: "Expiry date / Date d'expiration", required: true }
+          - { key: "signet:documentIssued",  label: "Issue date / Date de délivrance", required: false }
+        nullifier_fields: ["passport", "CA", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      driving_licence:
+        label: "Driver's Licence / Permis de conduire"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "Licence number",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+          - { key: "signet:address",         label: "Address",                      required: false }
+          - { key: "ca:issuingProvince",    label: "Issuing province/territory",   required: true  }
+        nullifier_fields: ["driving_licence", "CA", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      sin_card:
+        label: "Social Insurance Number (SIN)"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: false }
+          - { key: "ca:sin",                label: "SIN (9 digits)",               required: true  }
+        nullifier_fields: ["sin", "CA", "ca:sin"]
+        # SIN is assigned once and is permanent
+        number_changes_on_renewal: false
+
+      birth_certificate:
+        label: "Birth Certificate / Acte de naissance"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:placeOfBirth",    label: "Place of birth",               required: true  }
+          - { key: "ca:registrationNumber", label: "Registration number",          required: true  }
+          - { key: "ca:issuingProvince",    label: "Issuing province/territory",   required: true  }
+        nullifier_fields: ["birth_certificate", "CA", "ca:registrationNumber"]
+        number_changes_on_renewal: false
+
+  # ---------- Kenya ----------
+  KE:
+    name: "Kenya"
+    documents:
+
+      passport:
+        label: "Passport"
+        fields:
+          - { key: "signet:name",           label: "Full name",        required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",    required: true  }
+          - { key: "signet:nationality",     label: "Nationality",      required: true  }
+          - { key: "signet:documentNumber",  label: "Passport number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",      required: true  }
+          - { key: "signet:documentIssued",  label: "Issue date",       required: false }
+        nullifier_fields: ["passport", "KE", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      national_id:
+        label: "National ID (Huduma Namba)"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "ke:nationalId",         label: "National ID number",           required: true  }
+          - { key: "ke:hudumaNumber",       label: "Huduma Namba (NIIMS)",         required: false }
+        nullifier_fields: ["national_id", "KE", "ke:nationalId"]
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Driving Licence"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "Licence number",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+        nullifier_fields: ["driving_licence", "KE", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+  # ---------- South Africa ----------
+  ZA:
+    name: "South Africa"
+    documents:
+
+      passport:
+        label: "Passport"
+        fields:
+          - { key: "signet:name",           label: "Full name",        required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",    required: true  }
+          - { key: "signet:nationality",     label: "Nationality",      required: true  }
+          - { key: "signet:documentNumber",  label: "Passport number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",      required: true  }
+          - { key: "signet:documentIssued",  label: "Issue date",       required: false }
+        nullifier_fields: ["passport", "ZA", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      smart_id_card:
+        label: "Smart ID Card (Green Barcoded ID / Smart Card)"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "za:idNumber",           label: "South African ID number (13 digits)", required: true }
+        nullifier_fields: ["national_id", "ZA", "za:idNumber"]
+        # The 13-digit ID number encodes DOB and gender; it is assigned once and never changes
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Driving Licence Card"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "Licence number",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+          - { key: "za:idNumber",           label: "SA ID number",                 required: false }
+          - { key: "za:licenceCode",        label: "Licence code",                 required: false }
+        nullifier_fields: ["driving_licence", "ZA", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+  # ---------- Pakistan ----------
+  PK:
+    name: "Pakistan"
+    documents:
+
+      passport:
+        label: "Passport"
+        fields:
+          - { key: "signet:name",           label: "Full name",        required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",    required: true  }
+          - { key: "signet:nationality",     label: "Nationality",      required: true  }
+          - { key: "signet:documentNumber",  label: "Passport number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",      required: true  }
+          - { key: "signet:documentIssued",  label: "Issue date",       required: false }
+        nullifier_fields: ["passport", "PK", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      cnic:
+        label: "CNIC / NICOP (National Identity Card)"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "pk:cnic",               label: "CNIC number (13 digits, XXXXX-XXXXXXX-X)", required: true }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+          - { key: "pk:fatherName",         label: "Father's name",                required: false }
+        nullifier_fields: ["cnic", "PK", "pk:cnic"]
+        # CNIC number is permanent; replacement cards carry the same number
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Driving Licence"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "Licence number",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+          - { key: "pk:issuingDistrict",    label: "Issuing district",             required: false }
+        nullifier_fields: ["driving_licence", "PK", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+  # ---------- Indonesia ----------
+  ID:
+    name: "Indonesia"
+    documents:
+
+      passport:
+        label: "Paspor"
+        fields:
+          - { key: "signet:name",           label: "Nama lengkap",     required: true  }
+          - { key: "signet:dateOfBirth",     label: "Tanggal lahir",    required: true  }
+          - { key: "signet:nationality",     label: "Kewarganegaraan",  required: true  }
+          - { key: "signet:documentNumber",  label: "Nomor paspor",     required: true  }
+          - { key: "signet:documentExpiry",  label: "Berlaku hingga",   required: true  }
+          - { key: "signet:documentIssued",  label: "Tanggal penerbitan", required: false }
+        nullifier_fields: ["passport", "ID", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      ktp:
+        label: "KTP (Kartu Tanda Penduduk — National ID)"
+        fields:
+          - { key: "signet:name",           label: "Nama",                         required: true  }
+          - { key: "signet:dateOfBirth",     label: "Tanggal lahir",                required: true  }
+          - { key: "signet:address",         label: "Alamat",                       required: false }
+          - { key: "id:nik",                label: "NIK (16-digit Nomor Induk Kependudukan)", required: true }
+          - { key: "id:religion",           label: "Agama",                        required: false }
+        nullifier_fields: ["ktp", "ID", "id:nik"]
+        # NIK is permanent and lifetime; replacement KTP carries the same NIK
+        number_changes_on_renewal: false
+
+      sim:
+        label: "SIM (Surat Izin Mengemudi — Driving Licence)"
+        fields:
+          - { key: "signet:name",           label: "Nama",                         required: true  }
+          - { key: "signet:dateOfBirth",     label: "Tanggal lahir",                required: true  }
+          - { key: "signet:documentNumber",  label: "Nomor SIM",                    required: true  }
+          - { key: "signet:documentExpiry",  label: "Berlaku hingga",               required: true  }
+          - { key: "id:simClass",           label: "Golongan SIM",                 required: false }
+        nullifier_fields: ["driving_licence", "ID", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+  # ---------- Mexico ----------
+  MX:
+    name: "Mexico"
+    documents:
+
+      passport:
+        label: "Pasaporte"
+        fields:
+          - { key: "signet:name",           label: "Nombre completo",  required: true  }
+          - { key: "signet:dateOfBirth",     label: "Fecha de nacimiento", required: true }
+          - { key: "signet:nationality",     label: "Nacionalidad",     required: true  }
+          - { key: "signet:documentNumber",  label: "Número de pasaporte", required: true }
+          - { key: "signet:documentExpiry",  label: "Fecha de expiración", required: true }
+          - { key: "signet:documentIssued",  label: "Fecha de expedición", required: false }
+        nullifier_fields: ["passport", "MX", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      ine_ife:
+        label: "INE / IFE (Credencial para votar)"
+        fields:
+          - { key: "signet:name",           label: "Nombre completo",              required: true  }
+          - { key: "signet:dateOfBirth",     label: "Fecha de nacimiento",          required: true  }
+          - { key: "signet:address",         label: "Domicilio",                    required: false }
+          - { key: "mx:claveElector",       label: "Clave de elector",             required: true  }
+          - { key: "mx:curp",               label: "CURP",                         required: false }
+          - { key: "signet:documentExpiry",  label: "Vigencia",                     required: true  }
+        nullifier_fields: ["ine_ife", "MX", "mx:claveElector"]
+        # Clave de elector is permanent and does not change on renewal
+        number_changes_on_renewal: false
+
+      curp:
+        label: "CURP (Clave Única de Registro de Población)"
+        fields:
+          - { key: "signet:name",           label: "Nombre completo",              required: true  }
+          - { key: "signet:dateOfBirth",     label: "Fecha de nacimiento",          required: true  }
+          - { key: "signet:placeOfBirth",    label: "Lugar de nacimiento",          required: false }
+          - { key: "mx:curp",               label: "CURP (18 caracteres)",         required: true  }
+        nullifier_fields: ["curp", "MX", "mx:curp"]
+        # CURP is assigned at birth and never changes
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Licencia de conducir"
+        fields:
+          - { key: "signet:name",           label: "Nombre completo",              required: true  }
+          - { key: "signet:dateOfBirth",     label: "Fecha de nacimiento",          required: true  }
+          - { key: "signet:documentNumber",  label: "Número de licencia",           required: true  }
+          - { key: "signet:documentExpiry",  label: "Fecha de expiración",          required: true  }
+          - { key: "mx:issuingState",       label: "Estado emisor",                required: true  }
+        nullifier_fields: ["driving_licence", "MX", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+  # ---------- Philippines ----------
+  PH:
+    name: "Philippines"
+    documents:
+
+      passport:
+        label: "Passport"
+        fields:
+          - { key: "signet:name",           label: "Full name",        required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",    required: true  }
+          - { key: "signet:nationality",     label: "Nationality",      required: true  }
+          - { key: "signet:documentNumber",  label: "Passport number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",      required: true  }
+          - { key: "signet:documentIssued",  label: "Issue date",       required: false }
+        nullifier_fields: ["passport", "PH", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      philsys_id:
+        label: "PhilSys ID (Philippine Identification System Card)"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:address",         label: "Address",                      required: false }
+          - { key: "ph:psn",                label: "PhilSys Number (PSN)",         required: true  }
+        nullifier_fields: ["philsys_id", "PH", "ph:psn"]
+        # PSN is a lifetime number assigned once; a replacement card carries the same PSN
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Driver's License (LTO)"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "License number",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+          - { key: "ph:licenceRestrictions", label: "Restriction codes",           required: false }
+        nullifier_fields: ["driving_licence", "PH", "signet:documentNumber"]
+        # LTO licence number is the same driver number across renewals
+        number_changes_on_renewal: false
+
+  # ---------- Egypt ----------
+  EG:
+    name: "Egypt"
+    documents:
+
+      passport:
+        label: "جواز سفر (Passport)"
+        fields:
+          - { key: "signet:name",           label: "الاسم / Full name", required: true  }
+          - { key: "signet:dateOfBirth",     label: "تاريخ الميلاد / Date of birth", required: true }
+          - { key: "signet:nationality",     label: "الجنسية / Nationality", required: true }
+          - { key: "signet:documentNumber",  label: "رقم الجواز / Passport number", required: true }
+          - { key: "signet:documentExpiry",  label: "تاريخ الانتهاء / Expiry date", required: true }
+          - { key: "signet:documentIssued",  label: "تاريخ الإصدار / Issue date", required: false }
+        nullifier_fields: ["passport", "EG", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      national_id:
+        label: "بطاقة الرقم القومي (National ID)"
+        fields:
+          - { key: "signet:name",           label: "الاسم / Full name",            required: true  }
+          - { key: "signet:dateOfBirth",     label: "تاريخ الميلاد / Date of birth", required: true }
+          - { key: "signet:address",         label: "العنوان / Address",            required: false }
+          - { key: "eg:nationalId",         label: "الرقم القومي / National ID (14 digits)", required: true }
+          - { key: "signet:documentExpiry",  label: "تاريخ الانتهاء / Expiry date", required: true }
+        nullifier_fields: ["national_id", "EG", "eg:nationalId"]
+        # The 14-digit national number encodes DOB and governorate; it is permanent
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "رخصة القيادة (Driving Licence)"
+        fields:
+          - { key: "signet:name",           label: "الاسم / Full name",            required: true  }
+          - { key: "signet:dateOfBirth",     label: "تاريخ الميلاد / Date of birth", required: true }
+          - { key: "signet:documentNumber",  label: "رقم الرخصة / Licence number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "تاريخ الانتهاء / Expiry date", required: true }
+        nullifier_fields: ["driving_licence", "EG", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+  # ---------- Bangladesh ----------
+  BD:
+    name: "Bangladesh"
+    documents:
+
+      passport:
+        label: "পাসপোর্ট (Passport)"
+        fields:
+          - { key: "signet:name",           label: "Full name",        required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",    required: true  }
+          - { key: "signet:nationality",     label: "Nationality",      required: true  }
+          - { key: "signet:documentNumber",  label: "Passport number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",      required: true  }
+          - { key: "signet:documentIssued",  label: "Issue date",       required: false }
+        nullifier_fields: ["passport", "BD", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      nid:
+        label: "জাতীয় পরিচয়পত্র (National ID Card)"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:address",         label: "Address",                      required: false }
+          - { key: "bd:nid",                label: "NID number (10 or 17 digits)", required: true  }
+        nullifier_fields: ["nid", "BD", "bd:nid"]
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "ড্রাইভিং লাইসেন্স (Driving Licence)"
+        fields:
+          - { key: "signet:name",           label: "Full name",                    required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth",                required: true  }
+          - { key: "signet:documentNumber",  label: "Licence number",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date",                  required: true  }
+        nullifier_fields: ["driving_licence", "BD", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+  # ---------- Italy ----------
+  IT:
+    name: "Italy"
+    documents:
+
+      passport:
+        label: "Passaporto"
+        fields:
+          - { key: "signet:name",           label: "Cognome e nome",   required: true  }
+          - { key: "signet:dateOfBirth",     label: "Data di nascita",  required: true  }
+          - { key: "signet:nationality",     label: "Cittadinanza",     required: true  }
+          - { key: "signet:documentNumber",  label: "Numero passaporto", required: true }
+          - { key: "signet:documentExpiry",  label: "Data di scadenza", required: true  }
+          - { key: "signet:documentIssued",  label: "Data di rilascio", required: false }
+          - { key: "signet:placeOfBirth",    label: "Luogo di nascita", required: false }
+        nullifier_fields: ["passport", "IT", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      carta_identita:
+        label: "Carta d'identità (CIE)"
+        fields:
+          - { key: "signet:name",           label: "Cognome e nome",               required: true  }
+          - { key: "signet:dateOfBirth",     label: "Data di nascita",              required: true  }
+          - { key: "signet:documentNumber",  label: "Numero documento",             required: true  }
+          - { key: "signet:documentExpiry",  label: "Data di scadenza",             required: true  }
+          - { key: "signet:nationality",     label: "Cittadinanza",                 required: true  }
+          - { key: "signet:placeOfBirth",    label: "Luogo di nascita",             required: false }
+          - { key: "signet:address",         label: "Indirizzo",                    required: false }
+        nullifier_fields: ["national_id", "IT", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      codice_fiscale:
+        label: "Codice Fiscale (Tessera Sanitaria)"
+        fields:
+          - { key: "signet:name",           label: "Cognome e nome",               required: true  }
+          - { key: "signet:dateOfBirth",     label: "Data di nascita",              required: true  }
+          - { key: "signet:placeOfBirth",    label: "Luogo di nascita",             required: false }
+          - { key: "it:codiceFiscale",      label: "Codice Fiscale (16 caratteri)", required: true }
+        nullifier_fields: ["codice_fiscale", "IT", "it:codiceFiscale"]
+        # Codice fiscale is derived from name and DOB; it is permanent
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Patente di guida"
+        fields:
+          - { key: "signet:name",           label: "Cognome e nome",               required: true  }
+          - { key: "signet:dateOfBirth",     label: "Data di nascita",              required: true  }
+          - { key: "signet:documentNumber",  label: "Numero patente",               required: true  }
+          - { key: "signet:documentExpiry",  label: "Data di scadenza",             required: true  }
+          - { key: "it:licenceCategories",  label: "Categorie",                    required: false }
+        nullifier_fields: ["driving_licence", "IT", "signet:documentNumber"]
+        number_changes_on_renewal: false
+
+  # ---------- Spain ----------
+  ES:
+    name: "Spain"
+    documents:
+
+      passport:
+        label: "Pasaporte"
+        fields:
+          - { key: "signet:name",           label: "Nombre y apellidos", required: true  }
+          - { key: "signet:dateOfBirth",     label: "Fecha de nacimiento", required: true }
+          - { key: "signet:nationality",     label: "Nacionalidad",       required: true  }
+          - { key: "signet:documentNumber",  label: "Número de pasaporte", required: true }
+          - { key: "signet:documentExpiry",  label: "Fecha de caducidad", required: true  }
+          - { key: "signet:documentIssued",  label: "Fecha de expedición", required: false }
+        nullifier_fields: ["passport", "ES", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      dni:
+        label: "DNI (Documento Nacional de Identidad)"
+        fields:
+          - { key: "signet:name",           label: "Nombre y apellidos",           required: true  }
+          - { key: "signet:dateOfBirth",     label: "Fecha de nacimiento",          required: true  }
+          - { key: "signet:documentNumber",  label: "Número DNI (8 digits + letter)", required: true }
+          - { key: "signet:documentExpiry",  label: "Fecha de caducidad",           required: true  }
+          - { key: "signet:nationality",     label: "Nacionalidad",                 required: true  }
+          - { key: "signet:address",         label: "Domicilio",                    required: false }
+        nullifier_fields: ["national_id", "ES", "signet:documentNumber"]
+        # DNI number is permanent; it never changes across renewals
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Permiso de conducir"
+        fields:
+          - { key: "signet:name",           label: "Nombre y apellidos",           required: true  }
+          - { key: "signet:dateOfBirth",     label: "Fecha de nacimiento",          required: true  }
+          - { key: "signet:documentNumber",  label: "Número de permiso",            required: true  }
+          - { key: "signet:documentExpiry",  label: "Fecha de caducidad",           required: true  }
+          - { key: "es:licenceCategories",  label: "Categorías",                   required: false }
+        nullifier_fields: ["driving_licence", "ES", "signet:documentNumber"]
+        number_changes_on_renewal: false
+
+  # ---------- Poland ----------
+  PL:
+    name: "Poland"
+    documents:
+
+      passport:
+        label: "Paszport"
+        fields:
+          - { key: "signet:name",           label: "Nazwisko i imię",  required: true  }
+          - { key: "signet:dateOfBirth",     label: "Data urodzenia",   required: true  }
+          - { key: "signet:nationality",     label: "Obywatelstwo",     required: true  }
+          - { key: "signet:documentNumber",  label: "Numer paszportu",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Data ważności",    required: true  }
+          - { key: "signet:documentIssued",  label: "Data wydania",     required: false }
+        nullifier_fields: ["passport", "PL", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      dowod_osobisty:
+        label: "Dowód osobisty (National ID)"
+        fields:
+          - { key: "signet:name",           label: "Nazwisko i imię",              required: true  }
+          - { key: "signet:dateOfBirth",     label: "Data urodzenia",               required: true  }
+          - { key: "signet:documentNumber",  label: "Seria i numer dowodu",         required: true  }
+          - { key: "signet:documentExpiry",  label: "Data ważności",                required: true  }
+          - { key: "signet:nationality",     label: "Obywatelstwo",                 required: true  }
+        nullifier_fields: ["national_id", "PL", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      pesel:
+        label: "PESEL (Powszechny Elektroniczny System Ewidencji Ludności)"
+        fields:
+          - { key: "signet:name",           label: "Nazwisko i imię",              required: true  }
+          - { key: "signet:dateOfBirth",     label: "Data urodzenia",               required: true  }
+          - { key: "pl:pesel",              label: "Numer PESEL (11 cyfr)",        required: true  }
+        nullifier_fields: ["pesel", "PL", "pl:pesel"]
+        # PESEL is assigned at birth and never changes
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Prawo jazdy"
+        fields:
+          - { key: "signet:name",           label: "Nazwisko i imię",              required: true  }
+          - { key: "signet:dateOfBirth",     label: "Data urodzenia",               required: true  }
+          - { key: "signet:documentNumber",  label: "Numer prawa jazdy",            required: true  }
+          - { key: "signet:documentExpiry",  label: "Data ważności",                required: true  }
+          - { key: "pl:licenceCategories",  label: "Kategorie",                    required: false }
+        nullifier_fields: ["driving_licence", "PL", "signet:documentNumber"]
+        number_changes_on_renewal: false
+
+  # ---------- Saudi Arabia ----------
+  SA:
+    name: "Saudi Arabia"
+    documents:
+
+      passport:
+        label: "جواز سفر (Passport)"
+        fields:
+          - { key: "signet:name",           label: "الاسم / Full name", required: true  }
+          - { key: "signet:dateOfBirth",     label: "تاريخ الميلاد / Date of birth", required: true }
+          - { key: "signet:nationality",     label: "الجنسية / Nationality", required: true }
+          - { key: "signet:documentNumber",  label: "رقم الجواز / Passport number", required: true }
+          - { key: "signet:documentExpiry",  label: "تاريخ الانتهاء / Expiry date", required: true }
+          - { key: "signet:documentIssued",  label: "تاريخ الإصدار / Issue date", required: false }
+        nullifier_fields: ["passport", "SA", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      national_id:
+        label: "بطاقة الهوية الوطنية (National ID — citizens)"
+        fields:
+          - { key: "signet:name",           label: "الاسم / Full name",            required: true  }
+          - { key: "signet:dateOfBirth",     label: "تاريخ الميلاد / Date of birth", required: true }
+          - { key: "sa:nationalId",         label: "رقم الهوية (10 digits)",       required: true  }
+          - { key: "signet:documentExpiry",  label: "تاريخ الانتهاء / Expiry date", required: true }
+        nullifier_fields: ["national_id", "SA", "sa:nationalId"]
+        number_changes_on_renewal: false
+
+      iqama:
+        label: "إقامة (Iqama — Resident Identity Card)"
+        fields:
+          - { key: "signet:name",           label: "الاسم / Full name",            required: true  }
+          - { key: "signet:dateOfBirth",     label: "تاريخ الميلاد / Date of birth", required: true }
+          - { key: "signet:nationality",     label: "الجنسية / Nationality",        required: true  }
+          - { key: "sa:iqamaNumber",        label: "رقم الإقامة (10 digits)",      required: true  }
+          - { key: "signet:documentExpiry",  label: "تاريخ الانتهاء / Expiry date", required: true }
+        nullifier_fields: ["iqama", "SA", "sa:iqamaNumber"]
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "رخصة القيادة (Driving Licence)"
+        fields:
+          - { key: "signet:name",           label: "الاسم / Full name",            required: true  }
+          - { key: "signet:dateOfBirth",     label: "تاريخ الميلاد / Date of birth", required: true }
+          - { key: "signet:documentNumber",  label: "رقم الرخصة / Licence number",  required: true  }
+          - { key: "signet:documentExpiry",  label: "تاريخ الانتهاء / Expiry date", required: true }
+        nullifier_fields: ["driving_licence", "SA", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+  # ---------- United Arab Emirates ----------
+  AE:
+    name: "United Arab Emirates"
+    documents:
+
+      passport:
+        label: "Passport / جواز سفر"
+        fields:
+          - { key: "signet:name",           label: "Full name / الاسم", required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth / تاريخ الميلاد", required: true }
+          - { key: "signet:nationality",     label: "Nationality / الجنسية", required: true }
+          - { key: "signet:documentNumber",  label: "Passport number / رقم الجواز", required: true }
+          - { key: "signet:documentExpiry",  label: "Expiry date / تاريخ الانتهاء", required: true }
+          - { key: "signet:documentIssued",  label: "Issue date / تاريخ الإصدار", required: false }
+        nullifier_fields: ["passport", "AE", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+      emirates_id:
+        label: "Emirates ID (بطاقة الهوية)"
+        fields:
+          - { key: "signet:name",           label: "Full name / الاسم",            required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth / تاريخ الميلاد", required: true }
+          - { key: "signet:nationality",     label: "Nationality / الجنسية",        required: true  }
+          - { key: "ae:emiratesId",         label: "Emirates ID number (784-YYYY-XXXXXXX-X)", required: true }
+          - { key: "signet:documentExpiry",  label: "Expiry date / تاريخ الانتهاء", required: true }
+        nullifier_fields: ["emirates_id", "AE", "ae:emiratesId"]
+        # Emirates ID number is permanent; replacement cards carry the same number
+        number_changes_on_renewal: false
+
+      driving_licence:
+        label: "Driving Licence / رخصة القيادة"
+        fields:
+          - { key: "signet:name",           label: "Full name / الاسم",            required: true  }
+          - { key: "signet:dateOfBirth",     label: "Date of birth / تاريخ الميلاد", required: true }
+          - { key: "signet:documentNumber",  label: "Licence number / رقم الرخصة",  required: true  }
+          - { key: "signet:documentExpiry",  label: "Expiry date / تاريخ الانتهاء", required: true }
+          - { key: "ae:issuingEmirate",     label: "Issuing emirate / الإمارة المصدرة", required: true }
+        nullifier_fields: ["driving_licence", "AE", "signet:documentNumber"]
+        number_changes_on_renewal: true
+
+# ---------------------------------------------------------------------------
+# eIDAS integration note (spec §20.10)
+# ---------------------------------------------------------------------------
+# When a subject presents an eIDAS wallet credential (EU citizens only),
+# the verifier MAY compute an additional nullifier:
+#
+#   nullifier_eidas = SHA-256(LP("eidas") || LP(eidas_unique_id) || LP("signet-nullifier-v2"))
+#
+# This uses only two data fields (no country slot) since the eIDAS unique
+# person identifier is already globally scoped. This nullifier is added to
+# the nullifier family alongside any document-based nullifiers above.
+# EU countries with eIDAS-eligible documents: DE, FR, IT, ES, PL (and all
+# other EU member states when their national eIDAS 2.0 wallets go live).

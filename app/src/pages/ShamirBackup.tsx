@@ -1,23 +1,19 @@
 import { useState, useCallback } from 'react';
 import type { SignetIdentity } from '../types';
+import { splitSecret, shareToWords, mnemonicToEntropy, BIP39_WORDLIST } from '../lib/signet';
 
 interface Props {
   identity: SignetIdentity;
   onBack?: () => void;
 }
 
-// --- Placeholder Shamir split ---
-// Produces 3 mock share word-lists from the mnemonic.
-// Replace with real splitSecret / shareToWords calls once
-// those helpers are imported from signet-protocol.
-function mockSplitMnemonic(mnemonic: string): string[][] {
-  const words = mnemonic.split(' ');
-  // Pad each share so it always shows 12 entries (words are
-  // interleaved for visual differentiation in the placeholder).
-  const share1 = words.map((w, i) => (i % 3 === 0 ? w : `share1-${i}`));
-  const share2 = words.map((w, i) => (i % 3 === 1 ? w : `share2-${i}`));
-  const share3 = words.map((w, i) => (i % 3 === 2 ? w : `share3-${i}`));
-  return [share1, share2, share3];
+// Split the mnemonic into 3 Shamir shares (threshold 2-of-3).
+// Converts the mnemonic to entropy bytes first, then uses the
+// real GF(256) Shamir implementation and BIP-39 word encoding.
+function splitMnemonic(mnemonic: string): string[][] {
+  const entropy = mnemonicToEntropy(mnemonic, BIP39_WORDLIST);
+  const shares = splitSecret(entropy, 2, 3);
+  return shares.map((share) => shareToWords(share));
 }
 
 // Renders a numbered word grid matching the Settings "Backup Words" style
@@ -77,7 +73,7 @@ export function ShamirBackup({ identity, onBack }: Props) {
   const isBackedUp = identity.backedUp === true;
 
   const handleSplit = useCallback(() => {
-    const result = mockSplitMnemonic(identity.mnemonic);
+    const result = splitMnemonic(identity.mnemonic);
     setShares(result);
     setExpandedShare(0);
   }, [identity.mnemonic]);

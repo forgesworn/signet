@@ -1474,7 +1474,7 @@ The two-credential ceremony follows these steps:
 1. Subject presents two Nostr pubkeys (keypair A and keypair B) to the verifier
 2. Subject presents identity documents (passport, national ID, birth certificate)
 3. Verifier examines documents and confirms identity of the person present
-4. Verifier builds a Merkle tree from verified attributes (name, nationality, document type, DOB, nullifier)
+4. A Merkle tree is built from verified attributes (name, nationality, document type, DOB, nullifier)
 5. Verifier computes nullifier using length-prefixed encoding (see §20.7)
 6. Verifier generates Bulletproof age-range proof from date of birth
 7. Verifier issues Natural Person credential (keypair A) with: entity-type, merkle-root, nullifier, age-range, guardian tags (if child)
@@ -1493,7 +1493,11 @@ The two-credential ceremony follows these steps:
 | Nationality | — | Yes |
 | Date of birth | — | Yes |
 | Document type | — | Yes |
-| Document number | — | — (used in nullifier, then discarded) |
+| Document number | — | Yes (Merkle leaf, for selective disclosure) |
+| Document expiry | — | Yes (Merkle leaf, for consumer-side validity checks) |
+| Photo hash | — | Yes (Merkle leaf, SHA-256 of verified photo) |
+
+**Credential expiry vs document expiry:** The `expires` tag on the credential event (Kind 30470) is the credential's validity period — when the credential itself stops being accepted. The `documentExpiry` Merkle leaf is the underlying document's expiry date — when the passport or licence expires. These are different: a credential might expire in 2 years but the passport doesn't expire for 10. Clients should check both.
 
 ### 20.4 Date of Birth and Age-Range Proofs
 
@@ -1523,11 +1527,16 @@ The Natural Person credential includes a `merkle-root` tag. The Merkle tree cont
 ```
 Merkle Root
 ├── H("dateOfBirth:1990-05-15")
+├── H("documentExpiry:2030-05-15")
+├── H("documentNumber:123456789")
 ├── H("documentType:passport")
 ├── H("name:Alice Smith")
 ├── H("nationality:GB")
-└── H("nullifier:<hash>")
+├── H("nullifier:<hash>")
+└── H("photoHash:<sha256>")
 ```
+
+**Note:** The leaves shown above are an example. The leaf set is variable per credential — different document types may include different attributes. The tree construction (RFC 6962 domain separation) and proof format are identical regardless of the number of leaves.
 
 Selective disclosure: The subject can reveal any attribute by providing the leaf value and its Merkle proof (sibling hashes). The verifier (or any party) can verify the proof against the published Merkle root without seeing the other attributes.
 
@@ -1618,6 +1627,20 @@ where LP(s) = uint16be(len(s)) || s
 Note: The eIDAS nullifier uses only two data fields (type + identifier) since there is no country code or document number; the length-prefixed encoding ensures this cannot collide with document-based nullifiers which always have three data fields.
 
 This provides a de facto perfect nullifier for EU citizens, as the eIDAS identifier is government-issued, unique, and machine-verifiable. The eIDAS nullifier is included in the nullifier family alongside document-based nullifiers.
+
+### 20.11 Cross-Verification
+
+When a subject presents the same document to a different verifier, the same nullifier is produced (because the nullifier is derived from the document details). The protocol distinguishes cross-verification from fraud by checking the subject's pubkey:
+
+| Scenario | Nullifier | Subject pubkey | Interpretation |
+|---|---|---|---|
+| First verification | New | User's | New identity — record it |
+| Cross-verification (same doc, new verifier) | Same | Same | Independent confirmation — higher IQ contribution |
+| Document renewal (new number) | New | Same | New document — supersedes old credential |
+| Document renewal (same number) | Same | Same | Re-verification — supersedes old credential |
+| Fraud (someone else uses the document) | Same | Different | Duplicate detected — flag for investigation |
+
+Cross-verification is the most valuable IQ signal because it represents independent professional confirmation of the same identity.
 
 ---
 
