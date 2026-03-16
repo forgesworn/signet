@@ -111,8 +111,8 @@ These conventions were established during the security hardening review (2026-03
 
 ## Gotchas
 
-- **canary-kit dependency** — `canary-kit` is NOT yet published to npm despite the `^0.1.0` claim in earlier docs. The `package.json` uses `"canary-kit": "file:../canary-kit"` — clone [canary-kit](https://github.com/TheCryptoDonkey/canary-kit) as a sibling directory. This MUST be changed to `"canary-kit": "^0.1.0"` before publishing `signet-protocol` to npm, which requires publishing canary-kit first.
-- **npm publication** — `signet-protocol` is not yet published to npm. Fathom currently uses a `file:` reference. Publishing requires canary-kit to be published first.
+- **canary-kit dependency** — `canary-kit` is published on npm as `^0.9.0` (published 2026-03-16). The `package.json` now references the npm version. Used in `src/signet-words.ts`.
+- **npm publication** — `signet-protocol` is not yet published to npm. Fathom currently uses a `file:` reference. canary-kit is now on npm — signet-protocol can be published.
 - **App typecheck uses its own tsconfig** — running `tsc --noEmit` from the project root only checks `src/`. The apps have their own tsconfigs and must be checked separately from their directories.
 - **`@noble/hashes` deprecation warnings** — `sha256`, `ProjectivePoint`, etc. show as deprecated in diagnostics. These are re-export deprecations, not functional deprecations. The functions work correctly. Ignore these warnings.
 - **CSP in dev mode** — The `script-src 'self'` CSP in `app/index.html` may log violations during Vite dev server (HMR uses inline scripts). This is expected in dev; the CSP protects production builds.
