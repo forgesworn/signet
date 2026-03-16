@@ -86,8 +86,8 @@ Kind numbers are placeholders pending NIP allocation.
 
 This repo includes:
 - `src/` — TypeScript protocol library (`signet-protocol` on npm)
-- `app/` — Reference web app (React + Vite) — full protocol demonstration
-- `family-app/` — My Signet family app (React + Vite) — production-ready, normie-friendly
+- `app/` — My Signet family app (React + Vite) — production-ready, normie-friendly
+- `dev-app/` — Developer reference app (React + Vite) — full protocol demonstration
 
 [Fathom](https://github.com/decented/decented) is the first external reference implementation, a sovereign learning and family management app on Nostr.
 

@@ -1,291 +1,127 @@
 import { useState, useCallback } from 'react';
+import type { Page } from './types';
 import { useIdentity } from './hooks/useIdentity';
+import { useFamily } from './hooks/useFamily';
 import { usePreferences } from './hooks/usePreferences';
-import { useConnections } from './hooks/useConnections';
-import { useRelay } from './hooks/useRelay';
-import { useNostrEvents } from './hooks/useNostrEvents';
 import { Layout } from './components/Layout';
 import { Onboarding } from './pages/Onboarding';
 import { Home } from './pages/Home';
-import { Connections } from './pages/Connections';
-import { ContactDetail } from './pages/ContactDetail';
-import { Scan } from './pages/Scan';
-import { Backup } from './pages/Backup';
-import { Verifier } from './pages/Verifier';
+import { Family } from './pages/Family';
+import { FamilyMemberDetail } from './pages/FamilyMember';
+import { AddMember } from './pages/AddMember';
 import { Settings } from './pages/Settings';
-import { LinkAccounts } from './pages/LinkAccounts';
-import { GuardianControls } from './pages/GuardianControls';
-import { Follow } from './pages/Follow';
-import { saveIdentity, type StoredIdentity, type StoredConnection } from './lib/db';
-import { useBadgeRefresh } from './hooks/useBadgeRefresh';
+import { ChildSettingsPage } from './pages/ChildSettings';
 
 export function App() {
-  const {
-    identity,
-    identities,
-    activeIdentity,
-    loading: identityLoading,
-    create,
-    importMnemonic,
-    importNsec,
-    switchAccount,
-    deleteIdentity,
-  } = useIdentity();
-  const { preferences, loading: prefsLoading, setTheme } = usePreferences();
-  const { connections, loading: connsLoading, addConnection, removeConnection } = useConnections(activeIdentity?.publicKey);
-  const relay = useRelay();
-  const nostrEvents = useNostrEvents(activeIdentity?.publicKey);
-  const { refreshBadge } = useBadgeRefresh(preferences.relayUrl);
+  const { identity, identities, loading: identityLoading, create, restore, remove } = useIdentity();
+  const { members, addMember, removeMember } = useFamily(identity?.id);
+  const { preferences, loading: prefsLoading, setTheme, securityTier, wordCount, setSecurityTier } = usePreferences();
 
-  const [activePage, setActivePage] = useState('home');
-  const [selectedContact, setSelectedContact] = useState<string | null>(null);
-  const [addingAccount, setAddingAccount] = useState(false);
+  const [page, setPage] = useState<Page>('home');
+  const [selectedMemberPubkey, setSelectedMemberPubkey] = useState<string | null>(null);
 
-  // ── Handlers ──
-
-  const handleCreate = useCallback(async (role: StoredIdentity['role'], displayName: string) => {
-    await create(role, displayName);
-    setAddingAccount(false);
+  const handleCreate = useCallback(async (displayName: string, isChild: boolean, guardianPubkey?: string) => {
+    const created = await create(displayName, isChild, guardianPubkey);
+    return { mnemonic: created.mnemonic };
   }, [create]);
 
-  const handleImport = useCallback(async (
-    mnemonic: string,
-    role: StoredIdentity['role'],
-    displayName: string,
-  ) => {
-    await importMnemonic(mnemonic, role, displayName);
-    setAddingAccount(false);
-  }, [importMnemonic]);
+  const handleImport = useCallback(async (mnemonic: string, displayName: string, isChild: boolean, guardianPubkey?: string) => {
+    await restore(mnemonic, displayName, isChild, guardianPubkey);
+  }, [restore]);
 
-  const handleImportNsec = useCallback(async (
-    nsec: string,
-    role: StoredIdentity['role'],
-    displayName: string,
-  ) => {
-    await importNsec(nsec, role, displayName);
-    setAddingAccount(false);
-  }, [importNsec]);
-
-  const handleConnect = useCallback(async (connection: Omit<StoredConnection, 'ownerPubkey'>) => {
-    await addConnection(connection);
-    setActivePage('connections');
-  }, [addConnection]);
-
-  const handleSelectContact = useCallback((pubkey: string) => {
-    setSelectedContact(pubkey);
+  const handleSelectMember = useCallback((pubkey: string) => {
+    setSelectedMemberPubkey(pubkey);
+    setPage('member-detail');
   }, []);
 
-  const handleBackFromContact = useCallback(() => {
-    setSelectedContact(null);
+  const handleRemoveMember = useCallback(async (pubkey: string) => {
+    await removeMember(pubkey);
+    setPage('family');
+    setSelectedMemberPubkey(null);
+  }, [removeMember]);
+
+  const handleAddDone = useCallback(() => {
+    setPage('family');
   }, []);
 
-  const handleRemoveConnection = useCallback(async (pubkey: string) => {
-    await removeConnection(pubkey);
-    setSelectedContact(null);
-  }, [removeConnection]);
+  // Loading
+  if (identityLoading || prefsLoading) {
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--text-secondary)' }}>Loading...</div>;
+  }
 
-  const handleChangeRole = useCallback(async (role: StoredIdentity['role']) => {
-    if (!identity) return;
-    const updated = { ...identity, role };
-    await saveIdentity(updated);
-    window.location.reload();
-  }, [identity]);
+  // No identity — show onboarding
+  if (!identity) {
+    return <Onboarding onCreate={handleCreate} onImport={handleImport} />;
+  }
 
-  const handleDeleteIdentity = useCallback(async () => {
-    await deleteIdentity();
-  }, [deleteIdentity]);
+  // Child identities (for parent's child settings)
+  const childIdentities = identities.filter(i => i.guardianPubkey === identity.id);
 
-  const handleNavigate = useCallback((page: string) => {
-    setSelectedContact(null);
-    setActivePage(page);
-  }, []);
-
-  const handleAddAccount = useCallback(() => {
-    setAddingAccount(true);
-  }, []);
-
-  const handleCancelAddAccount = useCallback(() => {
-    setAddingAccount(false);
-  }, []);
-
-  // ── Loading ──
-
-  const loading = identityLoading || prefsLoading || connsLoading;
-
-  if (loading) {
+  // Settings page
+  if (page === 'settings') {
     return (
-      <div
-        className="app"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100dvh',
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              border: '3px solid var(--border)',
-              borderTopColor: 'var(--accent)',
-              borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
-              margin: '0 auto 16px',
-            }}
-          />
-          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Loading...</p>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-      </div>
+      <Layout activePage={page} onNavigate={setPage} onSettingsOpen={() => {}} title="Settings" showBack onBack={() => setPage('home')}>
+        <Settings
+          identity={identity}
+          preferences={preferences}
+          securityTier={securityTier}
+          onSetTheme={setTheme}
+          onSetSecurityTier={setSecurityTier}
+          onDeleteIdentity={remove}
+          onOpenChildSettings={() => setPage('child-settings')}
+          hasChildren={childIdentities.length > 0}
+        />
+      </Layout>
     );
   }
 
-  // ── Onboarding (no identity yet or adding account) ──
-
-  if (!identity || addingAccount) {
+  // Child settings
+  if (page === 'child-settings') {
     return (
-      <Onboarding
-        onCreate={handleCreate}
-        onImport={handleImport}
-        onImportNsec={handleImportNsec}
-        isAddingAccount={addingAccount}
-        onCancel={addingAccount ? handleCancelAddAccount : undefined}
-      />
+      <Layout activePage={page} onNavigate={setPage} onSettingsOpen={() => {}} title="Child Accounts" showBack onBack={() => setPage('settings')}>
+        <ChildSettingsPage identity={identity} childIdentities={childIdentities} />
+      </Layout>
     );
   }
 
-  // ── Contact Detail (sub-page of Connections) ──
-
-  if (activePage === 'connections' && selectedContact) {
-    const connection = connections.find(c => c.pubkey === selectedContact);
-    if (connection) {
-      return (
-        <Layout
-          activePage={activePage}
-          onNavigate={handleNavigate}
-          role={identity.role}
-          identities={identities}
-          activeIdentity={identity}
-          onSwitchAccount={switchAccount}
-          onAddAccount={handleAddAccount}
-        >
-          <ContactDetail
-            connection={connection}
-            identity={identity}
-            onBack={handleBackFromContact}
-            onRemove={handleRemoveConnection}
-            onRefreshBadge={refreshBadge}
-          />
-        </Layout>
-      );
-    }
+  // Member detail
+  if (page === 'member-detail' && selectedMemberPubkey) {
+    const member = members.find(m => m.pubkey === selectedMemberPubkey);
+    if (!member) { setPage('family'); return null; }
+    return (
+      <Layout activePage="family" onNavigate={setPage} onSettingsOpen={() => setPage('settings')} title={member.displayName} showBack onBack={() => setPage('family')}>
+        <FamilyMemberDetail member={member} identity={identity} onRemove={handleRemoveMember} wordCount={wordCount} />
+      </Layout>
+    );
   }
 
-  // ── Page Content ──
-
-  function renderPage() {
-    switch (activePage) {
-      case 'home':
-        return (
-          <Home
-            identity={identity!}
-            credentials={nostrEvents.credentials}
-            vouches={nostrEvents.vouches}
-            bridges={nostrEvents.bridges}
-          />
-        );
-      case 'connections':
-        return (
-          <Connections
-            connections={connections}
-            onSelectContact={handleSelectContact}
-            onFollow={() => setActivePage('follow')}
-          />
-        );
-      case 'scan':
-        return (
-          <Scan
-            identity={identity!}
-            onConnect={handleConnect}
-            relayUrl={preferences.relayUrl}
-          />
-        );
-      case 'backup':
-        return <Backup identity={identity!} onBack={() => handleNavigate('settings')} />;
-      case 'verify':
-        return (
-          <Verifier
-            identity={identity!}
-            relay={relay}
-          />
-        );
-      case 'settings':
-        return (
-          <Settings
-            identity={identity!}
-            identities={identities}
-            preferences={preferences}
-            connections={connections}
-            relay={relay}
-            onSetTheme={setTheme}
-            onChangeRole={handleChangeRole}
-            onDeleteIdentity={handleDeleteIdentity}
-            onNavigate={handleNavigate}
-            onSwitchAccount={switchAccount}
-            onAddAccount={handleAddAccount}
-          />
-        );
-      case 'link-accounts':
-        return (
-          <LinkAccounts
-            identity={identity!}
-            identities={identities}
-            relay={relay}
-            onBack={() => handleNavigate('settings')}
-          />
-        );
-      case 'guardian':
-        return (
-          <GuardianControls
-            identity={identity!}
-            identities={identities}
-            onBack={() => handleNavigate('home')}
-          />
-        );
-      case 'follow':
-        return (
-          <Follow
-            identity={activeIdentity!}
-            onConnect={addConnection}
-            onBack={() => setActivePage('connections')}
-            relayUrl={preferences.relayUrl}
-          />
-        );
-      default:
-        return (
-          <Home
-            identity={identity!}
-            credentials={nostrEvents.credentials}
-            vouches={nostrEvents.vouches}
-            bridges={nostrEvents.bridges}
-          />
-        );
-    }
+  // Add member
+  if (page === 'add') {
+    return (
+      <Layout activePage={page} onNavigate={setPage} onSettingsOpen={() => setPage('settings')} title="Add Family Member" showBack onBack={() => setPage('home')}>
+        <AddMember identity={identity} onAddMember={addMember} onDone={handleAddDone} wordCount={wordCount} />
+      </Layout>
+    );
   }
 
+  // Family list
+  if (page === 'family') {
+    return (
+      <Layout activePage={page} onNavigate={setPage} onSettingsOpen={() => setPage('settings')} title="My Family">
+        <Family members={members} onSelectMember={handleSelectMember} />
+      </Layout>
+    );
+  }
+
+  // Home (default) — shows family members front and centre
   return (
-    <Layout
-      activePage={activePage}
-      onNavigate={handleNavigate}
-      role={identity.role}
-      identities={identities}
-      activeIdentity={identity}
-      onSwitchAccount={switchAccount}
-      onAddAccount={handleAddAccount}
-    >
-      {renderPage()}
+    <Layout activePage="home" onNavigate={setPage} onSettingsOpen={() => setPage('settings')}>
+      <Home
+        identity={identity}
+        members={members}
+        onSelectMember={handleSelectMember}
+        onNavigateAdd={() => setPage('add')}
+      />
     </Layout>
   );
 }

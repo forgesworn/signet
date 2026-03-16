@@ -1,81 +1,52 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  getAllIdentities,
-  getActiveIdentity,
-  saveIdentity,
-  deleteIdentity as dbDeleteIdentity,
-  setActiveAccount,
-  type StoredIdentity,
-} from '../lib/db';
-import { createNewIdentity, importIdentity, importFromNsec } from '../lib/signet';
+import type { FamilyIdentity } from '../types';
+import * as db from '../lib/db';
+import { createNewIdentity, importFromMnemonic } from '../lib/signet';
 
 export function useIdentity() {
-  const [identities, setIdentities] = useState<StoredIdentity[]>([]);
-  const [activeIdentity, setActiveIdentity] = useState<StoredIdentity | null>(null);
+  const [identities, setIdentities] = useState<FamilyIdentity[]>([]);
+  const [activeIdentity, setActiveIdentity] = useState<FamilyIdentity | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadAll = useCallback(async () => {
-    const all = await getAllIdentities();
+    const all = await db.getAllIdentities();
     setIdentities(all);
-    const active = await getActiveIdentity();
-    setActiveIdentity(active ?? null);
+    const prefs = await db.getPreferences();
+    const active = prefs.activeAccountId
+      ? all.find(i => i.id === prefs.activeAccountId) || all[0]
+      : all[0];
+    setActiveIdentity(active || null);
+    setLoading(false);
   }, []);
 
-  useEffect(() => {
-    loadAll().then(() => setLoading(false));
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  const create = useCallback(async (displayName: string, isChild: boolean, guardianPubkey?: string) => {
+    const identity = createNewIdentity(displayName, isChild, guardianPubkey);
+    await db.saveIdentity(identity);
+    await db.savePreferences({ ...(await db.getPreferences()), activeAccountId: identity.id });
+    await loadAll();
+    return identity;
   }, [loadAll]);
 
-  const create = useCallback(async (role: StoredIdentity['role'], displayName: string) => {
-    const newIdentity = createNewIdentity(role, displayName);
-    await saveIdentity(newIdentity);
-    await setActiveAccount(newIdentity.publicKey);
+  const restore = useCallback(async (mnemonic: string, displayName: string, isChild: boolean, guardianPubkey?: string) => {
+    const identity = importFromMnemonic(mnemonic, displayName, isChild, guardianPubkey);
+    await db.saveIdentity(identity);
+    await db.savePreferences({ ...(await db.getPreferences()), activeAccountId: identity.id });
     await loadAll();
-    return newIdentity;
-  }, [loadAll]);
-
-  const importMnemonic = useCallback(async (mnemonic: string, role: StoredIdentity['role'], displayName: string) => {
-    const imported = importIdentity(mnemonic, role, displayName);
-    await saveIdentity(imported);
-    await setActiveAccount(imported.publicKey);
-    await loadAll();
-    return imported;
-  }, [loadAll]);
-
-  const importNsec = useCallback(async (nsec: string, role: StoredIdentity['role'], displayName: string) => {
-    const imported = importFromNsec(nsec, role, displayName);
-    await saveIdentity(imported);
-    await setActiveAccount(imported.publicKey);
-    await loadAll();
-    return imported;
-  }, [loadAll]);
-
-  const switchAccount = useCallback(async (pubkey: string) => {
-    await setActiveAccount(pubkey);
-    await loadAll();
+    return identity;
   }, [loadAll]);
 
   const remove = useCallback(async (pubkey?: string) => {
-    const target = pubkey ?? activeIdentity?.publicKey;
+    const target = pubkey || activeIdentity?.id;
     if (!target) return;
-    await dbDeleteIdentity(target);
-    // Switch to another account if available
-    const remaining = identities.filter((i) => i.publicKey !== target);
-    if (remaining.length > 0) {
-      await setActiveAccount(remaining[0].publicKey);
+    await db.deleteIdentityRecord(target);
+    const prefs = await db.getPreferences();
+    if (prefs.activeAccountId === target) {
+      await db.savePreferences({ ...prefs, activeAccountId: undefined });
     }
     await loadAll();
-  }, [activeIdentity, identities, loadAll]);
+  }, [activeIdentity, loadAll]);
 
-  // Backward compat: expose identity as activeIdentity alias
-  return {
-    identity: activeIdentity,
-    identities,
-    activeIdentity,
-    loading,
-    create,
-    importMnemonic,
-    importNsec,
-    switchAccount,
-    deleteIdentity: remove,
-  };
+  return { identity: activeIdentity, identities, loading, create, restore, remove };
 }

@@ -1,32 +1,38 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getPreferences, savePreferences, type StoredPreferences } from '../lib/db';
+import type { AppPreferences, SecurityTier } from '../types';
+import { TIER_WORD_COUNT } from '../types';
+import * as db from '../lib/db';
 
 export function usePreferences() {
-  const [preferences, setPreferences] = useState<StoredPreferences>({ id: 'current', theme: 'system' });
+  const [preferences, setPreferences] = useState<AppPreferences>({ id: 'current', theme: 'system' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getPreferences().then((prefs) => {
-      setPreferences(prefs);
-      setLoading(false);
-    });
+    db.getPreferences().then(p => { setPreferences(p); setLoading(false); });
   }, []);
 
-  // Apply theme to document
   useEffect(() => {
-    const html = document.documentElement;
     if (preferences.theme === 'system') {
-      html.removeAttribute('data-theme');
+      document.documentElement.removeAttribute('data-theme');
     } else {
-      html.setAttribute('data-theme', preferences.theme);
+      document.documentElement.setAttribute('data-theme', preferences.theme);
     }
   }, [preferences.theme]);
 
-  const setTheme = useCallback(async (theme: StoredPreferences['theme']) => {
+  const setTheme = useCallback(async (theme: 'system' | 'light' | 'dark') => {
     const updated = { ...preferences, theme };
-    await savePreferences(updated);
     setPreferences(updated);
+    await db.savePreferences(updated);
   }, [preferences]);
 
-  return { preferences, loading, setTheme };
+  const setSecurityTier = useCallback(async (tier: SecurityTier) => {
+    const updated = { ...preferences, securityTier: tier };
+    setPreferences(updated);
+    await db.savePreferences(updated);
+  }, [preferences]);
+
+  const securityTier: SecurityTier = preferences.securityTier ?? 'basic';
+  const wordCount = TIER_WORD_COUNT[securityTier];
+
+  return { preferences, loading, setTheme, securityTier, wordCount, setSecurityTier };
 }
