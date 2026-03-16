@@ -543,6 +543,10 @@ export async function tallyElection(
 
     try {
       const decrypted = await decryptBallotContent(encryptedVote, tallyPrivateKey);
+      if (decrypted.length > 4096) {
+        invalidCount++;
+        continue;
+      }
       const raw = JSON.parse(decrypted);
       if (!raw || typeof raw !== 'object' || typeof raw.option !== 'string') {
         invalidCount++;

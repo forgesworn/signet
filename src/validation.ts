@@ -273,7 +273,8 @@ export function validateRevocation(event: NostrEvent): ValidationResult {
   }
 
   const confirmations = getTagValue(event, 'confirmations');
-  if (!confirmations || parseInt(confirmations, 10) < 1) {
+  const confirmationsNum = confirmations ? parseInt(confirmations, 10) : NaN;
+  if (!confirmations || isNaN(confirmationsNum) || confirmationsNum < 1) {
     errors.push('Missing or invalid "confirmations" tag');
   }
 

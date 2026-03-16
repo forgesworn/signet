@@ -414,20 +414,24 @@ export function verifyRangeProof(proof: RangeProof): boolean {
     let lowerSum = Point.ZERO;
     for (let i = 0; i < bits; i++) {
       const bitC = Point.fromHex(lowerProof[i].commitment);
+      bitC.assertValidity();
       const weight = 1n << BigInt(i);
       lowerSum = lowerSum.add(safeMultiply(bitC, weight));
     }
     const lowerC = Point.fromHex(proof.lowerCommitment);
+    lowerC.assertValidity();
     if (!lowerSum.equals(lowerC)) return false;
 
     // 4. Verify bit commitments sum to the aggregate commitment (upper)
     let upperSum = Point.ZERO;
     for (let i = 0; i < bits; i++) {
       const bitC = Point.fromHex(upperProof[i].commitment);
+      bitC.assertValidity();
       const weight = 1n << BigInt(i);
       upperSum = upperSum.add(safeMultiply(bitC, weight));
     }
     const upperC = Point.fromHex(proof.upperCommitment);
+    upperC.assertValidity();
     if (!upperSum.equals(upperC)) return false;
 
     // 5. Verify sum-binding: lowerC + upperC - range*G = r_total * H
