@@ -10,8 +10,6 @@ cd signet
 npm install
 ```
 
-**Note:** Signet depends on `canary-kit` via a local file path (`"file:../canary-kit"`). Clone [canary-kit](https://github.com/TheCryptoDonkey/canary-kit) as a sibling directory before running `npm install`.
-
 ## Development
 
 ```bash

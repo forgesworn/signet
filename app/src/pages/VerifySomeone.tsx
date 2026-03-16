@@ -44,16 +44,16 @@ interface VerifyRequestPayload {
 }
 
 function computeAgeRange(dob: string): string {
-  const birthYear = new Date(dob).getFullYear();
-  const currentYear = new Date().getFullYear();
-  const age = currentYear - birthYear;
-  if (age < 13) return '0–12';
-  if (age < 18) return '13–17';
-  if (age < 26) return '18–25';
-  if (age < 36) return '26–35';
-  if (age < 51) return '36–50';
-  if (age < 66) return '51–65';
-  return '66+';
+  const birth = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--;
+  if (age >= 18) return '18+';
+  if (age >= 13) return '13-17';
+  if (age >= 8) return '8-12';
+  if (age >= 4) return '4-7';
+  return '0-3';
 }
 
 function computeTier(details: SubjectDetails): 3 | 4 {

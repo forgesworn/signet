@@ -74,6 +74,9 @@ export async function saveIdentity(identity: SignetIdentity): Promise<void> {
  * The stored record has encrypted: true so callers know to decrypt on load.
  */
 export async function saveIdentityEncrypted(identity: SignetIdentity, passphrase: string): Promise<void> {
+  if (!passphrase || passphrase.length < 8) {
+    throw new Error('Passphrase must be at least 8 characters');
+  }
   const encryptedNpPrivateKey = await encryptSecret(identity.naturalPerson.privateKey, passphrase);
   const encryptedPersonaPrivateKey = await encryptSecret(identity.persona.privateKey, passphrase);
   const encryptedMnemonic = await encryptSecret(identity.mnemonic, passphrase);

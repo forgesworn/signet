@@ -272,6 +272,9 @@ export function shareToWords(share: ShamirShare): string[] {
  */
 export function wordsToShare(words: string[]): ShamirShare {
   if (words.length === 0) throw new SignetValidationError('Cannot decode empty word list');
+  if (words.length > 256) {
+    throw new SignetValidationError('Word count exceeds maximum (256)');
+  }
 
   // Convert words to 11-bit indices
   const indices: number[] = [];

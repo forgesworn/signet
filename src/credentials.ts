@@ -204,7 +204,7 @@ export function parseCredential(event: NostrEvent): ParsedCredential | null {
     profession: getTagValue(event, 'profession'),
     jurisdiction: getTagValue(event, 'jurisdiction'),
     ageRange: getTagValue(event, 'age-range'),
-    expiresAt: getTagValue(event, 'expires') ? parseInt(getTagValue(event, 'expires')!, 10) : undefined,
+    expiresAt: (() => { const expiresStr = getTagValue(event, 'expires'); const expiresNum = expiresStr ? parseInt(expiresStr, 10) : undefined; return (expiresNum !== undefined && !isNaN(expiresNum)) ? expiresNum : undefined; })(),
     entityType: getTagValue(event, 'entity-type') as EntityType | undefined,
     nullifier: getTagValue(event, 'nullifier'),
     merkleRoot: getTagValue(event, 'merkle-root'),
