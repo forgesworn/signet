@@ -1862,13 +1862,16 @@ The jurisdiction confidence score (0-100) is computed from:
 
 | Factor | Max Points | Description |
 |--------|-----------|-------------|
-| Professional body coverage | 20 | Number of regulated professions (1pt per body, capped at 20) |
-| Public register availability | 20 | Proportion of bodies with queryable public registers |
+| Corruption Perception Index | 20 | Transparency International CPI (updated annually, publicly available). Score = CPI / 5, capped at 20. A jurisdiction with CPI 90 (Denmark) scores 18. A jurisdiction with CPI 20 scores 4. |
+| Professional body coverage | 15 | Number of regulated professions (1pt per body, capped at 15) |
+| Public register availability | 15 | Proportion of bodies with queryable public registers |
 | Digital credential issuance | 15 | Proportion of bodies issuing machine-verifiable credentials |
 | Data protection maturity | 15 | Explicit consent, erasure rights, portability, breach notification, cross-border restrictions |
 | Mutual recognition | 10 | Number of mutual recognition partners (1pt per partner, capped at 10) |
-| E-signature recognition | 10 | Whether electronic signatures are legally recognised |
-| Legal system compatibility | 10 | Common-law and civil-law score highest (well-established professional regulation) |
+| E-signature recognition | 5 | Whether electronic signatures are legally recognised |
+| Legal system compatibility | 5 | Common-law and civil-law score highest (well-established professional regulation) |
+
+The CPI factor is the single most important signal. In jurisdictions where bribery is common, the confidence that a professional genuinely verified documents (rather than rubber-stamping for a fee) is lower. This is not discrimination — it is statistical confidence based on publicly available data.
 
 ### 24.3 Client Behaviour
 
@@ -1888,6 +1891,33 @@ Clients MUST NOT use jurisdiction confidence to deny Tier 1 or Tier 2 credential
 | **Non-digital bodies** | Paper-based registries, no APIs | Manual registry cross-checks (weighted lower); eIDAS 2.0 mandates machine-readable interfaces by December 2026 |
 
 For jurisdictions where Tier 3/4 is not achievable, Tier 1 + Tier 2 (self-declared + peer vouches) are always available. "Some trust" is infinitely better than "no trust."
+
+### 24.5 Bribery as Self-Documenting Evidence
+
+In jurisdictions with high corruption, bribery in document issuance is currently invisible — cash changes hands, fake documents appear, nobody knows. Signet inverts this: every credential is public, permanently traceable to a specific verifier, and subject to anomaly detection.
+
+A corrupt official who rubber-stamps verifications creates a permanent, public audit trail:
+- **Volume anomalies** — issuing 200 verifications/week when the norm is 5 (§7 Layer 3)
+- **Geographic impossibilities** — verifying people in locations they couldn't plausibly reach
+- **Nullifier collisions** — multiple people presenting the same document
+- **Cross-verification failures** — credentials that don't survive independent confirmation by a second verifier
+
+The corruption that was invisible becomes the evidence that catches itself. The more a corrupt official does it, the more obvious the pattern. This has the potential to reduce bribery in document issuance — not by preventing it, but by making it permanently traceable.
+
+Cross-jurisdiction verification (§24.4) provides the escape valve: a person in a corrupt jurisdiction can get verified by a professional in a less corrupt one. The credential from the independent jurisdiction carries higher confidence, and the discrepancy (if any) between the two credentials surfaces the problem.
+
+### 24.6 Document Type Registry
+
+The Merkle tree leaf keys and the document type strings used in nullifier computation are defined by the **Signet Document Registry**, which is maintained separately from this specification.
+
+The registry lists, per country:
+- Available document types (passport, national ID, driving licence, etc.)
+- Required and optional fields for each document type
+- Which fields contribute to the nullifier computation
+- Whether the document number changes on renewal
+- Country-specific attributes (e.g., `gb:nationalInsurance`, `in:aadhaar`, `us:ssn`)
+
+The registry is an open-source community resource hosted alongside the protocol. Adding a new country or document type is a registry update — it does not require a protocol revision. The protocol is document-agnostic by design: it defines the Merkle tree format and nullifier computation, not the contents.
 
 ---
 
