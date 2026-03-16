@@ -54,8 +54,8 @@ export function App() {
     setPage('family');
   }, []);
 
-  const handleImportNsec = useCallback(async (nsec: string, _displayName: string, _primaryKeypair: 'natural-person' | 'persona') => {
-    console.log('Import nsec:', nsec.slice(0, 8) + '...');
+  const handleImportNsec = useCallback(async (_nsec: string, _displayName: string, _primaryKeypair: 'natural-person' | 'persona') => {
+    // TODO: implement nsec import — call decodeNsec, build identity, saveIdentityEncrypted
     setPage('home');
   }, []);
 

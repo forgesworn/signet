@@ -148,6 +148,21 @@ export function VerifySomeone({ identity }: Props) {
       return;
     }
 
+    // M13: Validate pubkey hex format
+    if (!/^[0-9a-f]{64}$/i.test(p.naturalPersonPubkey)) {
+      setScanError('Invalid QR code — naturalPersonPubkey is not a valid hex pubkey.');
+      return;
+    }
+    if (!/^[0-9a-f]{64}$/i.test(p.personaPubkey)) {
+      setScanError('Invalid QR code — personaPubkey is not a valid hex pubkey.');
+      return;
+    }
+    // M14: Validate guardianPubkey hex format if present
+    if (typeof p.guardianPubkey === 'string' && p.guardianPubkey !== '' && !/^[0-9a-f]{64}$/i.test(p.guardianPubkey)) {
+      setScanError('Invalid QR code — guardianPubkey is not a valid hex pubkey.');
+      return;
+    }
+
     const d = p.details;
     if (
       typeof d.name !== 'string' ||
@@ -158,6 +173,20 @@ export function VerifySomeone({ identity }: Props) {
       typeof d.documentCountry !== 'string'
     ) {
       setScanError('QR code details are incomplete.');
+      return;
+    }
+
+    // M15: Validate field lengths
+    const MAX_FIELD = 256;
+    if (
+      d.name.length > MAX_FIELD ||
+      d.dateOfBirth.length > MAX_FIELD ||
+      d.nationality.length > MAX_FIELD ||
+      d.documentType.length > MAX_FIELD ||
+      d.documentNumber.length > MAX_FIELD ||
+      d.documentCountry.length > MAX_FIELD
+    ) {
+      setScanError('QR code fields exceed maximum allowed length.');
       return;
     }
 
