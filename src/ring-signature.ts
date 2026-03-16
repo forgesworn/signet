@@ -46,7 +46,9 @@ function validatePubkeyHex(pubkeyHex: string): void {
 function pubkeyToPoint(pubkeyHex: string): ProjectivePoint {
   validatePubkeyHex(pubkeyHex);
   // x-only pubkey: prepend 02 for even y
-  return Point.fromHex('02' + pubkeyHex);
+  const point = Point.fromHex('02' + pubkeyHex);
+  point.assertValidity();
+  return point;
 }
 
 /**

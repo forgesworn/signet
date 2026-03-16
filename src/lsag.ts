@@ -76,6 +76,9 @@ export function computeKeyImage(privateKey: string, publicKey: string, electionI
 }
 
 export function hasDuplicateKeyImage(keyImage: string, existingImages: string[]): boolean {
+  if (!/^0[23][0-9a-f]{64}$/i.test(keyImage)) {
+    throw new SignetValidationError('Invalid key image format: must be a compressed point (0x02 or 0x03 prefix, 33 bytes hex)');
+  }
   const target = hexToBytes(keyImage);
   let found = false;
   for (const img of existingImages) {

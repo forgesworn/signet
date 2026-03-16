@@ -11,11 +11,14 @@ import { ringSign, ringVerify } from './ring-signature.js';
 import { getTagValue } from './validation.js';
 import { randomBytes } from '@noble/hashes/utils';
 import type { NostrEvent, UnsignedEvent, SignetTier, ParsedIdentityBridge, CryptoAlgorithm } from './types.js';
-import { SignetValidationError } from './errors.js';
+import { SignetValidationError, SignetCryptoError } from './errors.js';
 import type { RingSignature } from './ring-signature.js';
 
 /** Generate a cryptographically secure random integer in [0, max) using rejection sampling */
 function secureRandomInt(max: number): number {
+  if (!Number.isInteger(max) || !Number.isSafeInteger(max) || max <= 0) {
+    throw new SignetCryptoError(`secureRandomInt: max must be a positive safe integer, got ${max}`);
+  }
   const limit = Math.floor(0x100000000 / max) * max;
   let val: number;
   do {

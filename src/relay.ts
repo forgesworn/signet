@@ -4,6 +4,7 @@
 import { signEvent, getPublicKey, verifyEvent } from './crypto.js';
 import type { NostrEvent, UnsignedEvent } from './types.js';
 import { SignetValidationError } from './errors.js';
+import { validateFieldSizeBounds } from './validation.js';
 
 /** NIP-42 client authentication event kind */
 const NIP42_AUTH_KIND = 22242;
@@ -286,6 +287,11 @@ export class RelayClient {
               typeof raw.sig !== 'string') break;
           const subId = msg[1] as string;
           const event = raw as unknown as NostrEvent;
+          const boundsErrors: string[] = [];
+          validateFieldSizeBounds(event, boundsErrors);
+          if (boundsErrors.length > 0) {
+            break; // reject oversized events
+          }
           const sub = this.subscriptions.get(subId);
           if (sub) {
             if (this.options.verifyEvents !== false) {
