@@ -35,15 +35,15 @@ export function Settings({ identity, preferences, securityTier, onSetTheme, onSe
 
   let npNpub: string;
   let personaNpub: string;
-  try {
-    npNpub = encodeNpub(identity.naturalPerson.publicKey);
-  } catch {
-    npNpub = identity.naturalPerson.publicKey;
+  if (identity.naturalPerson.publicKey) {
+    try { npNpub = encodeNpub(identity.naturalPerson.publicKey); } catch { npNpub = identity.naturalPerson.publicKey; }
+  } else {
+    npNpub = 'Not available (nsec import)';
   }
-  try {
-    personaNpub = encodeNpub(identity.persona.publicKey);
-  } catch {
-    personaNpub = identity.persona.publicKey;
+  if (identity.persona.publicKey) {
+    try { personaNpub = encodeNpub(identity.persona.publicKey); } catch { personaNpub = identity.persona.publicKey; }
+  } else {
+    personaNpub = 'Not available (nsec import)';
   }
 
   function truncateNpub(npub: string): string {

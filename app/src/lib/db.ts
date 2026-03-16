@@ -77,9 +77,16 @@ export async function saveIdentityEncrypted(identity: SignetIdentity, passphrase
   if (!passphrase || passphrase.length < 8) {
     throw new Error('Passphrase must be at least 8 characters');
   }
-  const encryptedNpPrivateKey = await encryptSecret(identity.naturalPerson.privateKey, passphrase);
-  const encryptedPersonaPrivateKey = await encryptSecret(identity.persona.privateKey, passphrase);
-  const encryptedMnemonic = await encryptSecret(identity.mnemonic, passphrase);
+  // Only encrypt non-empty fields (nsec imports may have empty keypair/mnemonic)
+  const encryptedNpPrivateKey = identity.naturalPerson.privateKey
+    ? await encryptSecret(identity.naturalPerson.privateKey, passphrase)
+    : '';
+  const encryptedPersonaPrivateKey = identity.persona.privateKey
+    ? await encryptSecret(identity.persona.privateKey, passphrase)
+    : '';
+  const encryptedMnemonic = identity.mnemonic
+    ? await encryptSecret(identity.mnemonic, passphrase)
+    : '';
 
   const encryptedIdentity: SignetIdentity = {
     ...identity,
@@ -111,9 +118,16 @@ export async function loadIdentityDecrypted(pubkey: string, passphrase: string):
 
   if (!stored.encrypted) return stored;
 
-  const npPrivateKey = await decryptSecret(stored.naturalPerson.privateKey, passphrase);
-  const personaPrivateKey = await decryptSecret(stored.persona.privateKey, passphrase);
-  const mnemonic = await decryptSecret(stored.mnemonic, passphrase);
+  // Only decrypt non-empty fields (nsec imports may have empty keypair/mnemonic)
+  const npPrivateKey = stored.naturalPerson.privateKey
+    ? await decryptSecret(stored.naturalPerson.privateKey, passphrase)
+    : '';
+  const personaPrivateKey = stored.persona.privateKey
+    ? await decryptSecret(stored.persona.privateKey, passphrase)
+    : '';
+  const mnemonic = stored.mnemonic
+    ? await decryptSecret(stored.mnemonic, passphrase)
+    : '';
 
   return {
     ...stored,

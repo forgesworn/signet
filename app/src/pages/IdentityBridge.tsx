@@ -17,6 +17,7 @@ export function IdentityBridge({ identity, onBack }: Props) {
 
   const npPubkey = identity.naturalPerson.publicKey;
   const personaPubkey = identity.persona.publicKey;
+  const hasBothKeypairs = npPubkey.length > 0 && personaPubkey.length > 0;
 
   // Encode as npub where possible; fall back to raw hex truncation
   let npNpub: string;
@@ -171,7 +172,14 @@ export function IdentityBridge({ identity, onBack }: Props) {
 
       {/* Action */}
       <div className="section">
-        {!showComingSoon ? (
+        {!hasBothKeypairs ? (
+          <div className="card" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <p style={{ fontSize: '0.9rem', marginBottom: 0 }}>
+              Identity Bridge requires both a Natural Person and Persona keypair.
+              Create a full account with backup words to use this feature.
+            </p>
+          </div>
+        ) : !showComingSoon ? (
           <button
             className="btn btn-primary"
             style={{ width: '100%' }}
