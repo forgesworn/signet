@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { validateMnemonic } from '../lib/signet';
+import { validateMnemonic, decodeNsec } from '../lib/signet';
 
 interface Props {
   onCreate: (displayName: string, primaryKeypair: 'natural-person' | 'persona', isChild: boolean, guardianPubkey?: string) => Promise<void>;
@@ -85,8 +85,10 @@ export function Onboarding({ onCreate, onImport, onImportNsec }: Props) {
   // --- Import nsec flow ---
   const handleNsecSubmit = () => {
     const trimmed = nsecInput.trim();
-    if (!trimmed.startsWith('nsec1') || trimmed.length < 60) {
-      setError("That doesn't look like a valid Nostr private key. It should start with 'nsec1' and be at least 60 characters.");
+    try {
+      decodeNsec(trimmed);
+    } catch {
+      setError("That doesn't look like a valid Nostr private key. Check it starts with 'nsec1' and is complete.");
       return;
     }
     setError('');

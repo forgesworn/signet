@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { SignetIdentity } from '../types';
 import * as db from '../lib/db';
-import { createNewIdentity, importFromMnemonic } from '../lib/signet';
+import { createNewIdentity, importFromMnemonic, importFromNsec } from '../lib/signet';
 
 export function useIdentity() {
   const [identities, setIdentities] = useState<SignetIdentity[]>([]);
@@ -59,6 +59,18 @@ export function useIdentity() {
     await loadAll();
   }, [activeIdentity, loadAll]);
 
+  const importNsec = useCallback(async (
+    nsec: string,
+    displayName: string,
+    primaryKeypair: 'natural-person' | 'persona',
+  ) => {
+    const identity = importFromNsec(nsec, displayName, primaryKeypair);
+    await db.saveIdentity(identity);
+    await db.savePreferences({ ...(await db.getPreferences()), activeAccountId: identity.id });
+    await loadAll();
+    return identity;
+  }, [loadAll]);
+
   const markBackedUp = useCallback(async (pubkey?: string) => {
     const target = pubkey || activeIdentity?.id;
     if (!target) return;
@@ -68,5 +80,5 @@ export function useIdentity() {
     await loadAll();
   }, [activeIdentity, loadAll]);
 
-  return { identity: activeIdentity, identities, loading, create, restore, remove, markBackedUp };
+  return { identity: activeIdentity, identities, loading, create, restore, importNsec, remove, markBackedUp };
 }
