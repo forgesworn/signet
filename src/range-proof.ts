@@ -492,42 +492,49 @@ export function serializeRangeProof(proof: RangeProof): string {
  * Deserialize a range proof from a JSON string.
  */
 export function deserializeRangeProof(json: string): RangeProof {
-  const parsed = JSON.parse(json);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    throw new SignetValidationError('Invalid range proof: malformed JSON');
+  }
   if (typeof parsed !== 'object' || parsed === null) throw new SignetValidationError('Invalid range proof: not an object');
-  if (typeof parsed.min !== 'number' || typeof parsed.max !== 'number') {
+  const p = parsed as Record<string, unknown>;
+  if (typeof p.min !== 'number' || typeof p.max !== 'number') {
     throw new SignetValidationError('Invalid range proof: missing min/max');
   }
-  if (!Number.isSafeInteger(parsed.min) || !Number.isSafeInteger(parsed.max) || parsed.min < 0 || parsed.max < parsed.min) {
+  if (!Number.isSafeInteger(p.min) || !Number.isSafeInteger(p.max) || (p.min as number) < 0 || (p.max as number) < (p.min as number)) {
     throw new SignetValidationError('Invalid range proof: min/max must be non-negative safe integers with max >= min');
   }
-  if (typeof parsed.bits !== 'number' || typeof parsed.commitment !== 'string') {
+  if (typeof p.bits !== 'number' || typeof p.commitment !== 'string') {
     throw new SignetValidationError('Invalid range proof: missing bits or commitment');
   }
-  if (!Number.isSafeInteger(parsed.bits) || parsed.bits < 1 || parsed.bits > 32) {
+  if (!Number.isSafeInteger(p.bits) || (p.bits as number) < 1 || (p.bits as number) > 32) {
     throw new SignetValidationError('Invalid range proof: bits must be between 1 and 32');
   }
-  if (!Array.isArray(parsed.lowerProof) || !Array.isArray(parsed.upperProof)) {
+  if (!Array.isArray(p.lowerProof) || !Array.isArray(p.upperProof)) {
     throw new SignetValidationError('Invalid range proof: missing lowerProof/upperProof');
   }
-  if (parsed.lowerProof.length > 32 || parsed.upperProof.length > 32) {
+  if ((p.lowerProof as unknown[]).length > 32 || (p.upperProof as unknown[]).length > 32) {
     throw new SignetValidationError('Invalid range proof: proof arrays exceed maximum length (32)');
   }
-  if (typeof parsed.lowerCommitment !== 'string' || typeof parsed.upperCommitment !== 'string') {
+  if (typeof p.lowerCommitment !== 'string' || typeof p.upperCommitment !== 'string') {
     throw new SignetValidationError('Invalid range proof: missing lowerCommitment/upperCommitment');
   }
-  if (typeof parsed.sumBindingE !== 'string' || typeof parsed.sumBindingS !== 'string') {
+  if (typeof p.sumBindingE !== 'string' || typeof p.sumBindingS !== 'string') {
     throw new SignetValidationError('Invalid range proof: missing sumBindingE/sumBindingS');
   }
   // Validate bit proof array contents
-  for (const bp of [...parsed.lowerProof, ...parsed.upperProof]) {
+  for (const bp of [...(p.lowerProof as unknown[]), ...(p.upperProof as unknown[])]) {
     if (typeof bp !== 'object' || bp === null) throw new SignetValidationError('Invalid range proof: bit proof is not an object');
-    if (typeof bp.commitment !== 'string' || typeof bp.e0 !== 'string' ||
-        typeof bp.s0 !== 'string' || typeof bp.e1 !== 'string' || typeof bp.s1 !== 'string') {
+    const bpRec = bp as Record<string, unknown>;
+    if (typeof bpRec.commitment !== 'string' || typeof bpRec.e0 !== 'string' ||
+        typeof bpRec.s0 !== 'string' || typeof bpRec.e1 !== 'string' || typeof bpRec.s1 !== 'string') {
       throw new SignetValidationError('Invalid range proof: bit proof missing required fields');
     }
   }
-  if (parsed.context !== undefined && typeof parsed.context !== 'string') {
+  if (p.context !== undefined && typeof p.context !== 'string') {
     throw new SignetValidationError('Invalid range proof: context must be a string if present');
   }
-  return parsed as RangeProof;
+  return p as unknown as RangeProof;
 }

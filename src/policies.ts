@@ -70,7 +70,7 @@ export function parsePolicy(event: NostrEvent): ParsedPolicy | null {
     childMinTier: (() => { const t = childTier ? parseInt(childTier, 10) : 1; return (t >= 1 && t <= 4 ? t : 1) as SignetTier; })(),
     enforcement: (getTagValue(event, 'enforcement') || 'client') as EnforcementLevel,
     minScore: (() => { const s = getTagValue(event, 'min-score'); if (!s) return undefined; const v = parseInt(s, 10); return isNaN(v) ? undefined : Math.max(0, Math.min(v, 200)); })(),
-    modMinTier: (() => { const s = getTagValue(event, 'mod-min-tier'); if (!s) return undefined; const t = parseInt(s, 10); return (t >= 1 && t <= 4 ? t : undefined) as SignetTier | undefined; })(),
+    modMinTier: (() => { const s = getTagValue(event, 'mod-min-tier'); if (!s) return undefined; const t = parseInt(s, 10); if (isNaN(t) || t < 1 || t > 4) return undefined; return t as SignetTier; })(),
     verifierBond: (() => { const s = getTagValue(event, 'verifier-bond'); if (!s) return undefined; const v = parseInt(s, 10); return isNaN(v) || v < 0 ? undefined : v; })(),
     revocationThreshold: (() => { const s = getTagValue(event, 'revocation-threshold'); if (!s) return undefined; const v = parseInt(s, 10); return isNaN(v) || v < 1 ? undefined : v; })(),
     algorithm,

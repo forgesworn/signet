@@ -51,8 +51,8 @@ export function scalarEqual(a: bigint, b: bigint): boolean {
  *  introduces a negligible bias (~2^-128). This is acceptable for Fiat-Shamir
  *  challenges. A wider hash (e.g. SHA-512) would eliminate the bias entirely
  *  per RFC 9380 hash-to-field, but is not required at this security level. */
-export function hashToScalar(...parts: Uint8Array[]): bigint {
-  const data = concatBytes(...parts);
+export function hashToScalar(domain: Uint8Array, ...parts: Uint8Array[]): bigint {
+  const data = concatBytes(domain, ...parts);
   const h = sha256(data);
   return mod(BigInt('0x' + bytesToHex(h)));
 }

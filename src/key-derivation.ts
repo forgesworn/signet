@@ -153,9 +153,7 @@ export function parsePath(path: string): number[] {
   if (segments.length > MAX_PATH_DEPTH) {
     throw new SignetValidationError(`Derivation path too deep: ${segments.length} levels (max ${MAX_PATH_DEPTH})`);
   }
-  return path
-    .slice(2)
-    .split('/')
+  return segments
     .map((segment) => {
       const hardened = segment.endsWith("'") || segment.endsWith('h');
       const index = parseInt(hardened ? segment.slice(0, -1) : segment, 10);

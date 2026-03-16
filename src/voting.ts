@@ -158,8 +158,6 @@ export function parseElection(event: NostrEvent): ParsedElection | null {
   const closes = parseInt(closesStr, 10);
   if (isNaN(opens) || isNaN(closes)) return null;
 
-  if (isNaN(eligibleMinTier)) return null;
-
   const parsed: ParsedElection = {
     electionId,
     title,

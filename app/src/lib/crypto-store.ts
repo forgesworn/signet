@@ -37,7 +37,9 @@ export async function encryptSecret(plaintext: string, passphrase: string): Prom
   combined.set(iv, SALT_LENGTH);
   combined.set(ciphertext, SALT_LENGTH + IV_LENGTH);
 
-  return btoa(String.fromCharCode(...combined));
+  let binary = '';
+  combined.forEach(b => { binary += String.fromCharCode(b); });
+  return btoa(binary);
 }
 
 export async function decryptSecret(encrypted: string, passphrase: string): Promise<string> {

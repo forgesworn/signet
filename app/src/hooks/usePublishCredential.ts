@@ -19,6 +19,10 @@ export function usePublishCredential(relayUrl?: string) {
     try {
       // publishToRelay should accept a relay URL and a signed event JSON string
       // If the function doesn't exist yet, create a simple WebSocket publish
+      if (!/^wss?:\/\//i.test(relayUrl)) throw new Error('Relay URL must use ws:// or wss://');
+      if (/^ws:\/\//i.test(relayUrl) && !/^ws:\/\/(localhost|127\.0\.0\.1)([:\/]|$)/i.test(relayUrl)) {
+        throw new Error('Non-localhost relay must use wss://');
+      }
       const ws = new WebSocket(relayUrl);
       await new Promise<void>((resolve, reject) => {
         ws.onopen = () => {
