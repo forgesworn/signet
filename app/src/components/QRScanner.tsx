@@ -38,11 +38,6 @@ export function QRScanner({ onScan, active }: Props) {
       {
         fps: 5,
         qrbox: 200,
-        videoConstraints: {
-          facingMode: 'environment',
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
       },
       (text) => {
         if (!scannedRef.current) {
@@ -54,18 +49,7 @@ export function QRScanner({ onScan, active }: Props) {
       () => {},
     ).catch(() => {});
 
-    // Fix the video element sizing after it renders
-    setTimeout(() => {
-      const container = containerRef.current;
-      if (!container) return;
-      const video = container.querySelector('video');
-      if (video) {
-        video.style.objectFit = 'cover';
-        video.style.width = '100%';
-        video.style.height = 'auto';
-        video.style.maxHeight = '300px';
-      }
-    }, 500);
+    // Let html5-qrcode manage the video element — don't override sizing
 
     return () => { stopScanner(); };
   }, [active, stopScanner]);
@@ -76,12 +60,9 @@ export function QRScanner({ onScan, active }: Props) {
       id="signet-qr-scanner"
       style={{
         width: '100%',
-        maxWidth: 400,
-        maxHeight: 350,
         margin: '0 auto',
         borderRadius: 8,
         overflow: 'hidden',
-        background: '#000',
       }}
     />
   );
