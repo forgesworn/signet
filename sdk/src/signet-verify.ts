@@ -16,6 +16,10 @@ export interface SignetVerifyResult {
   entityType: string | null;
   credentialId: string | null;
   verifierPubkey: string | null;
+  /** Whether the verifier is confirmed against a public professional register */
+  verifierConfirmed: boolean | null;
+  /** Verifier's confirmation method: A (NIP-05 on body domain), B (body-issued), C (cross-verified), D (website), null if unknown */
+  verifierMethod: 'A' | 'B' | 'C' | 'D' | null;
   issuedAt: number | null;
   expiresAt: number | null;
   error?: string;
@@ -32,6 +36,19 @@ export interface SignetVerifyOptions {
   theme?: 'light' | 'dark' | 'auto';
   /** Timeout in milliseconds (default: 120000 — 2 minutes) */
   timeout?: number;
+  /**
+   * URL of the verification bot that checks verifier credentials against public registers.
+   * Default: 'https://verify.signet.trotters.cc'
+   * Set to null to skip verifier checking (accept any signed credential).
+   * Anyone can run their own bot — the URL is configurable, not a central authority.
+   */
+  verifierCheckUrl?: string | null;
+  /**
+   * Accept credentials from unconfirmed verifiers.
+   * Default: false (safe — only confirmed verifiers pass).
+   * Set to true to accept any valid credential regardless of verifier status.
+   */
+  acceptUnconfirmed?: boolean;
 }
 
 /** The presentation request sent to the app */
@@ -108,6 +125,46 @@ function ageRangeSatisfies(credentialRange: string, requiredRange: string): bool
   return credentialRange === requiredRange;
 }
 
+/** Response from the verification bot */
+interface VerifierStatus {
+  confirmed: boolean;
+  method: 'A' | 'B' | 'C' | 'D' | null;
+  profession?: string;
+  jurisdiction?: string;
+}
+
+/**
+ * Check a verifier's status against the verification bot.
+ * Returns { confirmed, method } or null if the check fails/is skipped.
+ */
+async function checkVerifierStatus(
+  verifierPubkey: string,
+  checkUrl: string | null | undefined,
+): Promise<VerifierStatus | null> {
+  if (checkUrl === null || checkUrl === undefined) return null;
+
+  try {
+    const response = await fetch(`${checkUrl}/status/${verifierPubkey}`, {
+      signal: AbortSignal.timeout(5000), // 5 second timeout — don't block the UX
+    });
+    if (!response.ok) return null;
+
+    const data: unknown = await response.json();
+    if (typeof data !== 'object' || data === null) return null;
+
+    const obj = data as Record<string, unknown>;
+    return {
+      confirmed: obj.confirmed === true,
+      method: (['A', 'B', 'C', 'D'].includes(obj.method as string) ? obj.method : null) as VerifierStatus['method'],
+      profession: typeof obj.profession === 'string' ? obj.profession : undefined,
+      jurisdiction: typeof obj.jurisdiction === 'string' ? obj.jurisdiction : undefined,
+    };
+  } catch {
+    // Bot unreachable — return null (unknown), don't block verification
+    return null;
+  }
+}
+
 /**
  * Main verification function.
  * Shows a modal with QR code, waits for the user's app to respond.
@@ -118,6 +175,8 @@ export async function verifyAge(requiredAgeRange: string, options?: Partial<Sign
     relayUrl: options?.relayUrl || 'wss://relay.damus.io',
     theme: options?.theme || 'auto',
     timeout: options?.timeout || 120000,
+    verifierCheckUrl: options?.verifierCheckUrl !== undefined ? options.verifierCheckUrl : 'https://verify.signet.trotters.cc',
+    acceptUnconfirmed: options?.acceptUnconfirmed || false,
     ...options,
   };
 
@@ -174,7 +233,7 @@ export async function verifyAge(requiredAgeRange: string, options?: Partial<Sign
     // Cancel handler
     document.getElementById('signet-cancel')?.addEventListener('click', () => {
       overlay.remove();
-      resolve({ verified: false, ageRange: null, tier: null, entityType: null, credentialId: null, verifierPubkey: null, issuedAt: null, expiresAt: null, error: 'cancelled' });
+      resolve({ verified: false, ageRange: null, tier: null, entityType: null, credentialId: null, verifierPubkey: null, verifierConfirmed: null, verifierMethod: null, issuedAt: null, expiresAt: null, error: 'cancelled' });
     });
 
     // Listen for response via BroadcastChannel (same-device)
@@ -192,22 +251,40 @@ export async function verifyAge(requiredAgeRange: string, options?: Partial<Sign
 
       const satisfied = ageRange ? ageRangeSatisfies(ageRange, opts.requiredAgeRange) : false;
 
+      // Check verifier status against the verification bot
+      const verifierStatus = await checkVerifierStatus(response.credential.pubkey, opts.verifierCheckUrl);
+      const verifierConfirmed = verifierStatus?.confirmed ?? null;
+      const verifierMethod = verifierStatus?.method ?? null;
+
+      // By default, verified is true only when:
+      // 1. Credential signature is valid
+      // 2. Age range satisfies requirement
+      // 3. Verifier is confirmed (unless acceptUnconfirmed is true)
+      const verifierOk = opts.acceptUnconfirmed || verifierConfirmed === true;
+
       overlay.remove();
       channel.close();
 
       const tierValue = tier ? parseInt(tier, 10) : null;
       const expiresValue = expires ? parseInt(expires, 10) : null;
 
+      let error: string | undefined;
+      if (!valid) error = 'invalid-credential';
+      else if (!satisfied) error = 'age-range-not-met';
+      else if (!verifierOk) error = verifierConfirmed === false ? 'verifier-not-confirmed' : 'verifier-check-unavailable';
+
       resolve({
-        verified: valid && satisfied,
+        verified: valid && satisfied && verifierOk,
         ageRange: ageRange || null,
         tier: (tierValue !== null && !isNaN(tierValue)) ? tierValue : null,
         entityType: entityType || null,
         credentialId: response.credential.id,
         verifierPubkey: response.credential.pubkey,
+        verifierConfirmed,
+        verifierMethod,
         issuedAt: response.credential.created_at,
         expiresAt: (expiresValue !== null && !isNaN(expiresValue)) ? expiresValue : null,
-        error: !valid ? 'invalid-credential' : !satisfied ? 'age-range-not-met' : undefined,
+        error,
       });
     };
 
@@ -215,7 +292,7 @@ export async function verifyAge(requiredAgeRange: string, options?: Partial<Sign
     setTimeout(() => {
       overlay.remove();
       channel.close();
-      resolve({ verified: false, ageRange: null, tier: null, entityType: null, credentialId: null, verifierPubkey: null, issuedAt: null, expiresAt: null, error: 'timeout' });
+      resolve({ verified: false, ageRange: null, tier: null, entityType: null, credentialId: null, verifierPubkey: null, verifierConfirmed: null, verifierMethod: null, issuedAt: null, expiresAt: null, error: 'timeout' });
     }, opts.timeout);
   });
 }
