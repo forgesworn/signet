@@ -9,6 +9,7 @@ interface Props {
 export function QRScanner({ onScan, active }: Props) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannedRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const onScanRef = useRef(onScan);
   onScanRef.current = onScan;
 
@@ -26,24 +27,24 @@ export function QRScanner({ onScan, active }: Props) {
   useEffect(() => {
     if (!active) { stopScanner(); scannedRef.current = false; return; }
 
-    const scanner = new Html5Qrcode('signet-qr-scanner');
+    // Use a unique ID per mount to avoid html5-qrcode reuse issues
+    const elementId = 'signet-qr-scanner';
+    const scanner = new Html5Qrcode(elementId);
     scannerRef.current = scanner;
     scannedRef.current = false;
 
     scanner.start(
       { facingMode: 'environment' },
       {
-        fps: 5,                    // lower FPS reduces jerkiness on mobile
-        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          // Use 70% of the smaller dimension for the scan box
-          const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
-          return { width: size, height: size };
+        fps: 5,
+        qrbox: 200,
+        videoConstraints: {
+          facingMode: 'environment',
+          width: { ideal: 640 },
+          height: { ideal: 480 },
         },
-        aspectRatio: 1.0,          // square aspect ratio prevents split-image bug
-        disableFlip: false,        // allow mirrored cameras
       },
       (text) => {
-        // Stop scanning after first successful read
         if (!scannedRef.current) {
           scannedRef.current = true;
           stopScanner();
@@ -53,18 +54,34 @@ export function QRScanner({ onScan, active }: Props) {
       () => {},
     ).catch(() => {});
 
+    // Fix the video element sizing after it renders
+    setTimeout(() => {
+      const container = containerRef.current;
+      if (!container) return;
+      const video = container.querySelector('video');
+      if (video) {
+        video.style.objectFit = 'cover';
+        video.style.width = '100%';
+        video.style.height = 'auto';
+        video.style.maxHeight = '300px';
+      }
+    }, 500);
+
     return () => { stopScanner(); };
   }, [active, stopScanner]);
 
   return (
     <div
+      ref={containerRef}
       id="signet-qr-scanner"
       style={{
         width: '100%',
         maxWidth: 400,
+        maxHeight: 350,
         margin: '0 auto',
-        borderRadius: 'var(--radius)',
+        borderRadius: 8,
         overflow: 'hidden',
+        background: '#000',
       }}
     />
   );
