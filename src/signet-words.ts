@@ -1,19 +1,16 @@
 // Signet Words — Time-based word verification ("signet me")
-// Delegates word derivation to canary-kit for protocol alignment.
-// Signet handles identity (who you are). Canary handles verification (prove it's you).
-//
-// canary-kit is published on npm. Signet delegates word derivation to
-// canary-kit's CANARY-DERIVE (which itself delegates to spoken-token).
+// Signet handles identity (who you are). Spoken-token handles token derivation.
+// Uses SPOKEN-DERIVE (HMAC-SHA256) and the spoken-clarity wordlist.
 
-import { deriveTokenBytes } from 'canary-kit/token';
-import { encodeAsWords } from 'canary-kit/encoding';
-import { WORDLIST } from 'canary-kit/wordlist';
+import { deriveTokenBytes } from 'spoken-token';
+import { encodeAsWords } from 'spoken-token/encoding';
+import { WORDLIST } from 'spoken-token/wordlist';
 import { constantTimeEqual } from './utils.js';
 import { utf8ToBytes } from '@noble/hashes/utils';
 import { SignetValidationError } from './errors.js';
 
 /** The Canary spoken-clarity wordlist used for Signet word verification. */
-export { WORDLIST as SIGNET_WORDLIST } from 'canary-kit/wordlist';
+export { WORDLIST as SIGNET_WORDLIST } from 'spoken-token/wordlist';
 
 /** Default: words rotate every 30 seconds */
 export const SIGNET_EPOCH_SECONDS = 30;
@@ -47,7 +44,7 @@ export function getEpoch(timestampMs?: number, epochSeconds: number = SIGNET_EPO
 }
 
 /** Derive N words from a shared secret and epoch number.
- *  Uses canary-kit's CANARY-DERIVE (HMAC-SHA256) and encodes as spoken-clarity words. */
+ *  Uses SPOKEN-DERIVE (HMAC-SHA256) and encodes as spoken-clarity words. */
 export function deriveWords(sharedSecret: string, epoch: number, wordCount: number = SIGNET_WORD_COUNT): string[] {
   if (wordCount < 1 || wordCount > MAX_WORD_COUNT) {
     throw new SignetValidationError(`wordCount must be between 1 and ${MAX_WORD_COUNT}`);

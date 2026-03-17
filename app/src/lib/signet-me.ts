@@ -1,10 +1,10 @@
-// Signet Me — Directional verification using canary-kit
+// Signet Me — Directional verification using spoken-token
 // Each person gets a DIFFERENT word. Prevents the echo attack.
-// Uses canary-kit directly (not the audited signet-protocol).
+// Uses spoken-token directly (not the audited signet-protocol).
 
-import { deriveDirectionalPair } from 'canary-kit/token';
-import type { TokenEncoding } from 'canary-kit/encoding';
-import { WORDLIST } from 'canary-kit/wordlist';
+import { deriveDirectionalPair } from 'spoken-token';
+import type { TokenEncoding } from 'spoken-token/encoding';
+import { WORDLIST } from 'spoken-token/wordlist';
 
 const SIGNET_ME_NAMESPACE = 'signet:me';
 const DEFAULT_ROTATION_SECONDS = 30;
