@@ -52,13 +52,37 @@ export function parseVerifyRequest(data: string): VerifyRequest | null {
     if (typeof obj.requestId !== 'string') return null;
     if (typeof obj.requiredAgeRange !== 'string') return null;
 
+    const requestId = obj.requestId as string;
+    const requiredAgeRange = obj.requiredAgeRange as string;
+    const timestamp = typeof obj.timestamp === 'number' ? obj.timestamp : Math.floor(Date.now() / 1000);
+
+    // Validate timestamp is within 5 minutes of now
+    if (Math.abs(Date.now() / 1000 - timestamp) > 300) return null;
+
+    // Validate requestId is a 32-char hex string
+    if (!/^[0-9a-f]{32}$/i.test(requestId)) return null;
+
+    // Validate requiredAgeRange is in the allowed set
+    const VALID_AGE_RANGES = ['0-3', '4-7', '8-12', '13-17', '18+'];
+    if (!VALID_AGE_RANGES.includes(requiredAgeRange)) return null;
+
+    // Cap and validate URL fields
+    const rawCallbackUrl = typeof obj.callbackUrl === 'string' ? obj.callbackUrl : undefined;
+    const rawRelayUrl = typeof obj.relayUrl === 'string' ? obj.relayUrl : undefined;
+
+    const callbackUrl = rawCallbackUrl ? rawCallbackUrl.slice(0, 1024) : undefined;
+    const relayUrl = rawRelayUrl ? rawRelayUrl.slice(0, 1024) : undefined;
+
+    // Validate relayUrl starts with wss:// if present
+    if (relayUrl !== undefined && !relayUrl.startsWith('wss://')) return null;
+
     return {
       type: 'signet-verify-request',
-      requestId: obj.requestId as string,
-      requiredAgeRange: obj.requiredAgeRange as string,
-      callbackUrl: typeof obj.callbackUrl === 'string' ? obj.callbackUrl : undefined,
-      relayUrl: typeof obj.relayUrl === 'string' ? obj.relayUrl : undefined,
-      timestamp: typeof obj.timestamp === 'number' ? obj.timestamp : Math.floor(Date.now() / 1000),
+      requestId,
+      requiredAgeRange,
+      callbackUrl,
+      relayUrl,
+      timestamp,
     };
   } catch {
     return null;
@@ -85,7 +109,7 @@ export function buildVerifyResponse(
  * Send response via BroadcastChannel (same-device flow)
  */
 export function sendResponseViaBroadcast(response: VerifyResponse): void {
-  const channel = new BroadcastChannel('signet-verify');
+  const channel = new BroadcastChannel('signet-verify-' + response.requestId);
   channel.postMessage(response);
   channel.close();
 }
