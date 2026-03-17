@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Page } from './types';
 import type { StoredCredential } from './types';
 import { useIdentity } from './hooks/useIdentity';
@@ -20,8 +20,13 @@ import { VerifySomeone } from './pages/VerifySomeone';
 import { ShamirBackup } from './pages/ShamirBackup';
 import { IdentityBridge } from './pages/IdentityBridge';
 import { CredentialDetail } from './pages/CredentialDetail';
+import { AuthScreen } from './pages/AuthScreen';
+import { SetupAuth } from './pages/SetupAuth';
 import { getActivePubkey } from './lib/signet';
+import { isAuthSetUp, generateEncryptionKey } from './lib/auth';
 // getActiveDisplayName, getActivePrivateKey used by child components via props
+
+const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
 export function App() {
   const { identity, identities, loading: identityLoading, create, restore, importNsec, remove, markBackedUp, switchPrimary } = useIdentity();
@@ -36,12 +41,65 @@ export function App() {
   const [selectedCredential, setSelectedCredential] = useState<StoredCredential | null>(null);
   const [powerMode, setPowerMode] = useState(false);
 
+  // Auth state
+  const [encryptionKey, setEncryptionKey] = useState<string | null>(null);
+  const [pendingEncryptionKey, setPendingEncryptionKey] = useState<string | null>(null);
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Reset inactivity timer on user activity
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    inactivityTimer.current = setTimeout(() => {
+      setEncryptionKey(null); // lock the app
+    }, INACTIVITY_TIMEOUT_MS);
+  }, []);
+
+  // Upgrade path: existing account without auth — trigger setup once
+  useEffect(() => {
+    if (!identityLoading && !prefsLoading && identity && !isAuthSetUp() && !pendingEncryptionKey && !encryptionKey) {
+      setPendingEncryptionKey(generateEncryptionKey());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identityLoading, prefsLoading, identity?.id]);
+
+  // Attach activity listeners when authenticated
+  useEffect(() => {
+    if (!encryptionKey) return;
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll'] as const;
+    const handler = () => resetInactivityTimer();
+
+    events.forEach(ev => window.addEventListener(ev, handler, { passive: true }));
+    resetInactivityTimer(); // start the timer immediately on unlock
+
+    return () => {
+      events.forEach(ev => window.removeEventListener(ev, handler));
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    };
+  }, [encryptionKey, resetInactivityTimer]);
+
+  const handleUnlock = useCallback((key: string) => {
+    setEncryptionKey(key);
+  }, []);
+
+  const handleSetupComplete = useCallback(() => {
+    if (pendingEncryptionKey) {
+      setEncryptionKey(pendingEncryptionKey);
+      setPendingEncryptionKey(null);
+    }
+  }, [pendingEncryptionKey]);
+
   const handleCreate = useCallback(async (displayName: string, primaryKeypair: 'natural-person' | 'persona', isChild: boolean, guardianPubkey?: string) => {
     await create(displayName, primaryKeypair, isChild, guardianPubkey);
+    // Generate an encryption key and prompt auth setup
+    const key = generateEncryptionKey();
+    setPendingEncryptionKey(key);
   }, [create]);
 
   const handleImport = useCallback(async (mnemonic: string, displayName: string, primaryKeypair: 'natural-person' | 'persona', isChild: boolean, guardianPubkey?: string) => {
     await restore(mnemonic, displayName, primaryKeypair, isChild, guardianPubkey);
+    const key = generateEncryptionKey();
+    setPendingEncryptionKey(key);
   }, [restore]);
 
   const handleMarkBackedUp = useCallback(async () => {
@@ -65,6 +123,8 @@ export function App() {
 
   const handleImportNsec = useCallback(async (nsec: string, displayName: string, primaryKeypair: 'natural-person' | 'persona') => {
     await importNsec(nsec, displayName, primaryKeypair);
+    const key = generateEncryptionKey();
+    setPendingEncryptionKey(key);
   }, [importNsec]);
 
   // Loading
@@ -75,6 +135,18 @@ export function App() {
   // No identity — show onboarding
   if (!identity) {
     return <Onboarding onCreate={handleCreate} onImport={handleImport} onImportNsec={handleImportNsec} />;
+  }
+
+  // Identity exists — check auth state
+
+  // Auth is set up but session not yet unlocked — show lock screen
+  if (isAuthSetUp() && !encryptionKey && !pendingEncryptionKey) {
+    return <AuthScreen onUnlock={handleUnlock} />;
+  }
+
+  // New account or existing account without auth yet — show setup
+  if (pendingEncryptionKey) {
+    return <SetupAuth encryptionKey={pendingEncryptionKey} onComplete={handleSetupComplete} />;
   }
 
   // Child identities (for parent's child settings)
