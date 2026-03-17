@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
-import { WORDLIST } from 'canary-kit/wordlist';
+import { WORDLIST } from 'spoken-token/wordlist';
 import {
   SIGNET_EPOCH_SECONDS,
   SIGNET_WORD_COUNT,
