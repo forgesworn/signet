@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
 
-const certDir = path.resolve(__dirname, '../dev-app/cert');
+const certDir = path.resolve(__dirname, 'cert');
 const hasCerts = fs.existsSync(path.join(certDir, 'signet.pem'));
 
 export default defineConfig({
