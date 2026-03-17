@@ -77,6 +77,11 @@ interface PresentationResponse {
   subjectPubkey: string;
 }
 
+// Escape HTML special characters to prevent XSS in innerHTML
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // Generate a random request ID
 function generateRequestId(): string {
   const bytes = new Uint8Array(16);
@@ -91,20 +96,41 @@ function getTagValue(tags: string[][], key: string): string | undefined {
 }
 
 // Verify a Schnorr signature on a Nostr event (simplified — uses SubtleCrypto)
-// For production, this should use @noble/curves for proper BIP-340 verification
+// TODO: KNOWN GAP — Full BIP-340 Schnorr signature verification is required before production use.
+// SubtleCrypto does not support secp256k1 Schnorr. The real fix is to bundle @noble/curves
+// into the SDK build. Until then, only the event ID hash and structural guards are enforced.
 async function verifyEventSignature(event: PresentationResponse['credential']): Promise<boolean> {
-  // Basic structural validation
+  // Structural validation: check field formats
   if (!event.id || !event.pubkey || !event.sig || !event.tags || event.kind !== 30470) {
     return false;
   }
+  // sig must be exactly 128 hex chars (64-byte Schnorr signature)
+  if (!/^[0-9a-f]{128}$/i.test(event.sig)) return false;
+  // pubkey must be exactly 64 hex chars (32-byte x-only public key)
+  if (!/^[0-9a-f]{64}$/i.test(event.pubkey)) return false;
+  // id must be exactly 64 hex chars (32-byte SHA-256 hash)
+  if (!/^[0-9a-f]{64}$/i.test(event.id)) return false;
+
+  // Field-size bounds (MED-1)
+  if (event.tags.length > 100) return false;
+  if (event.content.length > 65536) return false;
+  if (event.tags.some(t => t.some(v => v.length > 1024))) return false;
+
+  // Required tags must be present
+  const tagKeys = event.tags.map(t => t[0]);
+  if (!tagKeys.includes('tier')) return false;
+  if (!tagKeys.includes('age-range')) return false;
+  if (!tagKeys.includes('entity-type')) return false;
+
   // Verify event ID matches the hash of the serialized event
   const serialized = JSON.stringify([0, event.pubkey, event.created_at, event.kind, event.tags, event.content]);
   const encoder = new TextEncoder();
   const hash = await crypto.subtle.digest('SHA-256', encoder.encode(serialized));
   const expectedId = Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, '0')).join('');
   if (expectedId !== event.id) return false;
-  // Signature verification requires secp256k1 Schnorr — for the SDK we trust the event ID hash match
-  // Full BIP-340 verification should be added when @noble/curves is bundled
+
+  // TODO: Add full BIP-340 Schnorr verification here once @noble/curves is bundled into the SDK.
+  // For now, the event ID hash check ensures content integrity; the signature itself is not verified.
   return true;
 }
 
@@ -142,6 +168,8 @@ async function checkVerifierStatus(
   checkUrl: string | null | undefined,
 ): Promise<VerifierStatus | null> {
   if (checkUrl === null || checkUrl === undefined) return null;
+  if (!/^https:\/\//i.test(checkUrl)) return null;
+  if (!/^[0-9a-f]{64}$/i.test(verifierPubkey)) return null;
 
   try {
     const response = await fetch(`${checkUrl}/status/${verifierPubkey}`, {
@@ -210,7 +238,7 @@ export async function verifyAge(requiredAgeRange: string, options?: Partial<Sign
 
     modal.innerHTML = `
       <h2 style="margin:0 0 8px;font-size:1.3rem;">Verify your age with Signet</h2>
-      <p style="margin:0 0 24px;color:${muted};font-size:0.9rem;">Scan this QR code with your Signet app to prove you are ${requiredAgeRange}. No personal data is shared.</p>
+      <p style="margin:0 0 24px;color:${muted};font-size:0.9rem;">Scan this QR code with your Signet app to prove you are ${escapeHtml(requiredAgeRange)}. No personal data is shared.</p>
       <div id="signet-qr" style="display:flex;justify-content:center;margin-bottom:24px;"></div>
       <p style="margin:0 0 16px;color:${muted};font-size:0.8rem;">Waiting for verification...</p>
       <button id="signet-cancel" style="background:none;border:1px solid ${muted};color:${fg};padding:10px 24px;border-radius:8px;cursor:pointer;font-size:0.9rem;">Cancel</button>
@@ -236,8 +264,8 @@ export async function verifyAge(requiredAgeRange: string, options?: Partial<Sign
       resolve({ verified: false, ageRange: null, tier: null, entityType: null, credentialId: null, verifierPubkey: null, verifierConfirmed: null, verifierMethod: null, issuedAt: null, expiresAt: null, error: 'cancelled' });
     });
 
-    // Listen for response via BroadcastChannel (same-device)
-    const channel = new BroadcastChannel('signet-verify');
+    // Listen for response via BroadcastChannel (same-device, request-specific channel)
+    const channel = new BroadcastChannel('signet-verify-' + requestId);
     channel.onmessage = async (event) => {
       const response = event.data as PresentationResponse;
       if (response.type !== 'signet-verify-response' || response.requestId !== requestId) return;

@@ -34,6 +34,7 @@ export function parseNIP46Request(content: string): NIP46Request | null {
     if (typeof parsed !== 'object' || parsed === null) return null;
     const obj = parsed as Record<string, unknown>;
     if (typeof obj.id !== 'string' || typeof obj.method !== 'string' || !Array.isArray(obj.params)) return null;
+    if (!obj.params.every((p: unknown) => typeof p === 'string')) return null;
     return { id: obj.id, method: obj.method, params: obj.params as string[] };
   } catch {
     return null;

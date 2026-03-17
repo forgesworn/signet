@@ -10,13 +10,18 @@ interface Props {
 }
 
 export function ApproveVerification({ request, credential, onApprove, onDeny, onNavigateGetVerified }: Props) {
+  const VALID_AGE_RANGES = ['0-3', '4-7', '8-12', '13-17', '18+'];
+  const safeAgeRange = VALID_AGE_RANGES.includes(request.requiredAgeRange)
+    ? request.requiredAgeRange
+    : 'unknown';
+
   if (!credential) {
     return (
       <div className="fade-in" role="main">
         <div className="section">
           <h2 style={{ marginBottom: 8 }}>Age Verification Request</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
-            A website wants to verify you are {request.requiredAgeRange}.
+            A website wants to verify you are {safeAgeRange}.
           </p>
 
           <div
@@ -52,7 +57,7 @@ export function ApproveVerification({ request, credential, onApprove, onDeny, on
       <div className="section">
         <h2 style={{ marginBottom: 8 }}>Age Verification Request</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
-          A website wants to verify you are {request.requiredAgeRange}.
+          A website wants to verify you are {safeAgeRange}.
         </p>
       </div>
 
@@ -61,7 +66,7 @@ export function ApproveVerification({ request, credential, onApprove, onDeny, on
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[
-            { label: `Your age range (${request.requiredAgeRange})`, shared: true },
+            { label: `Your age range (${safeAgeRange})`, shared: true },
             { label: 'Your verification tier', shared: true },
             { label: 'Your name', shared: false },
             { label: 'Your date of birth', shared: false },

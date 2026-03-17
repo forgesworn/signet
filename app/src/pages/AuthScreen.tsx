@@ -11,6 +11,8 @@ export function AuthScreen({ onUnlock }: Props) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPinFallback, setShowPinFallback] = useState(method === 'pin');
+  const [attempts, setAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
 
   // Auto-trigger biometric on mount
   useEffect(() => {
@@ -52,14 +54,37 @@ export function AuthScreen({ onUnlock }: Props) {
   }
 
   async function submitPIN(value: string) {
+    // Check lockout before attempting authentication
+    if (lockedUntil !== null && lockedUntil > Date.now()) {
+      const secondsLeft = Math.ceil((lockedUntil - Date.now()) / 1000);
+      setError(`Locked for ${secondsLeft} seconds. Please wait.`);
+      setPin('');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
       const key = await authenticatePIN(value);
       if (key) {
+        setAttempts(0);
+        setLockedUntil(null);
         onUnlock(key);
       } else {
-        setError('Incorrect PIN. Please try again.');
+        const newAttempts = attempts + 1;
+        setAttempts(newAttempts);
+        if (newAttempts >= 15) {
+          setLockedUntil(Date.now() + 60 * 60 * 1000); // 1 hour
+          setError('Too many failed attempts. Locked for 1 hour.');
+        } else if (newAttempts >= 10) {
+          setLockedUntil(Date.now() + 5 * 60 * 1000); // 5 minutes
+          setError('Too many failed attempts. Locked for 5 minutes.');
+        } else if (newAttempts >= 5) {
+          setLockedUntil(Date.now() + 30 * 1000); // 30 seconds
+          setError('Too many failed attempts. Locked for 30 seconds.');
+        } else {
+          setError('Incorrect PIN. Please try again.');
+        }
         setPin('');
       }
     } catch {

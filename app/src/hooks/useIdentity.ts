@@ -3,7 +3,7 @@ import type { SignetIdentity } from '../types';
 import * as db from '../lib/db';
 import { createNewIdentity, importFromMnemonic, importFromNsec } from '../lib/signet';
 
-export function useIdentity() {
+export function useIdentity(encryptionKey?: string | null) {
   const [identities, setIdentities] = useState<SignetIdentity[]>([]);
   const [activeIdentity, setActiveIdentity] = useState<SignetIdentity | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,11 +28,15 @@ export function useIdentity() {
     guardianPubkey?: string
   ) => {
     const identity = createNewIdentity(displayName, primaryKeypair, isChild, guardianPubkey);
-    await db.saveIdentity(identity);
+    if (encryptionKey) {
+      await db.saveIdentityEncrypted(identity, encryptionKey);
+    } else {
+      await db.saveIdentity(identity); // fallback for pre-auth state
+    }
     await db.savePreferences({ ...(await db.getPreferences()), activeAccountId: identity.id });
     await loadAll();
     return identity;
-  }, [loadAll]);
+  }, [loadAll, encryptionKey]);
 
   const restore = useCallback(async (
     mnemonic: string,
@@ -42,11 +46,15 @@ export function useIdentity() {
     guardianPubkey?: string
   ) => {
     const identity = importFromMnemonic(mnemonic, displayName, primaryKeypair, isChild, guardianPubkey);
-    await db.saveIdentity(identity);
+    if (encryptionKey) {
+      await db.saveIdentityEncrypted(identity, encryptionKey);
+    } else {
+      await db.saveIdentity(identity); // fallback for pre-auth state
+    }
     await db.savePreferences({ ...(await db.getPreferences()), activeAccountId: identity.id });
     await loadAll();
     return identity;
-  }, [loadAll]);
+  }, [loadAll, encryptionKey]);
 
   const remove = useCallback(async (pubkey?: string) => {
     const target = pubkey || activeIdentity?.id;
@@ -65,28 +73,40 @@ export function useIdentity() {
     primaryKeypair: 'natural-person' | 'persona',
   ) => {
     const identity = importFromNsec(nsec, displayName, primaryKeypair);
-    await db.saveIdentity(identity);
+    if (encryptionKey) {
+      await db.saveIdentityEncrypted(identity, encryptionKey);
+    } else {
+      await db.saveIdentity(identity); // fallback for pre-auth state
+    }
     await db.savePreferences({ ...(await db.getPreferences()), activeAccountId: identity.id });
     await loadAll();
     return identity;
-  }, [loadAll]);
+  }, [loadAll, encryptionKey]);
 
   const markBackedUp = useCallback(async (pubkey?: string) => {
     const target = pubkey || activeIdentity?.id;
     if (!target) return;
     const identity = await db.getIdentity(target);
     if (!identity) return;
-    await db.saveIdentity({ ...identity, backedUp: true });
+    if (encryptionKey) {
+      await db.saveIdentityEncrypted({ ...identity, backedUp: true }, encryptionKey);
+    } else {
+      await db.saveIdentity({ ...identity, backedUp: true }); // fallback for pre-auth state
+    }
     await loadAll();
-  }, [activeIdentity, loadAll]);
+  }, [activeIdentity, loadAll, encryptionKey]);
 
   const switchPrimary = useCallback(async (keypair: 'natural-person' | 'persona') => {
     if (!activeIdentity) return;
     const updated = { ...activeIdentity, primaryKeypair: keypair, id: keypair === 'natural-person' ? activeIdentity.naturalPerson.publicKey : activeIdentity.persona.publicKey };
-    await db.saveIdentity(updated);
+    if (encryptionKey) {
+      await db.saveIdentityEncrypted(updated, encryptionKey);
+    } else {
+      await db.saveIdentity(updated); // fallback for pre-auth state
+    }
     await db.savePreferences({ ...(await db.getPreferences()), activeAccountId: updated.id });
     await loadAll();
-  }, [activeIdentity, loadAll]);
+  }, [activeIdentity, loadAll, encryptionKey]);
 
   return { identity: activeIdentity, identities, loading, create, restore, importNsec, remove, markBackedUp, switchPrimary };
 }
