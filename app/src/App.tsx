@@ -20,10 +20,13 @@ import { VerifySomeone } from './pages/VerifySomeone';
 import { ShamirBackup } from './pages/ShamirBackup';
 import { IdentityBridge } from './pages/IdentityBridge';
 import { CredentialDetail } from './pages/CredentialDetail';
+import { ApproveVerification } from './pages/ApproveVerification';
 import { AuthScreen } from './pages/AuthScreen';
 import { SetupAuth } from './pages/SetupAuth';
 import { getActivePubkey } from './lib/signet';
 import { isAuthSetUp, generateEncryptionKey } from './lib/auth';
+import type { VerifyRequest, VerifyResponse } from './lib/presentation';
+import { buildVerifyResponse, sendResponseViaBroadcast } from './lib/presentation';
 // getActiveDisplayName, getActivePrivateKey used by child components via props
 
 const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
@@ -40,6 +43,7 @@ export function App() {
   const [selectedMemberPubkey, setSelectedMemberPubkey] = useState<string | null>(null);
   const [selectedCredential, setSelectedCredential] = useState<StoredCredential | null>(null);
   const [powerMode, setPowerMode] = useState(false);
+  const [pendingVerifyRequest, setPendingVerifyRequest] = useState<VerifyRequest | null>(null);
 
   // Auth state
   const [encryptionKey, setEncryptionKey] = useState<string | null>(null);
@@ -126,6 +130,85 @@ export function App() {
     const key = generateEncryptionKey();
     setPendingEncryptionKey(key);
   }, [importNsec]);
+
+  const handleApproveVerification = useCallback(() => {
+    if (!pendingVerifyRequest) return;
+    // Find a persona credential (preferred for age verification — anonymous)
+    const personaCred = credentials.find(c => c.keypairType === 'persona');
+    const credToUse = personaCred ?? credentials[0] ?? null;
+    if (!credToUse) {
+      setPendingVerifyRequest(null);
+      setPage('home');
+      return;
+    }
+    let parsedEvent: VerifyResponse['credential'] | null = null;
+    try {
+      const raw: unknown = JSON.parse(credToUse.event);
+      if (typeof raw === 'object' && raw !== null) {
+        const e = raw as Record<string, unknown>;
+        parsedEvent = {
+          id: typeof e.id === 'string' ? e.id : credToUse.id,
+          kind: typeof e.kind === 'number' ? e.kind : 30470,
+          pubkey: typeof e.pubkey === 'string' ? e.pubkey : '',
+          tags: Array.isArray(e.tags) ? (e.tags as string[][]) : [],
+          content: typeof e.content === 'string' ? e.content : '',
+          sig: typeof e.sig === 'string' ? e.sig : '',
+          created_at: typeof e.created_at === 'number' ? e.created_at : credToUse.verifiedAt,
+        };
+      }
+    } catch {
+      // If event parsing fails, build a minimal object from stored fields
+      parsedEvent = {
+        id: credToUse.id,
+        kind: 30470,
+        pubkey: '',
+        tags: [],
+        content: credToUse.event,
+        sig: '',
+        created_at: credToUse.verifiedAt,
+      };
+    }
+    if (parsedEvent) {
+      const subjectPubkey = activePubkey ?? '';
+      const response = buildVerifyResponse(pendingVerifyRequest.requestId, parsedEvent, subjectPubkey);
+      sendResponseViaBroadcast(response);
+    }
+    setPendingVerifyRequest(null);
+    setPage('home');
+  }, [pendingVerifyRequest, credentials, activePubkey]);
+
+  const handleDenyVerification = useCallback(() => {
+    setPendingVerifyRequest(null);
+    setPage('home');
+  }, []);
+
+  // Listen for same-device verification requests via BroadcastChannel
+  useEffect(() => {
+    const channel = new BroadcastChannel('signet-verify-request');
+    const handleMessage = (event: MessageEvent) => {
+      const data: unknown = event.data;
+      if (typeof data !== 'object' || data === null) return;
+      const obj = data as Record<string, unknown>;
+      if (obj.type !== 'signet-verify-request') return;
+      if (typeof obj.requestId !== 'string') return;
+      if (typeof obj.requiredAgeRange !== 'string') return;
+      const request: VerifyRequest = {
+        type: 'signet-verify-request',
+        requestId: obj.requestId as string,
+        requiredAgeRange: obj.requiredAgeRange as string,
+        callbackUrl: typeof obj.callbackUrl === 'string' ? obj.callbackUrl : undefined,
+        relayUrl: typeof obj.relayUrl === 'string' ? obj.relayUrl : undefined,
+        timestamp: typeof obj.timestamp === 'number' ? (obj.timestamp as number) : Math.floor(Date.now() / 1000),
+      };
+      setPendingVerifyRequest(request);
+      setPage('approve-verification');
+    };
+    channel.addEventListener('message', handleMessage);
+    return () => {
+      channel.removeEventListener('message', handleMessage);
+      channel.close();
+    };
+  }, []);
 
   // Loading
   if (identityLoading || prefsLoading) {
@@ -254,6 +337,22 @@ export function App() {
     return (
       <Layout activePage={page} onNavigate={setPage} onSettingsOpen={() => setPage('settings')} title="Identity Bridge" showBack onBack={() => setPage('settings')}>
         <IdentityBridge identity={identity} onBack={() => setPage('settings')} />
+      </Layout>
+    );
+  }
+
+  // Approve Verification
+  if (page === 'approve-verification' && pendingVerifyRequest) {
+    const personaCred = credentials.find(c => c.keypairType === 'persona') ?? credentials[0] ?? null;
+    return (
+      <Layout activePage={page} onNavigate={setPage} onSettingsOpen={() => setPage('settings')} title="Verify Age" showBack onBack={handleDenyVerification}>
+        <ApproveVerification
+          request={pendingVerifyRequest}
+          credential={personaCred}
+          onApprove={handleApproveVerification}
+          onDeny={handleDenyVerification}
+          onNavigateGetVerified={() => { setPendingVerifyRequest(null); setPage('get-verified'); }}
+        />
       </Layout>
     );
   }
