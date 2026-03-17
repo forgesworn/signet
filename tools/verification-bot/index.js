@@ -18,6 +18,16 @@ import { webcrypto } from 'node:crypto';
 const PORT = parseInt(process.env.PORT ?? '3847', 10);
 const RELAY_URL = process.env.RELAY_URL ?? 'ws://localhost:7777';
 const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Bootstrap verifiers — initial trust anchors for the network.
+ * These pubkeys are accepted as confirmed (Method B equivalent)
+ * without requiring external professional body confirmation.
+ * They are the seed from which the trust network grows.
+ */
+const BOOTSTRAP_VERIFIERS = [
+  '13d50cd10d6645d0c87c61b21308a69c0cbe2422a8acce72641786839d39f7ec', // RenegAid
+];
 const HOURLY_INTERVAL_MS = 60 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
@@ -347,6 +357,20 @@ app.get('/', (c) => {
 
 app.get('/status/:pubkey', (c) => {
   const pubkey = c.req.param('pubkey');
+
+  // Bootstrap verifiers are always confirmed (Method B equivalent)
+  if (BOOTSTRAP_VERIFIERS.includes(pubkey)) {
+    return c.json({
+      pubkey,
+      confirmed: true,
+      method: 'B',
+      profession: 'bootstrap',
+      jurisdiction: 'global',
+      checkedAt: Math.floor(Date.now() / 1000),
+      details: { bootstrap: true, note: 'Initial trust anchor for the Signet network' },
+    });
+  }
+
   const row = db.prepare('SELECT * FROM verifier_checks WHERE pubkey = ?').get(pubkey);
   if (!row) {
     return c.json({ error: 'Not found. POST /check/:pubkey to trigger a check.' }, 404);

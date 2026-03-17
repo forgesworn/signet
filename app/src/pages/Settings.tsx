@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { SignetIdentity, AppPreferences, SecurityTier } from '../types';
-import { getActiveDisplayName, encodeNpub } from '../lib/signet';
+import { getActiveDisplayName, encodeNpub, getActivePubkey } from '../lib/signet';
+import { isAdmin } from '../lib/admin';
 
 const TIER_INFO: Record<SecurityTier, { label: string; description: string }> = {
   basic: { label: 'Basic', description: '1 word each — quick check' },
@@ -58,7 +59,13 @@ export function Settings({ identity, preferences, securityTier, onSetTheme, onSe
     return `${npub.slice(0, 10)}...${npub.slice(-8)}`;
   }
 
+  const adminMode = isAdmin(getActivePubkey(identity));
+
   function handleVersionTap() {
+    if (adminMode) {
+      alert('Admin verifier mode already active.');
+      return;
+    }
     const next = versionTaps + 1;
     setVersionTaps(next);
     if (next >= 5) {
@@ -220,6 +227,16 @@ export function Settings({ identity, preferences, securityTier, onSetTheme, onSe
           Show advanced features like Signet IQ breakdown, identity bridge, and relay settings.
         </p>
       </div>
+
+      {/* Admin badge */}
+      {adminMode && (
+        <div className="card section" style={{ borderColor: 'var(--accent)', background: 'var(--accent-light, rgba(99,102,241,0.08))' }}>
+          <div className="section-title">Admin</div>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 0 }}>
+            RenegAid admin key detected. Verifier mode is automatically active. Bootstrap verifier privileges enabled.
+          </p>
+        </div>
+      )}
 
       {/* Power mode: Shamir Backup */}
       {powerMode && (
