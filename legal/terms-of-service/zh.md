@@ -880,9 +880,9 @@ signet-verify.js SDK依据协议仓库中指定的开源许可提供。商业使
 如有关于本条款的问题、行使数据保护权利或报告安全问题：
 
 **The Signet Protocol**
-电子邮件：legal@signet.trotters.cc
-安全披露：security@signet.trotters.cc
-仓库：https://github.com/decented/signet
+电子邮件：admin@forgesworn.dev
+安全披露：admin@forgesworn.dev
+仓库：https://github.com/forgesworn/signet-protocol
 
 ---
 

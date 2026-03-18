@@ -880,9 +880,9 @@ EU消費者の場合、国内裁判所とEU ODRプラットフォームも使用
 本規約に関する質問、データ保護の権利を行使するため、またはセキュリティ問題を報告するには：
 
 **The Signet Protocol**
-メール：legal@signet.trotters.cc
-セキュリティ開示：security@signet.trotters.cc
-リポジトリ：https://github.com/decented/signet
+メール：admin@forgesworn.dev
+セキュリティ開示：admin@forgesworn.dev
+リポジトリ：https://github.com/forgesworn/signet-protocol
 
 ---
 

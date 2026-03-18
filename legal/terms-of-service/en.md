@@ -874,9 +874,9 @@ Section headings are for convenience only and do not affect interpretation.
 For questions about these Terms, to exercise data protection rights, or to report security issues:
 
 **The Signet Protocol**
-Email: legal@signet.trotters.cc
-Security disclosures: security@signet.trotters.cc
-Repository: https://github.com/decented/signet
+Email: admin@forgesworn.dev
+Security disclosures: admin@forgesworn.dev
+Repository: https://github.com/forgesworn/signet-protocol
 
 ---
 

@@ -881,9 +881,9 @@ Os títulos das seções são apenas para conveniência e não afetam a interpre
 Para perguntas sobre estes Termos, para exercer direitos de proteção de dados, ou para reportar problemas de segurança:
 
 **The Signet Protocol**
-E-mail: legal@signet.trotters.cc
-Divulgações de segurança: security@signet.trotters.cc
-Repositório: https://github.com/decented/signet
+E-mail: admin@forgesworn.dev
+Divulgações de segurança: admin@forgesworn.dev
+Repositório: https://github.com/forgesworn/signet-protocol
 
 ---
 

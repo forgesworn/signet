@@ -880,9 +880,9 @@ SHA-256(LP(docType) || LP(country) || LP(docNumber) || LP("signet-nullifier-v2")
 للاستفسار عن هذه الشروط أو ممارسة حقوق حماية البيانات أو الإبلاغ عن مشكلات أمنية:
 
 **بروتوكول Signet**
-البريد الإلكتروني: legal@signet.trotters.cc
-الإفصاحات الأمنية: security@signet.trotters.cc
-المستودع: https://github.com/decented/signet
+البريد الإلكتروني: admin@forgesworn.dev
+الإفصاحات الأمنية: admin@forgesworn.dev
+المستودع: https://github.com/forgesworn/signet-protocol
 
 ---
 

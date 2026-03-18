@@ -881,9 +881,9 @@ Abschnittsüberschriften dienen nur der Bequemlichkeit und beeinflussen nicht di
 Bei Fragen zu diesen Bedingungen, zur Ausübung von Datenschutzrechten oder zur Meldung von Sicherheitsproblemen:
 
 **Das Signet-Protokoll**
-E-Mail: legal@signet.trotters.cc
-Sicherheitsmeldungen: security@signet.trotters.cc
-Repository: https://github.com/decented/signet
+E-Mail: admin@forgesworn.dev
+Sicherheitsmeldungen: admin@forgesworn.dev
+Repository: https://github.com/forgesworn/signet-protocol
 
 ---
 
