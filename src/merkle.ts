@@ -74,6 +74,9 @@ export class MerkleTree {
   readonly root: string;
 
   constructor(private attributes: Record<string, string>) {
+    for (const k of Object.keys(attributes)) {
+      if (k.includes(':')) throw new SignetValidationError(`Merkle attribute key must not contain ':': "${k}"`);
+    }
     const entries = Object.entries(attributes).sort(([a], [b]) => a.localeCompare(b));
     // Each leaf is hashLeaf("key:value") — domain-separated with 0x00 prefix
     this.leafHashes = entries.map(([k, v]) => hashLeaf(`${k}:${v}`));
