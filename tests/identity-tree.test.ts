@@ -4,6 +4,11 @@ import { wordlist } from '@scure/bip39/wordlists/english.js'
 import {
   createSignetIdentity,
   createSignetIdentityFromNsec,
+  deriveAdditionalPersona,
+  deriveSubIdentity,
+  createLinkageProof,
+  verifyLinkageProof,
+  destroyIdentity,
 } from '../src/identity-tree.js'
 
 const TEST_MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
@@ -100,5 +105,84 @@ describe('createSignetIdentityFromNsec', () => {
     expect(a.persona.identity.npub).toBe(b.persona.identity.npub)
     a.root.destroy()
     b.root.destroy()
+  })
+})
+
+describe('deriveAdditionalPersona', () => {
+  it('derives a third persona distinct from the required two', () => {
+    const identity = createSignetIdentity(TEST_MNEMONIC)
+    const professional = deriveAdditionalPersona(identity.root, 'professional')
+    expect(professional.name).toBe('professional')
+    expect(professional.identity.npub).not.toBe(identity.naturalPerson.identity.npub)
+    expect(professional.identity.npub).not.toBe(identity.persona.identity.npub)
+    identity.root.destroy()
+  })
+
+  it('supports index for persona rotation', () => {
+    const identity = createSignetIdentity(TEST_MNEMONIC)
+    const a = deriveAdditionalPersona(identity.root, 'social', 0)
+    const b = deriveAdditionalPersona(identity.root, 'social', 1)
+    expect(a.identity.npub).not.toBe(b.identity.npub)
+    identity.root.destroy()
+  })
+
+  it('rejects empty name', () => {
+    const identity = createSignetIdentity(TEST_MNEMONIC)
+    expect(() => deriveAdditionalPersona(identity.root, '')).toThrow()
+    identity.root.destroy()
+  })
+})
+
+describe('deriveSubIdentity', () => {
+  it('derives a sub-identity under a persona', () => {
+    const identity = createSignetIdentity(TEST_MNEMONIC)
+    const sub = deriveSubIdentity(identity.naturalPerson, 'group-signing', 0)
+    expect(sub.npub).toMatch(/^npub1/)
+    expect(sub.npub).not.toBe(identity.naturalPerson.identity.npub)
+    identity.root.destroy()
+  })
+})
+
+describe('linkage proofs', () => {
+  it('blind proof verifies without revealing purpose/index', () => {
+    const identity = createSignetIdentity(TEST_MNEMONIC)
+    const proof = createLinkageProof(identity.root, identity.naturalPerson.identity, 'blind')
+    expect(proof.masterPubkey).toBeDefined()
+    expect(proof.childPubkey).toBeDefined()
+    expect(proof.purpose).toBeUndefined()
+    expect(proof.index).toBeUndefined()
+    expect(verifyLinkageProof(proof)).toBe(true)
+    identity.root.destroy()
+  })
+
+  it('full proof verifies and includes purpose and index', () => {
+    const identity = createSignetIdentity(TEST_MNEMONIC)
+    const proof = createLinkageProof(identity.root, identity.naturalPerson.identity, 'full')
+    expect(proof.masterPubkey).toBeDefined()
+    expect(proof.childPubkey).toBeDefined()
+    expect(proof.purpose).toBe('nostr:persona:natural-person')
+    expect(proof.index).toBe(0)
+    expect(verifyLinkageProof(proof)).toBe(true)
+    identity.root.destroy()
+  })
+
+  it('tampered proof does not verify', () => {
+    const identity = createSignetIdentity(TEST_MNEMONIC)
+    const proof = createLinkageProof(identity.root, identity.naturalPerson.identity, 'blind')
+    const tampered = { ...proof, childPubkey: proof.masterPubkey }
+    expect(verifyLinkageProof(tampered)).toBe(false)
+    identity.root.destroy()
+  })
+})
+
+describe('destroyIdentity', () => {
+  it('zeroes root and persona private keys', () => {
+    const identity = createSignetIdentity(TEST_MNEMONIC)
+    const npPrivKey = identity.naturalPerson.identity.privateKey
+    const pPrivKey = identity.persona.identity.privateKey
+    destroyIdentity(identity)
+    expect(npPrivKey.every(b => b === 0)).toBe(true)
+    expect(pPrivKey.every(b => b === 0)).toBe(true)
+    expect(() => createLinkageProof(identity.root, identity.naturalPerson.identity, 'blind')).toThrow()
   })
 })
