@@ -1,5 +1,5 @@
 // LSAG (Linkable Spontaneous Anonymous Group) Ring Signatures
-// Thin re-export from secp256k1-ring-sig with Signet domain separator.
+// Thin re-export from @forgesworn/ring-sig with Signet domain separator.
 // Extends SAG with a key image that links signatures by the same signer
 // across multiple uses of the same election, enabling double-vote detection.
 
@@ -10,7 +10,7 @@ import {
   lsagVerify as _lsagVerify,
   type LsagSignature,
   MAX_RING_SIZE,
-} from 'secp256k1-ring-sig';
+} from '@forgesworn/ring-sig';
 
 export { type LsagSignature, MAX_RING_SIZE };
 

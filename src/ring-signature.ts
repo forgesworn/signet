@@ -1,8 +1,8 @@
-// SAG Ring Signatures — thin re-export from secp256k1-ring-sig with Signet domain separator
+// SAG Ring Signatures — thin re-export from @forgesworn/ring-sig with Signet domain separator
 // Proves "one of N public keys signed this message" without revealing which one.
 // Used for Tier 3/4 issuer privacy: "a professional verified this" without revealing which professional.
 
-import { ringSign as _ringSign, ringVerify as _ringVerify, type RingSignature, MAX_RING_SIZE } from 'secp256k1-ring-sig';
+import { ringSign as _ringSign, ringVerify as _ringVerify, type RingSignature, MAX_RING_SIZE } from '@forgesworn/ring-sig';
 
 const SIGNET_SAG_DOMAIN = 'signet-sag-v1';
 

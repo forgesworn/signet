@@ -1,4 +1,4 @@
-// Pedersen Commitments + Range Proofs — thin re-export from secp256k1-range-proof
+// Pedersen Commitments + Range Proofs — thin re-export from @forgesworn/range-proof
 // Proves "value is in [min, max]" without revealing the exact value.
 // Used for Tier 4 age range proofs: "child aged 8-12" without revealing exact age.
 
@@ -13,4 +13,4 @@ export {
   verifyAgeRangeProof,
   serializeRangeProof,
   deserializeRangeProof,
-} from 'secp256k1-range-proof';
+} from '@forgesworn/range-proof';
