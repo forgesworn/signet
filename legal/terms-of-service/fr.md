@@ -881,9 +881,9 @@ Les titres de section sont fournis à titre de commodité uniquement et n'affect
 Pour toute question relative aux présentes Conditions, pour exercer des droits en matière de protection des données ou pour signaler des problèmes de sécurité :
 
 **Le Protocole Signet**
-E-mail : legal@signet.trotters.cc
-Divulgations de sécurité : security@signet.trotters.cc
-Dépôt : https://github.com/decented/signet
+E-mail : admin@forgesworn.dev
+Divulgations de sécurité : admin@forgesworn.dev
+Dépôt : https://github.com/forgesworn/signet-protocol
 
 ---
 
