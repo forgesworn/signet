@@ -262,7 +262,7 @@ export type {
   AnomalyConfig,
 } from './anomaly.js';
 
-// Jurisdictions
+// Jurisdictions (re-exported from jurisdiction-kit)
 export {
   JURISDICTIONS,
   getJurisdiction,
@@ -279,7 +279,7 @@ export {
   computeJurisdictionConfidence,
   getJurisdictionConfidence,
   rankJurisdictionsByConfidence,
-} from './jurisdictions.js';
+} from 'jurisdiction-kit';
 
 export type {
   LegalSystem,
@@ -289,7 +289,7 @@ export type {
   ChildProtectionLaw,
   Jurisdiction,
   JurisdictionConfidence,
-} from './jurisdictions.js';
+} from 'jurisdiction-kit';
 
 // Internationalization
 export {
