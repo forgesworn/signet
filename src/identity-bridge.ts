@@ -123,6 +123,7 @@ export async function createIdentityBridge(
       c0: ringSig.c0,
       responses: ringSig.responses,
       message: ringSig.message,
+      domain: ringSig.domain,
     },
     timestamp,
   });
