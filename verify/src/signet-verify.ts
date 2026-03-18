@@ -2,7 +2,7 @@
  * Signet Verify — Website Age Verification SDK
  *
  * Usage:
- *   <script src="https://cdn.signet.trotters.cc/signet-verify.js"></script>
+ *   <script src="https://cdn.signet.forgesworn.dev/signet-verify.js"></script>
  *   <script>
  *     const result = await Signet.verifyAge('18+');
  *     if (result.verified) { // allow access }
@@ -38,7 +38,7 @@ export interface SignetVerifyOptions {
   timeout?: number;
   /**
    * URL of the verification bot that checks verifier credentials against public registers.
-   * Default: 'https://verify.signet.trotters.cc'
+   * Default: 'https://verify.signet.forgesworn.dev'
    * Set to null to skip verifier checking (accept any signed credential).
    * Anyone can run their own bot — the URL is configurable, not a central authority.
    */
@@ -227,7 +227,7 @@ export async function verifyAge(requiredAgeRange: string, options?: Partial<Sign
     relayUrl: options?.relayUrl || 'wss://relay.damus.io',
     theme: options?.theme || 'auto',
     timeout: options?.timeout || 120000,
-    verifierCheckUrl: options?.verifierCheckUrl !== undefined ? options.verifierCheckUrl : 'https://verify.signet.trotters.cc',
+    verifierCheckUrl: options?.verifierCheckUrl !== undefined ? options.verifierCheckUrl : 'https://verify.signet.forgesworn.dev',
     acceptUnconfirmed: options?.acceptUnconfirmed || false,
     ...options,
   };

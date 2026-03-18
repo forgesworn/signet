@@ -22,7 +22,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/TheCryptoDonkey/signet.git",
-    "directory": "verify"
+    "url": "https://github.com/forgesworn/signet-verify.git"
   }
 }
