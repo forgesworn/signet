@@ -898,48 +898,128 @@ Signet is open source. Contributions, feedback, and NIP discussion are welcome.
 
 ## 15. Identity Management & Peer Verification
 
-### 15.1 Profile Creation (BIP-39 / NIP-06)
+### 15.1 Profile Creation (nsec-tree Identity Model)
 
-Signet identities are derived from a 12-word BIP-39 mnemonic phrase. This is the industry standard used across Bitcoin and Nostr — the same 12 words can recover the identity on any compatible app.
+Signet identities are derived using [nsec-tree](https://www.npmjs.com/package/nsec-tree), a hierarchical key derivation library for Nostr. A master secret is established from one of two sources, then child personas are derived deterministically from it.
 
-**Creation flow:**
+**Establishing the master secret:**
+
+Two entry points are supported:
+
+1. **From a BIP-39 mnemonic** (`fromMnemonic()`): Generate a 12-word BIP-39 mnemonic (128 bits of entropy + 4-bit checksum, encoded as 12 English words). The mnemonic is converted to a 64-byte seed via PBKDF2-SHA512, then BIP-32 HD derivation at path `m/44'/1237'/727'/0'/0'` produces the master private key. The 12 words remain the human-readable backup for this flow.
+
+2. **From an existing nsec** (`fromNsec()`): Users with an existing Nostr private key may import it as the master secret. An HMAC-SHA256 separation layer is applied so that the master material differs from the raw private key before any child keys are derived.
 
 ```
-1. Generate 128 bits of cryptographic entropy
-2. SHA-256 hash → take first 4 bits as checksum
-3. 132 bits → 12 groups of 11 bits → 12 BIP-39 English words
-4. PBKDF2-SHA512(mnemonic, "mnemonic" + passphrase, 2048 iterations) → 64-byte seed
-5. BIP-32 HD derivation at path m/44'/1237'/0'/0/0 (NIP-06) → Nostr private key
-6. Schnorr x-only public key derived from private key → Nostr identity
+Option A (new identity):
+  BIP-39 mnemonic (12 words)
+    → PBKDF2-SHA512 seed
+    → BIP-32 HD path m/44'/1237'/727'/0'/0'
+    → master secret
+
+Option B (existing nsec):
+  nsec (NIP-19 bech32-encoded private key)
+    → HMAC-SHA256 separation layer
+    → master secret
 ```
 
-The 12 words **are** the identity. The user writes them down and stores them securely. An optional passphrase adds a second factor (the "25th word").
+**Required personas:**
 
-**Child accounts** can be derived at different account indices on the same HD path: `m/44'/1237'/{index}'/0/0`. A parent's mnemonic can deterministically generate keys for all their children's accounts, keeping the family's key management under one recovery phrase.
+Every Signet identity MUST derive two personas from the master secret:
+
+| Persona | Purpose string | Role |
+|---------|---------------|------|
+| `natural-person` | `nostr:persona:natural-person` | Real-identity credentials; receives professionally verified attestations |
+| `persona` | `nostr:persona:persona` | Anonymous alias; receives age-range-only credentials from the two-credential ceremony |
+
+Clients MAY derive additional personas using the purpose pattern `nostr:persona:{name}` for application-specific contexts.
+
+**Child derivation:**
+
+Each persona is derived from the master secret using HMAC-SHA256 with the following construction:
+
+```
+HMAC-SHA256(
+  key   = master_secret,
+  data  = "nsec-tree\0" || purpose_string || "\0" || index_be32
+)
+```
+
+Where `index_be32` is the derivation index encoded as a big-endian uint32. If the HMAC output is not a valid secp256k1 scalar (i.e. it is zero or ≥ the curve order), the index is incremented and the derivation is retried. The maximum index is `MAX_INDEX = 0xFFFFFFFF`.
+
+The derived scalar becomes the child private key; the corresponding Schnorr x-only public key is the child's Nostr identity.
+
+**Optional passphrase:** When deriving from a mnemonic, an optional passphrase adds a second factor (the "25th word") — a different passphrase produces an entirely different master secret and identity tree.
+
+### 15.1a Linkage Proofs
+
+Because all personas are derived from a single master secret, the master owner can prove cryptographic ownership of any child identity without revealing the derivation relationship to observers.
+
+Two proof types are defined:
+
+| Proof type | What it contains | Privacy |
+|------------|-----------------|---------|
+| **Blind proof** | BIP-340 Schnorr signature by the master key over the child pubkey | No derivation metadata — only proves master owns child |
+| **Full proof** | Same Schnorr signature + purpose string + derivation index | Reveals the purpose and index to the verifying party |
+
+**Construction:**
+
+```
+blind_proof:
+  message = SHA-256("signet-linkage-v1\0" || child_pubkey_bytes)
+  signature = schnorr_sign(master_private_key, message)
+  proof = { masterPubkey, childPubkey, signature }
+
+full_proof:
+  message = SHA-256("signet-linkage-v1\0" || child_pubkey_bytes)
+  signature = schnorr_sign(master_private_key, message)
+  proof = { masterPubkey, childPubkey, purpose, index, signature }
+```
+
+**Where proofs are used:**
+
+Linkage proofs are application-layer data. They are exchanged within bilateral flows — for example, inside the challenge (`["payload", ...]` tag of kind 30474) and response (kind 30475) events of a challenge-response flow. They are **not** published as standalone Nostr events, ensuring privacy by default. A relying party who receives a proof can verify it locally without any relay interaction.
+
+**Verification:**
+
+Reconstruct the message from `child_pubkey_bytes`, then verify the Schnorr signature against `master_pubkey`. A valid signature proves the holder of the master private key authorised the child identity.
 
 ### 15.2 Shared Backup (Shamir's Secret Sharing)
 
-Writing down 12 words creates a single point of failure. Shamir's Secret Sharing solves this by splitting the entropy into N shares where any M can reconstruct it.
+Writing down a master secret (mnemonic or private key bytes) creates a single point of failure. Shamir's Secret Sharing solves this by splitting the master secret into N shares where any M can reconstruct it.
 
 **Scheme:** GF(256) polynomial interpolation (same field used by AES).
 
-**Default:** 2-of-3 — keep one share, give two to trusted people. Any two of the three shares reconstruct the original entropy. No individual share reveals anything about the secret.
+**Default:** 2-of-3 — keep one share, give two to trusted people. Any two of the three shares reconstruct the original master secret. No individual share reveals anything about the secret.
 
 **Share encoding:** Each share is encoded as BIP-39 words (same wordlist, same format) so they look and feel familiar. A share holder sees 12 words that look like a normal mnemonic — but they are mathematically useless without a second share.
 
-```
-Original:  [12-word mnemonic] ← derives the Nostr private key
-                │
-        Shamir's 2-of-3 split
-                │
-    ┌───────────┼───────────┐
-    │           │           │
-Share 1     Share 2     Share 3
-(12 words)  (12 words)  (12 words)
-Keep this   Give to     Give to
-yourself    friend A    friend B
+**What is backed up:** The master secret — either the mnemonic entropy (for `fromMnemonic()` users) or the private key bytes (for `fromNsec()` users). The backup mechanism is identical in both cases; only the source material differs.
 
-Any 2 shares → reconstruct → original mnemonic → private key
+```
+Option A (mnemonic user):
+  [12-word mnemonic entropy] ← master secret
+          │
+  Shamir's 2-of-3 split
+          │
+┌─────────┼─────────┐
+│         │         │
+Share 1  Share 2  Share 3
+Keep     Give to  Give to
+this     friend A friend B
+
+Any 2 shares → reconstruct → mnemonic entropy → master secret → all personas
+
+Option B (nsec user):
+  [private key bytes] ← master secret
+          │
+  Shamir's 2-of-3 split
+          │
+┌─────────┼─────────┐
+│         │         │
+Share 1  Share 2  Share 3
+
+Any 2 shares → reconstruct → private key bytes → master secret → all personas
 ```
 
 **Parameters:**
@@ -1090,8 +1170,8 @@ The progress bar shows time until the next word rotation. The user sees the word
 ### 15.5 Security Considerations
 
 **Key management:**
-- The 12-word mnemonic must be stored offline (paper, metal backup). It is the master secret.
-- The optional passphrase adds plausible deniability (different passphrase → different identity).
+- The master secret (mnemonic entropy for `fromMnemonic()` users, private key bytes for `fromNsec()` users) must be stored offline (paper, metal backup). It is the root of the entire identity tree.
+- The optional passphrase (mnemonic flow) adds plausible deniability — a different passphrase produces an entirely different master secret and identity tree.
 - Shamir shares should be distributed to people in different locations.
 
 **Shared secrets:**
@@ -1104,6 +1184,12 @@ The progress bar shows time until the next word rotation. The user sees the word
 - For high-value transactions, use 4+ words with tight tolerance (0), and combine with other verification (video call, previously agreed code phrase).
 - Using 1 word (1-in-2,048) is acceptable only for low-stakes, physical-proximity scenarios where the threat model is impersonation, not brute force.
 - Both parties MUST agree on the same configuration (word count, epoch, tolerance) for verification to succeed. Mismatched config will always fail.
+
+**nsec-tree derivation constraints:**
+- `MAX_INDEX = 0xFFFFFFFF` — implementations MUST NOT attempt derivation beyond this index.
+- **Curve-order skip:** if the HMAC-SHA256 output for a given index is not a valid secp256k1 scalar (i.e. zero, or ≥ the curve order `n`), increment the index by one and retry. This is equivalent to BIP-32 hardened child key derivation behaviour and avoids biased keys.
+- **Memory cleanup:** implementations MUST call `zeroise()` on the `Uint8Array` `privateKey` and `publicKey` fields of `Identity` objects when they are no longer needed. `TreeRoot.destroy()` MUST be called to zeroise the root secret held in memory.
+- **JS string limitation:** `nsec` and `npub` string fields on `Identity` objects cannot be wiped from memory — JavaScript string primitives are immutable and GC-managed. Only `Uint8Array` fields (`privateKey`, `publicKey`) can be actively zeroed. Implementations should avoid materialising `nsec`/`npub` strings unless required by the application layer.
 
 ---
 
@@ -1136,9 +1222,10 @@ Decoy selection:
 
 ### 16.3 nsec Import
 
-Users may import existing Nostr accounts via nsec (NIP-19 bech32-encoded private keys). nsec-imported accounts:
-- Have no mnemonic (cannot use Shamir backup).
+Users may import existing Nostr accounts via nsec (NIP-19 bech32-encoded private keys). When imported via `fromNsec()`, the private key bytes become the master secret after an HMAC-SHA256 separation layer is applied. nsec-imported accounts:
+- Have no BIP-39 mnemonic, but CAN use Shamir backup (the private key bytes are the material that is split).
 - Can fully participate in the protocol (vouch, receive credentials, create bridges).
+- Can derive additional personas from the imported key as the master secret.
 - Are clearly indicated in the UI as nsec-imported.
 
 ### 16.4 Multi-Account Management
@@ -1419,7 +1506,7 @@ No new event kinds are required. Governments use existing kinds: 30470 (credenti
 
 Citizen verification follows a six-step process using existing protocol mechanisms:
 
-1. **Key generation** — Citizen generates a Nostr keypair from a 12-word BIP-39 mnemonic
+1. **Key generation** — Citizen generates a Nostr keypair using a 12-word BIP-39 mnemonic (via the nsec-tree `fromMnemonic()` derivation path)
 2. **In-person appearance** — Citizen visits a government office (analogous to passport issuance)
 3. **Document verification** — Government official verifies identity documents in person
 4. **Credential issuance** — Government issues a kind 30470 Signet credential to the citizen's pubkey: "This pubkey belongs to a verified citizen"
