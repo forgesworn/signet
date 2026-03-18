@@ -63,6 +63,7 @@ describe('fetchInstitutionKeys', () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok,
       status,
+      headers: new Headers({ 'content-length': String(body.length) }),
       text: async () => body,
     });
   }
@@ -123,6 +124,16 @@ describe('fetchInstitutionKeys', () => {
     expect(result.version).toBe(1);
     expect(result.name).toBe('Acme Legal LLP');
     expect(result.pubkeys).toHaveLength(1);
+  });
+
+  it('rejects non-OK HTTP responses', async () => {
+    mockFetch('Not Found', false, 404);
+    await expect(fetchInstitutionKeys('example.com')).rejects.toThrow(SignetValidationError);
+  });
+
+  it('rejects HTTP 500 server errors', async () => {
+    mockFetch('Internal Server Error', false, 500);
+    await expect(fetchInstitutionKeys('example.com')).rejects.toThrow(/HTTP 500/);
   });
 
   it('propagates network errors', async () => {
@@ -301,5 +312,17 @@ describe('ECDH cold-call flow', () => {
     const wordsB = completeColdCallVerification(institutionPrivkey, sessionB.ephemeralPubkey);
     expect(wordsA).toEqual(sessionA.words);
     expect(wordsB).toEqual(sessionB.words);
+  });
+
+  it('rejects malformed institution private key', () => {
+    expect(() => completeColdCallVerification('not-hex', 'a'.repeat(64)))
+      .toThrow(SignetValidationError);
+    expect(() => completeColdCallVerification('ab', 'a'.repeat(64)))
+      .toThrow(SignetValidationError);
+  });
+
+  it('rejects malformed ephemeral pubkey', () => {
+    expect(() => completeColdCallVerification(institutionPrivkey, 'not-hex'))
+      .toThrow(SignetValidationError);
   });
 });

@@ -182,11 +182,9 @@ function deriveChild(parent: ExtendedKey, index: number): ExtendedKey {
     data[0] = 0;
     data.set(parent.key, 1);
   } else {
-    // Normal: serP(point(kpar)) || ser32(index)
+    // Normal: serP(point(kpar)) || ser32(index)  — 33 + 4 = 37 bytes
     const pubkey = secp256k1.getPublicKey(parent.key, true); // 33 bytes compressed
     data.set(pubkey, 0);
-    // data is 37 bytes but pubkey is 33, so indices 0-32 are set
-    // We need to recalculate — normal child uses 33 + 4 = 37 bytes
   }
 
   // Write index as big-endian 32-bit
@@ -260,7 +258,12 @@ export function deriveNostrKeyPair(
   return { privateKey, publicKey };
 }
 
-/** Create a full Signet identity from a mnemonic */
+/** Create a full Signet identity from a mnemonic.
+ *
+ * WARNING: The returned object contains the mnemonic alongside the private key.
+ * Do not serialise, log, or persist this object without first removing the
+ * mnemonic. The caller is responsible for discarding the mnemonic as quickly
+ * as possible. Mnemonics must never be stored in plaintext (use crypto-store.ts). */
 export function createIdentityFromMnemonic(
   mnemonic: string,
   passphrase?: string

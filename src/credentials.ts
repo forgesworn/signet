@@ -204,7 +204,7 @@ export function parseCredential(event: NostrEvent): ParsedCredential | null {
 
   return {
     subjectPubkey,
-    tier: (() => { const t = parseInt(tier, 10); return (t >= 1 && t <= 4 ? t : 1) as SignetTier; })(),
+    tier: (() => { const t = parseInt(tier, 10); return (!isNaN(t) && t >= 1 && t <= 4 ? t : 1) as SignetTier; })(),
     type: (getTagValue(event, 'verification-type') || 'self') as VerificationType,
     scope: (getTagValue(event, 'scope') || 'adult') as VerificationScope,
     method: (getTagValue(event, 'method') || 'self-declaration') as VerificationMethod,
@@ -372,8 +372,10 @@ export function verifyRingProtectedContent(event: NostrEvent): {
         typeof content.ringSignature === 'object' &&
         typeof content.ringSignature.message === 'string' &&
         Array.isArray(content.ringSignature.ring) &&
+        content.ringSignature.ring.every((r: unknown) => typeof r === 'string') &&
         typeof content.ringSignature.c0 === 'string' &&
-        Array.isArray(content.ringSignature.responses)) {
+        Array.isArray(content.ringSignature.responses) &&
+        content.ringSignature.responses.every((r: unknown) => typeof r === 'string')) {
       result.hasRingSignature = true;
 
       // Verify the ring signature is cryptographically valid

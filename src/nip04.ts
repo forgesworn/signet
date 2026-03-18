@@ -40,6 +40,9 @@ function nip04SharedSecret(privateKey: string, publicKey: string): Uint8Array {
 /**
  * Encrypt a plaintext string using NIP-04 (AES-256-CBC with ECDH shared secret).
  *
+ * @deprecated NIP-04 is deprecated in the Nostr ecosystem. It uses unauthenticated
+ * AES-256-CBC (no integrity protection). Use NIP-44 for new code.
+ *
  * @param privateKey  - Our private key (64-char hex)
  * @param theirPubkey - Their x-only public key (64-char hex)
  * @param plaintext   - The message to encrypt
@@ -77,6 +80,9 @@ export async function nip04Encrypt(
 /**
  * Decrypt a NIP-04 ciphertext string.
  *
+ * @deprecated NIP-04 is deprecated in the Nostr ecosystem. It uses unauthenticated
+ * AES-256-CBC (no integrity protection). Use NIP-44 for new code.
+ *
  * @param privateKey  - Our private key (64-char hex)
  * @param theirPubkey - Their x-only public key (64-char hex)
  * @param ciphertext  - NIP-04 formatted string: base64(ciphertext) + "?iv=" + base64(iv)
@@ -95,6 +101,7 @@ export async function nip04Decrypt(
   const sharedX = nip04SharedSecret(privateKey, theirPubkey);
   const ct = Uint8Array.from(atob(ctB64), (c) => c.charCodeAt(0));
   const iv = Uint8Array.from(atob(ivB64), (c) => c.charCodeAt(0));
+  if (iv.length !== 16) throw new SignetCryptoError('Invalid NIP-04 IV: must be 16 bytes');
   const key = await globalThis.crypto.subtle.importKey(
     'raw',
     sharedX.buffer.slice(sharedX.byteOffset, sharedX.byteOffset + sharedX.byteLength) as ArrayBuffer,
