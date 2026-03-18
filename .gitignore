@@ -9,3 +9,5 @@ dist/
 *.p12
 *.pfx
 .worktrees/
+.claude/
+.idea/
