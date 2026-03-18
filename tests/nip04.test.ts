@@ -59,6 +59,27 @@ describe('NIP-04 Encrypted Direct Messages', () => {
     expect(decrypted2).toBe(message);
   });
 
+  // ── Large message (stack overflow regression) ─────────────────────────────
+
+  it('handles large messages without stack overflow', async () => {
+    const alice = generateKeyPair();
+    const bob = generateKeyPair();
+
+    // 100 KB message — previously would throw RangeError from spread operator
+    const message = 'A'.repeat(100_000);
+    const encrypted = await nip04Encrypt(alice.privateKey, bob.publicKey, message);
+    const decrypted = await nip04Decrypt(bob.privateKey, alice.publicKey, encrypted);
+    expect(decrypted).toBe(message);
+  });
+
+  // ── Malformed ciphertext ──────────────────────────────────────────────────
+
+  it('rejects ciphertext with no ?iv= separator', async () => {
+    const alice = generateKeyPair();
+    const bob = generateKeyPair();
+    await expect(nip04Decrypt(bob.privateKey, alice.publicKey, 'base64only')).rejects.toThrow('Invalid NIP-04 ciphertext format');
+  });
+
   // ── Cross-compatibility with known keys ────────────────────────────────────
 
   it('cross-compatibility: known privkeys verify ECDH correctness', async () => {

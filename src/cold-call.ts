@@ -34,8 +34,8 @@ import { deriveWords } from './signet-words.js';
 export async function fetchInstitutionKeys(domain: string): Promise<InstitutionKeys> {
   const url = `https://${domain}${WELL_KNOWN_PATH}`;
 
-  // Fetch (throws on network error — caller decides how to handle)
-  const response = await fetch(url);
+  // Fetch with timeout (throws on network error — caller decides how to handle)
+  const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   const text = await response.text();
 
   // Enforce size limit
