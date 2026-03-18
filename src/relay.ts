@@ -9,6 +9,9 @@ import { validateFieldSizeBounds } from './validation.js';
 /** NIP-42 client authentication event kind */
 const NIP42_AUTH_KIND = 22242;
 
+/** Maximum WebSocket message size (1 MB) — prevents DoS via oversized relay messages */
+const MAX_MESSAGE_SIZE = 1_048_576;
+
 /** Nostr relay message types (relay → client) */
 export type RelayMessage =
   | ['EVENT', string, NostrEvent]
@@ -272,6 +275,7 @@ export class RelayClient {
   }
 
   private handleMessage(data: string): void {
+    if (data.length > MAX_MESSAGE_SIZE) return;
     try {
       const msg: unknown = JSON.parse(data);
       if (!Array.isArray(msg) || msg.length < 2 || typeof msg[0] !== 'string') return;
@@ -381,6 +385,10 @@ export class RelayClient {
 
 /**
  * Publish a Signet event to multiple relays.
+ *
+ * WARNING: Relay URLs are accepted as-is. Callers are responsible for
+ * validating that URLs come from trusted sources and do not encode credentials.
+ * The RelayClient constructor enforces wss:// for non-localhost connections.
  */
 export async function publishToRelays(
   event: NostrEvent,
@@ -407,6 +415,9 @@ export async function publishToRelays(
 
 /**
  * Fetch Signet events from a relay by kind and optional filters.
+ *
+ * WARNING: Relay URL is accepted as-is. Callers are responsible for
+ * validating that URLs come from trusted sources and do not encode credentials.
  */
 export async function fetchFromRelay(
   relayUrl: string,

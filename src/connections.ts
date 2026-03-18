@@ -41,17 +41,14 @@ export interface QRPayload {
  *  a 32-byte hex string.  The secret is symmetric: A(priv)+B(pub) === B(priv)+A(pub). */
 export function computeSharedSecret(myPrivateKey: string, theirPublicKey: string): string {
   // Nostr/schnorr public keys are x-only (32 bytes).  To perform ECDH we need
-  // the full compressed point, so we prepend 0x02 (assume even y-coordinate).
-  const theirPoint = secp256k1.ProjectivePoint.fromHex('02' + theirPublicKey);
-  const privateKeyBigInt = BigInt('0x' + myPrivateKey) % secp256k1.CURVE.n;
-  if (privateKeyBigInt === 0n) throw new SignetCryptoError('Invalid private key (zero after mod N reduction)');
-  const sharedPoint = theirPoint.multiply(privateKeyBigInt);
-  if (sharedPoint.equals(secp256k1.ProjectivePoint.ZERO)) {
-    throw new SignetCryptoError('ECDH produced identity point — invalid public key');
-  }
+  // the full compressed point, so we prepend 0x02 (assume even y-coordinate,
+  // per BIP-340 convention used by Nostr).
+  const privBytes = hexToBytes(myPrivateKey);
+  const sharedPoint = secp256k1.getSharedSecret(privBytes, '02' + theirPublicKey);
+  privBytes.fill(0);
 
-  // Derive shared secret: SHA-256 of the x-coordinate (32 bytes big-endian)
-  const xBytes = hexToBytes(sharedPoint.toAffine().x.toString(16).padStart(64, '0'));
+  // sharedPoint is 33 bytes (compressed): prefix + x-coordinate.  Take x bytes [1..33].
+  const xBytes = sharedPoint.slice(1, 33);
   return bytesToHex(sha256(xBytes));
 }
 
@@ -206,6 +203,13 @@ export class ConnectionStore {
       if (typeof conn.theirInfo !== 'object' || conn.theirInfo === null) continue;
       if (typeof conn.ourInfo !== 'object' || conn.ourInfo === null) continue;
       if (conn.method !== 'qr-in-person' && conn.method !== 'online') continue;
+      // Validate ContactInfo field sizes to prevent oversized data from untrusted sources
+      try {
+        validateContactInfo(conn.theirInfo);
+        validateContactInfo(conn.ourInfo);
+      } catch {
+        continue;
+      }
       this.connections.set(conn.pubkey, conn);
     }
   }

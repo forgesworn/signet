@@ -36,9 +36,19 @@ export async function fetchInstitutionKeys(domain: string): Promise<InstitutionK
 
   // Fetch with timeout (throws on network error — caller decides how to handle)
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+  if (!response.ok) {
+    throw new SignetValidationError(`.well-known/signet.json fetch failed: HTTP ${response.status}`);
+  }
+
+  // Early-exit on Content-Length if available (avoids reading large bodies into memory)
+  const contentLength = response.headers.get('content-length');
+  if (contentLength && parseInt(contentLength, 10) > WELL_KNOWN_MAX_SIZE) {
+    throw new SignetValidationError(`.well-known/signet.json exceeds ${WELL_KNOWN_MAX_SIZE} bytes`);
+  }
+
   const text = await response.text();
 
-  // Enforce size limit
+  // Enforce size limit (Content-Length may be absent for chunked responses)
   if (text.length > WELL_KNOWN_MAX_SIZE) {
     throw new SignetValidationError(`.well-known/signet.json exceeds ${WELL_KNOWN_MAX_SIZE} bytes`);
   }
@@ -209,9 +219,17 @@ export function completeColdCallVerification(
   ephemeralPubkey: string,
   wordCount: number = 3,
 ): string[] {
+  if (!/^[0-9a-f]{64}$/i.test(institutionPrivkey)) {
+    throw new SignetValidationError('Invalid institution private key format — must be 64-char hex');
+  }
+  if (!/^[0-9a-f]{64}$/i.test(ephemeralPubkey)) {
+    throw new SignetValidationError('Invalid ephemeral pubkey format — must be 64-char hex');
+  }
+
   // ECDH: institution private × customer ephemeral public
   const privBytes = hexToBytes(institutionPrivkey);
   const sharedPoint = secp256k1.getSharedSecret(privBytes, '02' + ephemeralPubkey);
+  privBytes.fill(0);
 
   const xBytes = sharedPoint.slice(1, 33);
   const sharedSecret = sha256(xBytes);

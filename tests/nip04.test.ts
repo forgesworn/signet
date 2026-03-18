@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { nip04Encrypt, nip04Decrypt } from '../src/nip04.js';
 import { generateKeyPair, getPublicKey } from '../src/crypto.js';
+import { SignetCryptoError } from '../src/errors.js';
 
 describe('NIP-04 Encrypted Direct Messages', () => {
   // ── Round-trip ──────────────────────────────────────────────────────────────
@@ -78,6 +79,18 @@ describe('NIP-04 Encrypted Direct Messages', () => {
     const alice = generateKeyPair();
     const bob = generateKeyPair();
     await expect(nip04Decrypt(bob.privateKey, alice.publicKey, 'base64only')).rejects.toThrow('Invalid NIP-04 ciphertext format');
+  });
+
+  it('rejects ciphertext with a malformed IV (wrong length)', async () => {
+    const alice = generateKeyPair();
+    const bob = generateKeyPair();
+    // Encrypt normally to get a valid ciphertext part
+    const encrypted = await nip04Encrypt(alice.privateKey, bob.publicKey, 'test');
+    const ctPart = encrypted.split('?iv=')[0];
+    // Use a 4-byte IV instead of 16 bytes
+    const shortIv = btoa(String.fromCharCode(1, 2, 3, 4));
+    await expect(nip04Decrypt(bob.privateKey, alice.publicKey, ctPart + '?iv=' + shortIv))
+      .rejects.toThrow(SignetCryptoError);
   });
 
   // ── Cross-compatibility with known keys ────────────────────────────────────

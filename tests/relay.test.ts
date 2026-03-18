@@ -447,6 +447,23 @@ describe('RelayClient', () => {
       lastWS().simulateMessage(['NOTICE', 'relay message']);
       expect(client.getState()).toBe('connected');
     });
+
+    it('silently drops oversized messages (> 1 MB)', async () => {
+      const client = new RelayClient('wss://relay.example.com');
+      const p = client.connect();
+      lastWS().simulateOpen();
+      await p;
+
+      const received: NostrEvent[] = [];
+      client.subscribe([{ kinds: [30470] }], (event) => received.push(event));
+
+      // Send a message exceeding 1 MB — should be silently dropped
+      const oversized = 'x'.repeat(1_048_577);
+      lastWS().onmessage?.({ data: oversized });
+
+      expect(received).toHaveLength(0);
+      expect(client.getState()).toBe('connected');
+    });
   });
 
   describe('event verification', () => {

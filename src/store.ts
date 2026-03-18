@@ -224,7 +224,12 @@ export class SignetStore {
     return JSON.stringify(Array.from(this.events.values()));
   }
 
-  /** Import events from JSON */
+  /** Import events from JSON.
+   *
+   * WARNING: This method validates structural shape and field-size bounds but does
+   * NOT verify event signatures. Callers are responsible for verifying cryptographic
+   * validity before importing untrusted data. The RelayClient verifies signatures
+   * by default — this gap only affects direct callers of store.import(). */
   import(json: string): number {
     let parsed: unknown;
     try {

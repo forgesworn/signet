@@ -367,6 +367,21 @@ describe('connections', () => {
       expect(store.list()).toHaveLength(2);
     });
 
+    it('import skips connections with oversized ContactInfo fields', () => {
+      const store = new ConnectionStore();
+      const kp = generateKeyPair();
+      const oversizedConn: Connection = {
+        pubkey: kp.publicKey,
+        sharedSecret: 'a'.repeat(64),
+        theirInfo: { name: 'x'.repeat(10000) }, // exceeds MAX_CONTACT_FIELD_LENGTH
+        ourInfo: { name: 'Self' },
+        connectedAt: Math.floor(Date.now() / 1000),
+        method: 'qr-in-person',
+      };
+      store.import([oversizedConn]);
+      expect(store.has(kp.publicKey)).toBe(false);
+    });
+
     it('export/import roundtrips', () => {
       const store1 = new ConnectionStore();
       const alice = generateKeyPair();
