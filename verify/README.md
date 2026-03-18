@@ -5,7 +5,7 @@ Add privacy-preserving age verification to any website. One script tag, one func
 ## Quick Start
 
 ```html
-<script src="https://cdn.signet.trotters.cc/signet-verify.js"></script>
+<script src="https://cdn.signet.forgesworn.dev/signet-verify.js"></script>
 <script>
   document.getElementById('verify-btn').addEventListener('click', async () => {
     const result = await Signet.verifyAge('18+');
@@ -64,7 +64,7 @@ Returns `Promise<SignetVerifyResult>`
 | `relayUrl` | `string` | `wss://relay.damus.io` | Relay URL for cross-device communication |
 | `theme` | `'light' \| 'dark' \| 'auto'` | `'auto'` | Modal colour scheme |
 | `timeout` | `number` | `120000` | Timeout in milliseconds |
-| `verifierCheckUrl` | `string \| null` | `'https://verify.signet.trotters.cc'` | Verification bot URL. Set to `null` to skip. |
+| `verifierCheckUrl` | `string \| null` | `'https://verify.signet.forgesworn.dev'` | Verification bot URL. Set to `null` to skip. |
 | `acceptUnconfirmed` | `boolean` | `false` | Accept credentials from unconfirmed verifiers |
 
 **Result:**
