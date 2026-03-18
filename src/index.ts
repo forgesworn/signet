@@ -433,3 +433,15 @@ export {
 } from './signet-words.js';
 
 export type { SignetWordsConfig } from './signet-words.js';
+
+// Cold-Call Verification (institutional caller verification via .well-known/signet.json + ephemeral ECDH)
+export {
+  fetchInstitutionKeys,
+  generateSessionCode,
+  deriveColdCallWords,
+  initiateColdCallVerification,
+  completeColdCallVerification,
+  type ColdCallSession,
+} from './cold-call.js';
+
+export type { InstitutionKeys, InstitutionPubkey } from './types.js';
