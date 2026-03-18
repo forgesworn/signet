@@ -58,11 +58,11 @@ describe('range-proof', () => {
     });
 
     it('rejects value below range', () => {
-      expect(() => createRangeProof(4, 5, 10)).toThrow('not in range');
+      expect(() => createRangeProof(4, 5, 10)).toThrow('not within the specified range');
     });
 
     it('rejects value above range', () => {
-      expect(() => createRangeProof(11, 5, 10)).toThrow('not in range');
+      expect(() => createRangeProof(11, 5, 10)).toThrow('not within the specified range');
     });
 
     it('proves single-value range', () => {
