@@ -53,6 +53,10 @@ export type {
 
 // Constants
 export {
+  ATTESTATION_KIND,
+  APP_DATA_KIND,
+  ATTESTATION_TYPES,
+  VOTING_KINDS,
   SIGNET_KINDS,
   SIGNET_LABEL,
   DEFAULT_VOUCH_THRESHOLD,
@@ -81,7 +85,7 @@ export {
   hashString,
 } from './crypto.js';
 
-// Credentials (kind 30470)
+// Credentials (attestation type: credential)
 export {
   buildCredentialEvent,
   createSelfDeclaredCredential,
@@ -118,7 +122,7 @@ export {
 
 export type { RingProtectedContent, DocumentDescriptor, NullifierFamily } from './credentials.js';
 
-// Vouches (kind 30471)
+// Vouches (attestation type: vouch)
 export {
   buildVouchEvent,
   createVouch,
@@ -128,7 +132,7 @@ export {
   getVouchers,
 } from './vouches.js';
 
-// Policies (kind 30472)
+// Policies (NIP-78 kind 30078)
 export {
   buildPolicyEvent,
   createPolicy,
@@ -137,7 +141,7 @@ export {
   PolicyChecker,
 } from './policies.js';
 
-// Verifiers (kind 30473)
+// Verifiers (attestation type: verifier)
 export {
   buildVerifierEvent,
   createVerifierCredential,
@@ -146,7 +150,7 @@ export {
   isVerifierRevoked,
 } from './verifiers.js';
 
-// Challenges & Revocations (kind 30474, 30475)
+// Challenges & Revocations (attestation types: challenge, revocation)
 export {
   buildChallengeEvent,
   createChallenge,
@@ -158,7 +162,7 @@ export {
   hasReachedRevocationThreshold,
 } from './challenges.js';
 
-// Signet IQ
+// Signet Score
 export {
   computeTrustScore,
   formatTrustDisplay,
@@ -208,7 +212,7 @@ export {
   validateElectionResult,
 } from './voting.js';
 
-// Identity Bridge (kind 30476)
+// Identity Bridge (attestation type: identity-bridge)
 export {
   createIdentityBridge,
   verifyIdentityBridge,

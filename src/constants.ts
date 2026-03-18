@@ -1,20 +1,40 @@
 // Signet Protocol Constants
 
-/** Nostr event kind numbers (placeholders pending NIP allocation) */
-export const SIGNET_KINDS = {
-  CREDENTIAL: 30470,
-  VOUCH: 30471,
-  POLICY: 30472,
-  VERIFIER: 30473,
-  CHALLENGE: 30474,
-  REVOCATION: 30475,
-  IDENTITY_BRIDGE: 30476,
-  DELEGATION: 30477,
-  // Voting extension (spec/voting.md)
-  // 30480-30481 reserved for Dominion Protocol (vault share, vault config)
+/** Generic Verifiable Attestation kind (NIP-VA, placeholder pending NIP assignment) */
+export const ATTESTATION_KIND = 30999;
+
+/** NIP-78 App-specific Data kind (existing Nostr kind) */
+export const APP_DATA_KIND = 30078;
+
+/** Attestation type identifiers */
+export const ATTESTATION_TYPES = {
+  CREDENTIAL: 'credential',
+  VOUCH: 'vouch',
+  VERIFIER: 'verifier',
+  CHALLENGE: 'challenge',
+  REVOCATION: 'revocation',
+  IDENTITY_BRIDGE: 'identity-bridge',
+  DELEGATION: 'delegation',
+} as const;
+
+/** Voting kinds (moved to separate NIP, kept until Plan 4 extracts them) */
+export const VOTING_KINDS = {
   ELECTION: 30482,
   BALLOT: 30483,
   ELECTION_RESULT: 30484,
+} as const;
+
+/** @deprecated — use ATTESTATION_KIND + ATTESTATION_TYPES instead */
+export const SIGNET_KINDS = {
+  CREDENTIAL: ATTESTATION_KIND,
+  VOUCH: ATTESTATION_KIND,
+  POLICY: APP_DATA_KIND,
+  VERIFIER: ATTESTATION_KIND,
+  CHALLENGE: ATTESTATION_KIND,
+  REVOCATION: ATTESTATION_KIND,
+  IDENTITY_BRIDGE: ATTESTATION_KIND,
+  DELEGATION: ATTESTATION_KIND,
+  ...VOTING_KINDS,
 } as const;
 
 /** Protocol namespace label */
@@ -38,7 +58,7 @@ export const VERIFIER_ACTIVATION = {
   MIN_PROFESSIONS: 2,
 } as const;
 
-/** Signet IQ weights (default implementation, 0-200 scale) */
+/** Signet Score weights (default implementation, 0-200 scale) */
 export const TRUST_WEIGHTS = {
   PROFESSIONAL_VERIFICATION: 80,
   IN_PERSON_VOUCH: 16,
@@ -51,7 +71,7 @@ export const TRUST_WEIGHTS = {
 /** Minimum ring size for identity bridges (anonymity threshold) */
 export const MIN_BRIDGE_RING_SIZE = 5;
 
-/** Maximum Signet IQ score */
+/** Maximum Signet Score */
 export const MAX_TRUST_SCORE = 200;
 
 /** Valid entity types */
