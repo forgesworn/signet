@@ -6,7 +6,7 @@ import { sha256 } from '@noble/hashes/sha256';
 import { hkdf } from '@noble/hashes/hkdf';
 import { bytesToHex, hexToBytes, utf8ToBytes, randomBytes } from '@noble/hashes/utils';
 import { generateKeyPair as genKey, getPublicKey, signEvent } from './crypto.js';
-import { SIGNET_KINDS, SIGNET_LABEL, DEFAULT_CRYPTO_ALGORITHM } from './constants.js';
+import { VOTING_KINDS, SIGNET_LABEL, DEFAULT_CRYPTO_ALGORITHM } from './constants.js';
 import { getTagValue, validateFieldSizeBounds } from './validation.js';
 import type { ValidationResult } from './validation.js';
 import { computeKeyImage, lsagSign, lsagVerify } from './lsag.js';
@@ -89,7 +89,7 @@ export async function createElection(
   }
 
   const unsigned: UnsignedEvent = {
-    kind: SIGNET_KINDS.ELECTION,
+    kind: VOTING_KINDS.ELECTION,
     pubkey,
     created_at: Math.floor(Date.now() / 1000),
     tags,
@@ -105,7 +105,7 @@ export async function createElection(
  * @returns ParsedElection or null if the event is not a valid election
  */
 export function parseElection(event: NostrEvent): ParsedElection | null {
-  if (event.kind !== SIGNET_KINDS.ELECTION) return null;
+  if (event.kind !== VOTING_KINDS.ELECTION) return null;
 
   const electionId = getTagValue(event, 'd');
   const title = getTagValue(event, 'title');
@@ -357,7 +357,7 @@ export async function castBallot(
   ];
 
   const unsigned: UnsignedEvent = {
-    kind: SIGNET_KINDS.BALLOT,
+    kind: VOTING_KINDS.BALLOT,
     pubkey: ephemeral.publicKey,
     created_at: now,
     tags,
@@ -379,8 +379,8 @@ export function verifyBallot(
 ): ValidationResult {
   const errors: string[] = [];
 
-  if (ballot.kind !== SIGNET_KINDS.BALLOT) {
-    errors.push(`Expected kind ${SIGNET_KINDS.BALLOT}, got ${ballot.kind}`);
+  if (ballot.kind !== VOTING_KINDS.BALLOT) {
+    errors.push(`Expected kind ${VOTING_KINDS.BALLOT}, got ${ballot.kind}`);
   }
 
   const parsed = parseElection(election);
@@ -583,7 +583,7 @@ export async function tallyElection(
   );
 
   const unsigned: UnsignedEvent = {
-    kind: SIGNET_KINDS.ELECTION_RESULT,
+    kind: VOTING_KINDS.ELECTION_RESULT,
     pubkey: tallyPubkey,
     created_at: Math.floor(Date.now() / 1000),
     tags,
@@ -598,8 +598,8 @@ export async function tallyElection(
 export function validateElection(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
   validateFieldSizeBounds(event, errors);
-  if (event.kind !== SIGNET_KINDS.ELECTION) {
-    errors.push(`Expected kind ${SIGNET_KINDS.ELECTION}, got ${event.kind}`);
+  if (event.kind !== VOTING_KINDS.ELECTION) {
+    errors.push(`Expected kind ${VOTING_KINDS.ELECTION}, got ${event.kind}`);
   }
   if (!event.tags.some(t => t[0] === 'L' && t[1] === SIGNET_LABEL)) {
     errors.push('Missing signet protocol label (["L", "signet"])');
@@ -620,8 +620,8 @@ export function validateElection(event: NostrEvent): ValidationResult {
 export function validateBallot(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
   validateFieldSizeBounds(event, errors);
-  if (event.kind !== SIGNET_KINDS.BALLOT) {
-    errors.push(`Expected kind ${SIGNET_KINDS.BALLOT}, got ${event.kind}`);
+  if (event.kind !== VOTING_KINDS.BALLOT) {
+    errors.push(`Expected kind ${VOTING_KINDS.BALLOT}, got ${event.kind}`);
   }
   if (!event.tags.some(t => t[0] === 'L' && t[1] === SIGNET_LABEL)) {
     errors.push('Missing signet protocol label (["L", "signet"])');
@@ -637,8 +637,8 @@ export function validateBallot(event: NostrEvent): ValidationResult {
 export function validateElectionResult(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
   validateFieldSizeBounds(event, errors);
-  if (event.kind !== SIGNET_KINDS.ELECTION_RESULT) {
-    errors.push(`Expected kind ${SIGNET_KINDS.ELECTION_RESULT}, got ${event.kind}`);
+  if (event.kind !== VOTING_KINDS.ELECTION_RESULT) {
+    errors.push(`Expected kind ${VOTING_KINDS.ELECTION_RESULT}, got ${event.kind}`);
   }
   if (!event.tags.some(t => t[0] === 'L' && t[1] === SIGNET_LABEL)) {
     errors.push('Missing signet protocol label (["L", "signet"])');
