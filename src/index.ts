@@ -24,7 +24,6 @@ export type {
   VerifierParams,
   ChallengeParams,
   RevocationParams,
-  DelegationParams,
   TrustSignal,
   TrustScoreBreakdown,
   MerkleProof,
@@ -41,6 +40,7 @@ export type {
   CredentialChain,
   GuardianDelegationParams,
   GuardianDelegationScope,
+  SimpleEntityType,
   ElectionScale,
   ReVotePolicy,
   ElectionParams,
@@ -50,6 +50,9 @@ export type {
   ElectionResultParams,
   ParsedElectionResult,
 } from './types.js';
+
+// Entity display labels (value export from types)
+export { ENTITY_DISPLAY_LABELS } from './types.js';
 
 // Constants
 export {

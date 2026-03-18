@@ -1,5 +1,5 @@
-// Signet IQ Computation
-// Continuous 0-200 Signet IQ score from weighted signals
+// Signet Score Computation
+// Continuous 0-200 Signet Score from weighted signals
 
 import { TRUST_WEIGHTS, MAX_TRUST_SCORE, ATTESTATION_KIND, ATTESTATION_TYPES } from './constants.js';
 import { getTagValue } from './validation.js';
@@ -10,7 +10,7 @@ import type {
   SignetTier,
 } from './types.js';
 
-/** Compute Signet IQ for a subject from their credentials, vouches, and bridges */
+/** Compute Signet Score for a subject from their credentials, vouches, and bridges */
 export function computeTrustScore(
   subjectPubkey: string,
   credentials: NostrEvent[],
@@ -143,14 +143,14 @@ export function computeTrustScore(
   };
 }
 
-/** Get a human-readable Signet IQ display */
+/** Get a human-readable Signet Score display */
 export function formatTrustDisplay(breakdown: TrustScoreBreakdown): string {
   const checkmarks = breakdown.tier >= 2 ? '✓'.repeat(breakdown.tier - 1) : '';
   const tierLabel = ['', 'Self-declared', 'Web-of-trust', 'Verified', 'Verified (Child Safety)'][breakdown.tier];
 
   const lines = [
     `${checkmarks} Tier ${breakdown.tier} (${tierLabel})`,
-    `Signet IQ: ${breakdown.score}`,
+    `Signet Score: ${breakdown.score}`,
   ];
 
   if (breakdown.professionalVerifications > 0) {

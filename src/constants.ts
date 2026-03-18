@@ -79,20 +79,20 @@ export const ENTITY_TYPES = [
   'natural_person',
   'persona',
   'personal_agent',
-  'free_personal_agent',
+  'unlinked_personal_agent',
   'juridical_person',
   'juridical_persona',
   'organised_agent',
-  'free_organised_agent',
-  'free_agent',
+  'unlinked_organised_agent',
+  'unlinked_agent',
 ] as const;
 
 /** Valid delegation owner → agent type mappings */
 export const DELEGATION_CONSTRAINTS: Record<string, string> = {
   natural_person: 'personal_agent',
-  persona: 'free_personal_agent',
+  persona: 'unlinked_personal_agent',
   juridical_person: 'organised_agent',
-  juridical_persona: 'free_organised_agent',
+  juridical_persona: 'unlinked_organised_agent',
 };
 
 /** App-friendly labels for entity types */
@@ -100,12 +100,12 @@ export const ENTITY_LABELS: Record<string, string> = {
   natural_person: 'Person',
   persona: 'Alias',
   personal_agent: 'Personal Agent',
-  free_personal_agent: 'Free Personal Agent',
+  unlinked_personal_agent: 'Unlinked Personal Agent',
   juridical_person: 'Organisation',
   juridical_persona: 'Org Alias',
   organised_agent: 'Organised Agent',
-  free_organised_agent: 'Free Org Agent',
-  free_agent: 'Free Agent',
+  unlinked_organised_agent: 'Unlinked Org Agent',
+  unlinked_agent: 'Unlinked Agent',
 };
 
 /** Default asymmetric cryptographic algorithm (Nostr standard secp256k1).
