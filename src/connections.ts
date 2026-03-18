@@ -1,9 +1,9 @@
 // Signet Peer Connection Management
 // ECDH-based shared secret derivation and connection lifecycle
 
-import { secp256k1 } from '@noble/curves/secp256k1';
-import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex, hexToBytes, randomBytes } from '@noble/hashes/utils';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes, randomBytes } from '@noble/hashes/utils.js';
 import { SignetCryptoError, SignetValidationError } from './errors.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ export function computeSharedSecret(myPrivateKey: string, theirPublicKey: string
   // the full compressed point, so we prepend 0x02 (assume even y-coordinate,
   // per BIP-340 convention used by Nostr).
   const privBytes = hexToBytes(myPrivateKey);
-  const sharedPoint = secp256k1.getSharedSecret(privBytes, '02' + theirPublicKey);
+  const sharedPoint = secp256k1.getSharedSecret(privBytes, hexToBytes('02' + theirPublicKey));
   privBytes.fill(0);
 
   // sharedPoint is 33 bytes (compressed): prefix + x-coordinate.  Take x bytes [1..33].

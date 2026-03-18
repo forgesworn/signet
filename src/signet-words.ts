@@ -6,7 +6,7 @@ import { deriveTokenBytes } from 'spoken-token';
 import { encodeAsWords } from 'spoken-token/encoding';
 import { WORDLIST } from 'spoken-token/wordlist';
 import { constantTimeEqual } from './utils.js';
-import { utf8ToBytes } from '@noble/hashes/utils';
+import { utf8ToBytes } from '@noble/hashes/utils.js';
 import { SignetValidationError } from './errors.js';
 
 /** The Canary spoken-clarity wordlist used for Signet word verification. */

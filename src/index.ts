@@ -344,18 +344,27 @@ export {
 } from '@scure/bip39';
 export { mnemonicToSeedSync as mnemonicToSeed } from '@scure/bip39';
 
-// Key Derivation (BIP-32 / NIP-06) & nsec/npub encoding (NIP-19)
+// Identity Tree (nsec-tree integration)
 export {
-  NIP06_DERIVATION_PATH,
-  parsePath,
-  deriveKeyFromSeed,
-  deriveNostrKeyPair,
-  createIdentityFromMnemonic,
-  deriveChildAccount,
-  encodeNsec,
-  encodeNpub,
-  decodeNsec,
-} from './key-derivation.js';
+  createSignetIdentity,
+  createSignetIdentityFromNsec,
+  deriveAdditionalPersona,
+  deriveSubIdentity,
+  createLinkageProof,
+  verifyLinkageProof,
+  destroyIdentity,
+  NATURAL_PERSON_PERSONA,
+  ANONYMOUS_PERSONA,
+} from './identity-tree.js';
+
+export type { SignetIdentity } from './identity-tree.js';
+
+// nsec-tree re-exports
+export { zeroise } from 'nsec-tree';
+export type { TreeRoot, Identity, Persona, LinkageProof } from 'nsec-tree';
+
+// NIP-19 encoding (nsec-tree/encoding)
+export { encodeNsec, decodeNsec, encodeNpub, decodeNpub } from 'nsec-tree/encoding';
 
 // Shamir's Secret Sharing
 export {

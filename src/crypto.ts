@@ -1,9 +1,9 @@
 // Signet Cryptographic Utilities
 // Schnorr signatures (BIP-340) on secp256k1, event ID computation
 
-import { schnorr } from '@noble/curves/secp256k1';
-import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
+import { schnorr } from '@noble/curves/secp256k1.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { zeroBytes } from './utils.js';
 import type { UnsignedEvent, NostrEvent } from './types.js';
 
@@ -15,7 +15,7 @@ import type { UnsignedEvent, NostrEvent } from './types.js';
  *  limitation of the JavaScript runtime. Callers handling private keys should minimise
  *  their lifetime and avoid logging or serialising them unnecessarily. */
 export function generateKeyPair(): { privateKey: string; publicKey: string } {
-  const privateKeyRaw = schnorr.utils.randomPrivateKey();
+  const privateKeyRaw = schnorr.utils.randomSecretKey();
   const publicKey = schnorr.getPublicKey(privateKeyRaw);
   const privateKey = bytesToHex(privateKeyRaw);
   const publicKeyHex = bytesToHex(publicKey);
@@ -55,7 +55,7 @@ export async function signEvent(
   privateKey: string
 ): Promise<NostrEvent> {
   const id = getEventId(event);
-  const sig = schnorr.sign(id, privateKey);
+  const sig = schnorr.sign(hexToBytes(id), hexToBytes(privateKey));
   return {
     ...event,
     id,
@@ -68,7 +68,7 @@ export async function verifyEvent(event: NostrEvent): Promise<boolean> {
   try {
     const expectedId = getEventId(event);
     if (expectedId !== event.id) return false;
-    return schnorr.verify(event.sig, event.id, event.pubkey);
+    return schnorr.verify(hexToBytes(event.sig), hexToBytes(event.id), hexToBytes(event.pubkey));
   } catch {
     return false;
   }

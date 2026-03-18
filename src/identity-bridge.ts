@@ -9,7 +9,7 @@ import { ATTESTATION_KIND, ATTESTATION_TYPES, SIGNET_LABEL, MIN_BRIDGE_RING_SIZE
 import { getPublicKey, signEvent, verifyEvent } from './crypto.js';
 import { ringSign, ringVerify } from './ring-signature.js';
 import { getTagValue } from './validation.js';
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 import type { NostrEvent, UnsignedEvent, SignetTier, ParsedIdentityBridge, CryptoAlgorithm } from './types.js';
 import { SignetValidationError, SignetCryptoError } from './errors.js';
 import type { RingSignature } from './ring-signature.js';

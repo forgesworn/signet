@@ -7,7 +7,7 @@ import {
   generateMnemonic,
 } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { randomBytes } from '@noble/hashes/utils';
+import { randomBytes } from '@noble/hashes/utils.js';
 import { TEST_MNEMONIC } from './fixtures.js';
 
 /** Convert a hex string to Uint8Array. */
