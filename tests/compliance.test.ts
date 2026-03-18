@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateKeyPair } from '../src/crypto.js';
-import { createProfessionalCredential } from '../src/credentials.js';
+import { createProfessionalCredential, createChildSafetyCredential } from '../src/credentials.js';
 import {
   checkCredentialCompliance,
   checkCrossBorderCompliance,
@@ -402,6 +402,36 @@ describe('compliance', () => {
       // Should still return GB's values, ignoring unknown
       expect(result.highestConsentAge).toBe(13);
       expect(result.requiresExplicitConsent).toBe(true);
+    });
+  });
+
+  describe('checkChildDataRequirements (via checkCredentialCompliance)', () => {
+    it('flags age ranges that include ages below consent age', async () => {
+      // GB consent age is 13. Age range "8-12" is entirely below — should flag.
+      const verifier = generateKeyPair();
+      const subject = generateKeyPair();
+      const cred = await createChildSafetyCredential(verifier.privateKey, subject.publicKey, {
+        profession: 'solicitor',
+        jurisdiction: 'GB',
+        ageRange: '8-12',
+      });
+      const result = checkCredentialCompliance(cred, 'GB');
+      const consentIssue = result.issues.find((i) => i.code === 'BELOW_CONSENT_AGE');
+      expect(consentIssue).toBeDefined();
+      expect(consentIssue!.message).toContain('digital consent age');
+    });
+
+    it('does not flag age ranges entirely above consent age', async () => {
+      const verifier = generateKeyPair();
+      const subject = generateKeyPair();
+      const cred = await createChildSafetyCredential(verifier.privateKey, subject.publicKey, {
+        profession: 'solicitor',
+        jurisdiction: 'GB',
+        ageRange: '13-17',
+      });
+      const result = checkCredentialCompliance(cred, 'GB');
+      const consentIssue = result.issues.find((i) => i.code === 'BELOW_CONSENT_AGE');
+      expect(consentIssue).toBeUndefined();
     });
   });
 });

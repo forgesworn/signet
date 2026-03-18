@@ -585,13 +585,13 @@ function checkChildDataRequirements(
     return issues;
   }
 
-  // Check if age range falls below digital consent age
-  if (maxAge < j.childProtection.minAgeDigitalConsent) {
+  // Check if age range includes ages below digital consent age
+  if (minAge < j.childProtection.minAgeDigitalConsent) {
     issues.push({
       code: 'BELOW_CONSENT_AGE',
       severity: 'warning',
       jurisdiction: j.code,
-      message: `Age range ${ageRange} is entirely below the digital consent age of ${j.childProtection.minAgeDigitalConsent} in ${j.name}. Parental consent is required.`,
+      message: `Age range ${ageRange} includes ages below the digital consent age of ${j.childProtection.minAgeDigitalConsent} in ${j.name}. Parental consent is required.`,
       regulation: j.childProtection.name,
       remediation: 'Ensure verifiable parental consent has been obtained.',
     });

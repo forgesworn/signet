@@ -3,6 +3,7 @@ import {
   MerkleTree,
   verifyMerkleProof,
   verifySelectiveDisclosure,
+  SignetValidationError,
 } from '../src/index.js';
 
 describe('merkle', () => {
@@ -21,6 +22,11 @@ describe('merkle', () => {
       const tree2 = new MerkleTree(attributes);
       expect(tree1.getRoot()).toBe(tree2.getRoot());
       expect(tree1.getRoot()).toHaveLength(64);
+    });
+
+    it('rejects attribute keys containing a colon', () => {
+      expect(() => new MerkleTree({ 'a:b': 'value' })).toThrow(SignetValidationError);
+      expect(() => new MerkleTree({ 'tier': '3', 'bad:key': 'x' })).toThrow(/must not contain/);
     });
 
     it('produces different roots for different attributes', () => {
