@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { generateMnemonic } from '@scure/bip39'
+import { generateMnemonic, mnemonicToEntropy, entropyToMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english.js'
+import { splitSecret, reconstructSecret } from '@forgesworn/shamir-words'
 import {
   createSignetIdentity,
   createSignetIdentityFromNsec,
@@ -184,5 +185,23 @@ describe('destroyIdentity', () => {
     expect(npPrivKey.every(b => b === 0)).toBe(true)
     expect(pPrivKey.every(b => b === 0)).toBe(true)
     expect(() => createLinkageProof(identity.root, identity.naturalPerson.identity, 'blind')).toThrow()
+  })
+})
+
+describe('Shamir backup round-trip', () => {
+  it('split mnemonic entropy, reconstruct, create identity — same result', () => {
+    const entropyBytes = mnemonicToEntropy(TEST_MNEMONIC, wordlist)
+
+    const shares = splitSecret(entropyBytes, 2, 3)
+    const reconstructed = reconstructSecret([shares[0], shares[2]], 2)
+    const recoveredMnemonic = entropyToMnemonic(reconstructed, wordlist)
+
+    const original = createSignetIdentity(TEST_MNEMONIC)
+    const recovered = createSignetIdentity(recoveredMnemonic)
+    expect(recovered.naturalPerson.identity.npub).toBe(original.naturalPerson.identity.npub)
+    expect(recovered.persona.identity.npub).toBe(original.persona.identity.npub)
+    expect(recovered.root.masterPubkey).toBe(original.root.masterPubkey)
+    original.root.destroy()
+    recovered.root.destroy()
   })
 })
