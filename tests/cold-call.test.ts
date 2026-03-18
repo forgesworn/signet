@@ -1,7 +1,7 @@
 // Cold-call verification tests
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { secp256k1 } from '@noble/curves/secp256k1';
-import { bytesToHex } from '@noble/hashes/utils';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 
 import {
   fetchInstitutionKeys,
@@ -19,20 +19,19 @@ import { SignetValidationError } from '../src/errors.js';
 
 /** Generate a random x-only secp256k1 pubkey (64-char hex). */
 function randomPubkeyHex(): string {
-  const priv = secp256k1.utils.randomPrivateKey();
+  const priv = secp256k1.utils.randomSecretKey();
   const pub = secp256k1.getPublicKey(priv, true); // compressed, 33 bytes
   return bytesToHex(pub).slice(2); // strip 02 prefix → 64 hex chars
 }
 
 /** Generate a random private key (64-char hex). */
 function randomPrivkeyHex(): string {
-  return bytesToHex(secp256k1.utils.randomPrivateKey());
+  return bytesToHex(secp256k1.utils.randomSecretKey());
 }
 
 /** Derive the corresponding x-only pubkey from a private key. */
 function pubkeyFromPrivkey(privHex: string): string {
-  const priv = secp256k1.utils.normPrivateKeyToScalar(BigInt('0x' + privHex));
-  const pub = secp256k1.getPublicKey(priv, true);
+  const pub = secp256k1.getPublicKey(hexToBytes(privHex), true);
   return bytesToHex(pub).slice(2);
 }
 

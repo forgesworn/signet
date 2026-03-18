@@ -4,9 +4,9 @@
 //   Ephemeral ECDH         — customer generates a one-time keypair
 //   Spoken-token words     — both sides derive the same words independently
 
-import { secp256k1 } from '@noble/curves/secp256k1';
-import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { SignetCryptoError, SignetValidationError } from './errors.js';
 import type { InstitutionKeys } from './types.js';
 import {
@@ -176,12 +176,12 @@ export function initiateColdCallVerification(
   wordCount: number = 3,
 ): ColdCallSession {
   // Generate ephemeral keypair
-  const ephPriv = secp256k1.utils.randomPrivateKey();
+  const ephPriv = secp256k1.utils.randomSecretKey();
   const ephPubCompressed = secp256k1.getPublicKey(ephPriv, true); // 33 bytes, 02-prefix
 
   // ECDH: customer ephemeral private × institution public
   // getSharedSecret expects a compressed pubkey with 02/03 prefix
-  const sharedPoint = secp256k1.getSharedSecret(ephPriv, '02' + institutionPubkey);
+  const sharedPoint = secp256k1.getSharedSecret(ephPriv, hexToBytes('02' + institutionPubkey));
 
   // Shared secret = SHA-256(x-coordinate of the ECDH point)
   // sharedPoint is a 65-byte uncompressed point or 33-byte compressed; take bytes [1..33]
@@ -228,7 +228,7 @@ export function completeColdCallVerification(
 
   // ECDH: institution private × customer ephemeral public
   const privBytes = hexToBytes(institutionPrivkey);
-  const sharedPoint = secp256k1.getSharedSecret(privBytes, '02' + ephemeralPubkey);
+  const sharedPoint = secp256k1.getSharedSecret(privBytes, hexToBytes('02' + ephemeralPubkey));
   privBytes.fill(0);
 
   const xBytes = sharedPoint.slice(1, 33);

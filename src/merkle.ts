@@ -1,8 +1,8 @@
 // Merkle Tree Selective Disclosure
 // Credential attributes as Merkle leaves — reveal chosen attributes + sibling paths
 
-import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import type { MerkleProof, SelectiveDisclosure } from './types.js';
 import { SignetValidationError } from './errors.js';
 
