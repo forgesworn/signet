@@ -1003,7 +1003,7 @@ The core peer-to-peer identity verification feature. Given a connection with a s
 
 **Algorithm (powered by canary-kit):**
 
-Signet delegates word derivation to the [CANARY protocol](https://github.com/TheCryptoDonkey/canary-kit) for protocol alignment. Canary handles real-time spoken verification; Signet handles identity and trust.
+Signet delegates word derivation to the [CANARY protocol](https://www.npmjs.com/package/canary-kit) for protocol alignment. Canary handles real-time spoken verification; Signet handles identity and trust.
 
 ```
 Inputs:
