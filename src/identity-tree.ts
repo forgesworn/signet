@@ -1,6 +1,7 @@
-import { fromMnemonic, fromNsec } from 'nsec-tree'
-import { derivePersona } from 'nsec-tree/persona'
-import type { TreeRoot, Persona } from 'nsec-tree'
+import { fromMnemonic, fromNsec, zeroise, createBlindProof, createFullProof, verifyProof } from 'nsec-tree'
+import { derivePersona, deriveFromPersona } from 'nsec-tree/persona'
+import type { TreeRoot, Persona, Identity, LinkageProof } from 'nsec-tree'
+import { SignetValidationError } from './errors.js'
 
 /** Purpose strings for signet's two required personas. */
 export const NATURAL_PERSON_PERSONA = 'natural-person'
@@ -40,4 +41,50 @@ export function createSignetIdentityFromNsec(nsec: string | Uint8Array): SignetI
   const root = fromNsec(nsec)
   const { naturalPerson, persona } = deriveRequiredPersonas(root)
   return { root, naturalPerson, persona }
+}
+
+/**
+ * Derive an additional named persona from the tree root.
+ * Use for optional personas beyond the two required ones.
+ */
+export function deriveAdditionalPersona(root: TreeRoot, name: string, index = 0): Persona {
+  if (!name) {
+    throw new SignetValidationError('Persona name must not be empty')
+  }
+  return derivePersona(root, name, index)
+}
+
+/**
+ * Derive a sub-identity within a persona (two-level hierarchy).
+ * Useful for group signing or isolated sub-keys under a persona.
+ */
+export function deriveSubIdentity(persona: Persona, purpose: string, index = 0): Identity {
+  return deriveFromPersona(persona, purpose, index)
+}
+
+/**
+ * Create a linkage proof proving the tree root owns a child identity.
+ * Blind proofs reveal nothing about derivation; full proofs include purpose and index.
+ */
+export function createLinkageProof(
+  root: TreeRoot,
+  child: Identity,
+  type: 'blind' | 'full',
+): LinkageProof {
+  return type === 'blind'
+    ? createBlindProof(root, child)
+    : createFullProof(root, child)
+}
+
+/** Re-export nsec-tree's proof verification. */
+export const verifyLinkageProof = verifyProof
+
+/**
+ * Destroy a signet identity: zeroes the tree root secret and both persona private keys.
+ * After calling this, the identity is unusable.
+ */
+export function destroyIdentity(identity: SignetIdentity): void {
+  zeroise(identity.naturalPerson.identity)
+  zeroise(identity.persona.identity)
+  identity.root.destroy()
 }
