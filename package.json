@@ -48,11 +48,12 @@
     "url": "https://github.com/TheCryptoDonkey/signet.git"
   },
   "dependencies": {
-    "@noble/curves": "^1.8.1",
-    "@noble/hashes": "^1.7.1",
-    "@scure/bip39": "^2.0.1",
     "@forgesworn/range-proof": "^1.0.0",
     "@forgesworn/ring-sig": "^1.0.0",
+    "@noble/curves": "^1.8.1",
+    "@noble/hashes": "^1.7.1",
+    "@scure/bip32": "^2.0.1",
+    "@scure/bip39": "^2.0.1",
     "jurisdiction-kit": "^1.0.0",
     "spoken-token": "^1.0.3"
   },

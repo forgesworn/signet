@@ -1,12 +1,11 @@
-// BIP-32 HD Key Derivation & NIP-06 Nostr Key Derivation
-// Derives Nostr keypairs from BIP-39 mnemonics
+// NIP-06 Nostr Key Derivation & NIP-19 nsec/npub encoding
+// Derives Nostr keypairs from BIP-39 mnemonics via @scure/bip32
 // Also provides nsec/npub bech32 encoding (NIP-19)
 
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { hmac } from '@noble/hashes/hmac';
-import { sha512 } from '@noble/hashes/sha512';
-import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { mnemonicToSeedSync } from '@scure/bip39';
+import { HDKey } from '@scure/bip32';
 import { zeroBytes } from './utils.js';
 import { SignetValidationError, SignetCryptoError } from './errors.js';
 
@@ -133,18 +132,14 @@ export function decodeNsec(nsec: string): { privateKey: string; publicKey: strin
 /** NIP-06 derivation path: m/44'/1237'/0'/0/0 */
 export const NIP06_DERIVATION_PATH = "m/44'/1237'/0'/0/0";
 
-/** Hardened offset for BIP-32 */
-const HARDENED_OFFSET = 0x80000000;
-
-interface ExtendedKey {
-  key: Uint8Array;    // 32 bytes — private key or public key
-  chainCode: Uint8Array; // 32 bytes
-}
-
 /** Maximum derivation path depth — prevents CPU-bound DoS on untrusted paths */
 const MAX_PATH_DEPTH = 10;
 
-/** Parse a BIP-32 derivation path into numeric indices */
+/** Hardened offset for BIP-32 */
+const HARDENED_OFFSET = 0x80000000;
+
+/** Parse a BIP-32 derivation path into numeric indices.
+ *  Retained for backwards compatibility — @scure/bip32 handles paths internally. */
 export function parsePath(path: string): number[] {
   if (!path.startsWith('m/')) {
     throw new SignetValidationError('Derivation path must start with m/');
@@ -164,75 +159,18 @@ export function parsePath(path: string): number[] {
     });
 }
 
-/** Derive master key from seed (BIP-32) */
-function masterKeyFromSeed(seed: Uint8Array): ExtendedKey {
-  const I = hmac(sha512, utf8ToBytes('Bitcoin seed'), seed);
-  const key = I.slice(0, 32);
-  const chainCode = I.slice(32);
-  zeroBytes(I);
-  return { key, chainCode };
-}
-
-/** Derive a child key (BIP-32 hardened or normal) */
-function deriveChild(parent: ExtendedKey, index: number): ExtendedKey {
-  const data = new Uint8Array(37);
-
-  if (index >= HARDENED_OFFSET) {
-    // Hardened: 0x00 || ser256(kpar) || ser32(index)
-    data[0] = 0;
-    data.set(parent.key, 1);
-  } else {
-    // Normal: serP(point(kpar)) || ser32(index)  — 33 + 4 = 37 bytes
-    const pubkey = secp256k1.getPublicKey(parent.key, true); // 33 bytes compressed
-    data.set(pubkey, 0);
-  }
-
-  // Write index as big-endian 32-bit
-  data[33] = (index >>> 24) & 0xff;
-  data[34] = (index >>> 16) & 0xff;
-  data[35] = (index >>> 8) & 0xff;
-  data[36] = index & 0xff;
-
-  const I = hmac(sha512, parent.chainCode, data);
-  const IL = I.slice(0, 32);
-  const IR = I.slice(32);
-  zeroBytes(I);
-  zeroBytes(data);
-
-  // Child key = (IL + kpar) mod n
-  // BIP-32: if parse256(IL) >= n, the key is invalid — try the next index
-  const parentKeyBigInt = BigInt('0x' + bytesToHex(parent.key));
-  const ILBigInt = BigInt('0x' + bytesToHex(IL));
-  zeroBytes(IL);
-  if (ILBigInt >= secp256k1.CURVE.n) {
-    throw new SignetCryptoError('Derived IL >= curve order — try next index');
-  }
-  const childKey = (ILBigInt + parentKeyBigInt) % secp256k1.CURVE.n;
-
-  if (childKey === 0n) {
-    throw new SignetCryptoError('Derived key is zero — astronomically unlikely, try next index');
-  }
-
-  // Convert back to 32-byte Uint8Array
-  const childKeyHex = childKey.toString(16).padStart(64, '0');
-  return {
-    key: hexToBytes(childKeyHex),
-    chainCode: IR,
-  };
-}
-
-/** Derive a private key at the given BIP-32 path from a seed */
+/** Derive a private key at the given BIP-32 path from a seed.
+ *  Uses @scure/bip32 (audited BIP-32 implementation by paulmillr). */
 export function deriveKeyFromSeed(seed: Uint8Array, path: string): Uint8Array {
-  const indices = parsePath(path);
-  let current = masterKeyFromSeed(seed);
-  for (const index of indices) {
-    const prev = current;
-    current = deriveChild(current, index);
-    zeroBytes(prev.key);
-    zeroBytes(prev.chainCode);
+  // Validate path depth before delegating to @scure/bip32
+  parsePath(path);
+  const master = HDKey.fromMasterSeed(seed);
+  const child = master.derive(path);
+  if (!child.privateKey) {
+    throw new SignetCryptoError('Key derivation produced no private key');
   }
-  zeroBytes(current.chainCode);
-  return current.key;
+  // Return a copy — HDKey owns its internal buffer
+  return Uint8Array.from(child.privateKey);
 }
 
 /** Derive a Nostr keypair from a BIP-39 mnemonic using NIP-06 path.
