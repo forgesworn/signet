@@ -11,6 +11,7 @@
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { hexToBytes } from '@noble/hashes/utils';
 import { SignetCryptoError } from './errors.js';
+import { zeroBytes } from './utils.js';
 
 /**
  * Compute the NIP-04 shared secret: raw ECDH x-coordinate (NO hashing).
@@ -53,18 +54,22 @@ export async function nip04Encrypt(
   const iv = globalThis.crypto.getRandomValues(new Uint8Array(16));
   const key = await globalThis.crypto.subtle.importKey(
     'raw',
-    sharedX.buffer as ArrayBuffer,
+    sharedX.buffer.slice(sharedX.byteOffset, sharedX.byteOffset + sharedX.byteLength) as ArrayBuffer,
     { name: 'AES-CBC' },
     false,
     ['encrypt'],
   );
+  zeroBytes(sharedX);
   const encoded = new TextEncoder().encode(plaintext);
   const ciphertext = await globalThis.crypto.subtle.encrypt(
     { name: 'AES-CBC', iv },
     key,
     encoded,
   );
-  const ctB64 = btoa(String.fromCharCode(...new Uint8Array(ciphertext)));
+  const ctBytes = new Uint8Array(ciphertext);
+  let ctBinary = '';
+  for (let i = 0; i < ctBytes.length; i++) ctBinary += String.fromCharCode(ctBytes[i]);
+  const ctB64 = btoa(ctBinary);
   const ivB64 = btoa(String.fromCharCode(...iv));
   return ctB64 + '?iv=' + ivB64;
 }
@@ -82,18 +87,22 @@ export async function nip04Decrypt(
   theirPubkey: string,
   ciphertext: string,
 ): Promise<string> {
-  const [ctB64, ivB64] = ciphertext.split('?iv=');
+  const separatorIdx = ciphertext.lastIndexOf('?iv=');
+  if (separatorIdx === -1) throw new SignetCryptoError('Invalid NIP-04 ciphertext format');
+  const ctB64 = ciphertext.slice(0, separatorIdx);
+  const ivB64 = ciphertext.slice(separatorIdx + 4);
   if (!ctB64 || !ivB64) throw new SignetCryptoError('Invalid NIP-04 ciphertext format');
   const sharedX = nip04SharedSecret(privateKey, theirPubkey);
   const ct = Uint8Array.from(atob(ctB64), (c) => c.charCodeAt(0));
   const iv = Uint8Array.from(atob(ivB64), (c) => c.charCodeAt(0));
   const key = await globalThis.crypto.subtle.importKey(
     'raw',
-    sharedX.buffer as ArrayBuffer,
+    sharedX.buffer.slice(sharedX.byteOffset, sharedX.byteOffset + sharedX.byteLength) as ArrayBuffer,
     { name: 'AES-CBC' },
     false,
     ['decrypt'],
   );
+  zeroBytes(sharedX);
   const plainBuffer = await globalThis.crypto.subtle.decrypt(
     { name: 'AES-CBC', iv },
     key,

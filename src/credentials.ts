@@ -368,7 +368,12 @@ export function verifyRingProtectedContent(event: NostrEvent): {
     const dTag = getTagValue(event, 'd') || '';
     const subjectPubkey = dTag.startsWith('credential:') ? dTag.slice('credential:'.length) : dTag;
 
-    if (content.ringSignature) {
+    if (content.ringSignature &&
+        typeof content.ringSignature === 'object' &&
+        typeof content.ringSignature.message === 'string' &&
+        Array.isArray(content.ringSignature.ring) &&
+        typeof content.ringSignature.c0 === 'string' &&
+        Array.isArray(content.ringSignature.responses)) {
       result.hasRingSignature = true;
 
       // Verify the ring signature is cryptographically valid
@@ -378,18 +383,20 @@ export function verifyRingProtectedContent(event: NostrEvent): {
       const expectedPrefix = `signet:credential:${subjectPubkey}:`;
       const messageBindsToSubject = content.ringSignature.message.startsWith(expectedPrefix);
 
-      // Verify the timestamp in the message matches the event's created_at
-      const parts = content.ringSignature.message.split(':');
-      const msgTimestamp = parseInt(parts[3], 10);
+      // Extract timestamp from after the validated prefix
+      const timestampStr = content.ringSignature.message.slice(expectedPrefix.length);
+      const msgTimestamp = parseInt(timestampStr, 10);
       const timestampMatches = !isNaN(msgTimestamp) && msgTimestamp === event.created_at;
 
       result.ringValid = cryptoValid && messageBindsToSubject && timestampMatches;
     }
 
-    if (content.rangeProof) {
+    if (content.rangeProof &&
+        typeof content.rangeProof === 'object' &&
+        !Array.isArray(content.rangeProof)) {
       result.hasRangeProof = true;
       // If the proof has a context binding, verify it matches the credential's subject
-      if (content.rangeProof.context && content.rangeProof.context !== subjectPubkey) {
+      if (typeof content.rangeProof.context === 'string' && content.rangeProof.context !== subjectPubkey) {
         result.rangeProofValid = false;
       } else {
         result.rangeProofValid = verifyAgeRangeProof(content.rangeProof);

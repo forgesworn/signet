@@ -65,9 +65,9 @@ function isValidVerifyRequest(obj: Record<string, unknown>): obj is Record<strin
 
 /** Validate that a parsed object is a well-formed AuthRequest */
 function isValidAuthRequest(obj: Record<string, unknown>): obj is Record<string, unknown> & AuthRequest {
-  if (typeof obj.requestId !== 'string') return false;
-  if (typeof obj.challenge !== 'string') return false;
-  if (typeof obj.origin !== 'string') return false;
+  if (typeof obj.requestId !== 'string' || obj.requestId.length > 64) return false;
+  if (typeof obj.challenge !== 'string' || obj.challenge.length > 512) return false;
+  if (typeof obj.origin !== 'string' || obj.origin.length > 1024) return false;
   if (typeof obj.timestamp !== 'number') return false;
   if (Math.abs(Date.now() / 1000 - obj.timestamp) > 300) return false;
   return true;
@@ -75,9 +75,9 @@ function isValidAuthRequest(obj: Record<string, unknown>): obj is Record<string,
 
 /** Validate that a parsed object is a well-formed LoginRequest */
 function isValidLoginRequest(obj: Record<string, unknown>): obj is Record<string, unknown> & LoginRequest {
-  if (typeof obj.requestId !== 'string') return false;
-  if (typeof obj.challenge !== 'string') return false;
-  if (typeof obj.origin !== 'string') return false;
+  if (typeof obj.requestId !== 'string' || obj.requestId.length > 64) return false;
+  if (typeof obj.challenge !== 'string' || obj.challenge.length > 512) return false;
+  if (typeof obj.origin !== 'string' || obj.origin.length > 1024) return false;
   if (typeof obj.timestamp !== 'number') return false;
   if (Math.abs(Date.now() / 1000 - obj.timestamp) > 300) return false;
   return true;

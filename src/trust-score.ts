@@ -26,12 +26,20 @@ export function computeTrustScore(
   let onlineVouches = 0;
 
   // Process credentials
+  const now = Math.floor(Date.now() / 1000);
   for (const cred of credentials) {
     if (cred.kind !== ATTESTATION_KIND) continue;
     if (getTagValue(cred, 'type') !== ATTESTATION_TYPES.CREDENTIAL) continue;
     const dTag = getTagValue(cred, 'd') || '';
     const subject = dTag.startsWith('credential:') ? dTag.slice('credential:'.length) : dTag;
     if (subject !== subjectPubkey) continue;
+
+    // Skip expired credentials — NaN must be treated as expired (not perpetually valid)
+    const expires = getTagValue(cred, 'expires');
+    if (expires) {
+      const exp = parseInt(expires, 10);
+      if (isNaN(exp) || exp < now) continue;
+    }
 
     const rawTier = parseInt(getTagValue(cred, 'tier') || '1', 10);
     const tier = (!isNaN(rawTier) && rawTier >= 1 && rawTier <= 4 ? rawTier : 1) as SignetTier;
@@ -115,8 +123,7 @@ export function computeTrustScore(
   // Account age
   let accountAgeDays = 0;
   if (accountCreatedAt) {
-    const now = Math.floor(Date.now() / 1000);
-    accountAgeDays = Math.floor((now - accountCreatedAt) / (24 * 60 * 60));
+    accountAgeDays = Math.max(0, Math.floor((now - accountCreatedAt) / (24 * 60 * 60)));
     const years = accountAgeDays / 365;
     const ageWeight = Math.min(
       years * TRUST_WEIGHTS.ACCOUNT_AGE_PER_YEAR,

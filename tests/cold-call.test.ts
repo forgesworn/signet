@@ -70,7 +70,7 @@ describe('fetchInstitutionKeys', () => {
   it('builds an HTTPS URL from the domain', async () => {
     mockFetch(JSON.stringify(validPayload()));
     await fetchInstitutionKeys('example.com');
-    expect(globalThis.fetch).toHaveBeenCalledWith('https://example.com/.well-known/signet.json');
+    expect(globalThis.fetch).toHaveBeenCalledWith('https://example.com/.well-known/signet.json', expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it('rejects responses larger than 10 KB', async () => {
@@ -128,6 +128,14 @@ describe('fetchInstitutionKeys', () => {
   it('propagates network errors', async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
     await expect(fetchInstitutionKeys('example.com')).rejects.toThrow('Network error');
+  });
+
+  it('passes an AbortSignal with timeout to fetch', async () => {
+    mockFetch(JSON.stringify(validPayload()));
+    await fetchInstitutionKeys('example.com');
+    const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const options = call[1] as { signal?: AbortSignal };
+    expect(options.signal).toBeInstanceOf(AbortSignal);
   });
 });
 
