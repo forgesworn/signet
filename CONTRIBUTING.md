@@ -5,7 +5,7 @@ Feedback, NIP discussion, and contributions are welcome. Open an issue or submit
 ## Setup
 
 ```bash
-git clone https://github.com/TheCryptoDonkey/signet.git
+git clone https://github.com/forgesworn/signet-protocol.git
 cd signet
 npm install
 ```
