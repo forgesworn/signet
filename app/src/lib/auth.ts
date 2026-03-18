@@ -26,7 +26,7 @@ const PRF_SALT = new Uint8Array([
 function getRpId(): string {
   return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? window.location.hostname
-    : 'signet.trotters.cc';
+    : 'signet.forgesworn.dev';
 }
 
 /**

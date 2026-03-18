@@ -9,10 +9,7 @@ const hasCerts = fs.existsSync(path.join(certDir, 'signet.pem'));
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      'signet-protocol': path.resolve(__dirname, '../src'),
-      'spoken-token': path.resolve(__dirname, '../../spoken-token/src'),
-    },
+    alias: {},
   },
   server: {
     port: 5174,
