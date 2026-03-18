@@ -16,7 +16,7 @@ export interface BadgeInfo {
   tier: SignetTier;
   /** Human-readable tier label */
   tierLabel: string;
-  /** Signet IQ (0-200) */
+  /** Signet Score (0-200) */
   score: number;
   /** Whether the user has any valid credentials */
   isVerified: boolean;
