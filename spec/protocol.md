@@ -2068,4 +2068,132 @@ With a ring of size `n` and `k` independent bridge events, the expected intersec
 
 ---
 
+## 27. Cold-Call Verification
+
+Cold-call verification solves a common trust problem: a customer receives a call claiming to be from their bank, law firm, or other institution. How can the customer verify the caller is genuine, without installing a new app, without sharing personal data, and without depending on a central authority?
+
+Signet provides a mechanism for institutions to publish their verification pubkeys via `.well-known/signet.json`, and for both parties to independently derive the same spoken words from an ephemeral ECDH shared secret.
+
+### 27.1 Institution Key Publication
+
+Institutions publish a JSON document at `https://<domain>/.well-known/signet.json`:
+
+```json
+{
+  "version": 1,
+  "name": "Acme Legal LLP",
+  "pubkeys": [
+    {
+      "id": "key-2026-01",
+      "pubkey": "<64-char hex secp256k1 x-only pubkey>",
+      "label": "Primary Verification Key",
+      "created": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "relay": "wss://relay.example.com",
+  "policy": {
+    "rotation": "annual",
+    "contact": "security@acmelegal.com"
+  }
+}
+```
+
+**Validation rules for clients fetching this document:**
+
+- MUST use HTTPS — HTTP is rejected.
+- Response body MUST NOT exceed 10,240 bytes (10 KB).
+- `version` MUST equal `1` — unknown versions are rejected.
+- `name` MUST be a non-empty string.
+- `pubkeys` MUST be a non-empty array with at most 20 entries.
+- Each `pubkey` value MUST be a 64-character lowercase hexadecimal string (x-only secp256k1).
+- Clients MAY cache the response for up to 24 hours.
+
+### 27.2 Session Code Format
+
+To let the customer and institution find each other (e.g. when the customer initiates the check in an app and reads a code over the phone), a human-friendly session code is derived from the ephemeral pubkey:
+
+```
+NATOWORD-NNNN
+```
+
+Examples: `BRAVO-7742`, `NOVEMBER-0053`, `XRAY-1991`
+
+Derivation:
+
+1. Compute `hash = SHA-256(ephemeralPubkey_bytes)`.
+2. `natoIndex = hash[0] mod 26` → select from the NATO phonetic alphabet.
+3. `digits = ((hash[1] << 24) | (hash[2] << 16) | (hash[3] << 8) | hash[4]) mod 10000` → zero-padded to 4 digits.
+4. Code = `NATO[natoIndex] + "-" + digits.padStart(4, "0")`.
+
+The session code is a human-readable fingerprint of the ephemeral pubkey, not a secret. It allows the institution to look up the associated ephemeral pubkey from a relay (Phase 2 feature) without the customer needing to read out 64 hex characters.
+
+**NATO phonetic alphabet (Signet uses the ICAO standard):**
+
+`ALFA BRAVO CHARLIE DELTA ECHO FOXTROT GOLF HOTEL INDIA JULIET KILO LIMA MIKE NOVEMBER OSCAR PAPA QUEBEC ROMEO SIERRA TANGO UNIFORM VICTOR WHISKEY XRAY YANKEE ZULU`
+
+### 27.3 Ephemeral ECDH Flow
+
+The verification flow uses a one-time ECDH exchange to derive a shared secret that neither party possessed before the call:
+
+**Customer side (initiate):**
+
+1. Fetch `https://<institution-domain>/.well-known/signet.json` and select a pubkey.
+2. Generate an ephemeral secp256k1 keypair `(ephPriv, ephPub)`.
+3. Compute `sharedPoint = secp256k1.ECDH(ephPriv, institutionPubkey)`.
+4. Derive `sharedSecret = SHA-256(x-coordinate of sharedPoint)` (32 bytes).
+5. Derive words: `words = SPOKEN-DERIVE(sharedSecret, "signet:cold-call", currentEpoch, wordCount=3)`.
+6. Generate `sessionCode = NATO-WORD + "-" + 4-digits` from ephemeral pubkey.
+7. Display `words` on screen — the customer expects to hear these words from the caller.
+8. Share `ephemeralPubkey` (or `sessionCode`) with the institution (read it out, or relay lookup).
+9. Zero the ephemeral private key immediately after use.
+
+**Institution side (complete):**
+
+1. Receive the customer's `ephemeralPubkey` (via relay lookup by session code, or spoken by customer).
+2. Compute `sharedPoint = secp256k1.ECDH(institutionPrivkey, ephemeralPubkey)`.
+3. Derive `sharedSecret = SHA-256(x-coordinate of sharedPoint)`.
+4. Derive `words = SPOKEN-DERIVE(sharedSecret, "signet:cold-call", currentEpoch, wordCount=3)`.
+5. Read the words out to the customer.
+
+If the words match, the caller holds the private key corresponding to a pubkey published in the institution's `.well-known/signet.json` at the time the customer fetched it.
+
+### 27.4 Word Derivation Specification
+
+Cold-call words use the same SPOKEN-DERIVE function as "Signet me" (§15), with a different context string for domain separation:
+
+- **Algorithm:** `HMAC-SHA256(sharedSecret, utf8("signet:cold-call") || counter_be32)`
+- **Context:** `"signet:cold-call"` (distinct from `"signet:verify"` used by "Signet me")
+- **Counter:** `Math.floor(unixSeconds / 30)` — 30-second epoch, same as "Signet me"
+- **Tolerance:** ±1 epoch (accounts for up to 30 seconds of clock skew between parties)
+- **Default word count:** 3
+- **Wordlist:** spoken-clarity wordlist (same as "Signet me")
+
+The context separation ensures that cold-call words and peer-verification words are always different, even if the same shared secret were somehow reused.
+
+### 27.5 Security Properties
+
+**What cold-call verification provides:**
+
+- **Institution authenticity:** The caller knows the institution's private key — they are who they claim to be (or the key has been compromised).
+- **Freshness:** The ephemeral keypair is generated per-call. Replaying an old session code produces different words in the next epoch.
+- **No data disclosure:** The customer's personal data is never transmitted. The ECDH produces a shared secret without either party revealing their private key.
+- **No central authority:** Verification relies only on DNS (to reach the `.well-known` endpoint) and the HTTPS PKI.
+
+**Limitations:**
+
+- **DNS/TLS trust:** If the institution's domain is compromised, an attacker could substitute their own pubkeys in `.well-known/signet.json`. Clients SHOULD cache the pubkeys and warn if they change unexpectedly.
+- **Key compromise:** If the institution's private key is leaked, an attacker can impersonate the institution. Institutions SHOULD rotate keys annually and support multiple simultaneous pubkeys for transition periods.
+- **Epoch synchronisation:** Both parties must be within ±30 seconds. Network time attacks could desynchronise them, but ±1 epoch tolerance mitigates minor skew.
+- **No relay integration yet (Phase 1):** In the current implementation, the customer must share the `ephemeralPubkey` or `sessionCode` verbally. Phase 2 will add relay-based session code resolution so the institution can look up the ephemeral pubkey automatically.
+
+### 27.6 Phase 2: Relay-Based Session Code Resolution
+
+*Not yet implemented. Described here for future implementers.*
+
+The institution publishes a relay URL in `.well-known/signet.json` (`relay` field). The customer's app publishes the ephemeral pubkey to this relay, tagged with the session code. The institution's system subscribes and automatically retrieves the ephemeral pubkey without requiring the customer to read it out.
+
+This eliminates the need for the customer to verbally communicate anything except confirming that the words match.
+
+---
+
 *This specification is a living document. It will evolve through community feedback and implementation experience.*
