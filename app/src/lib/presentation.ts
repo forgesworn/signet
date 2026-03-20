@@ -13,6 +13,7 @@ export interface VerifyRequest {
   requiredAgeRange: string;
   callbackUrl?: string;
   relayUrl?: string;
+  origin?: string;
   timestamp: number;
 }
 
