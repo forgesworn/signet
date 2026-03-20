@@ -86,7 +86,19 @@ export function App() {
     resetInactivityTimer(); // start the timer immediately on unlock
 
     const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') setEncryptionKey(null);
+      if (document.visibilityState === 'hidden') {
+        // Grace period during active verification — don't lock immediately
+        if (pendingVerifyRequest || pendingAuthRequest) {
+          const grace = setTimeout(() => setEncryptionKey(null), 60000);
+          const resume = () => {
+            clearTimeout(grace);
+            document.removeEventListener('visibilitychange', resume);
+          };
+          document.addEventListener('visibilitychange', resume);
+        } else {
+          setEncryptionKey(null);
+        }
+      }
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
