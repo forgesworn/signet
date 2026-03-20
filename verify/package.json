@@ -5,7 +5,9 @@
   "type": "module",
   "main": "./dist/signet-verify.js",
   "types": "./dist/signet-verify.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "esbuild src/signet-verify.ts --bundle --format=iife --global-name=Signet --outfile=dist/signet-verify.js --minify --target=es2020",
     "build:esm": "esbuild src/signet-verify.ts --bundle --format=esm --outfile=dist/signet-verify.esm.js --minify --target=es2020",
@@ -13,11 +15,13 @@
   },
   "dependencies": {
     "@noble/curves": "^1.8.1",
-    "@noble/hashes": "^1.7.1"
+    "@noble/hashes": "^1.7.1",
+    "uqr": "^0.1.2"
   },
   "devDependencies": {
     "esbuild": "^0.24.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.0"
   },
   "license": "MIT",
   "repository": {
