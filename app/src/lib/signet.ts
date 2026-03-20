@@ -6,7 +6,7 @@ import {
   BIP39_WORDLIST,
   createSignetIdentity,
   createSignetIdentityFromNsec,
-  encodeNpub,
+  encodeNpub as _encodeNpub,
   decodeNsec,
   computeSharedSecret,
   createQRPayload,
@@ -24,7 +24,12 @@ import {
   signEvent,
   getPublicKey,
 } from 'signet-protocol';
-import { bytesToHex } from '@noble/hashes/utils.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+
+/** Encode a hex public key string as an npub bech32 string */
+export function encodeNpub(pubkeyHex: string): string {
+  return _encodeNpub(hexToBytes(pubkeyHex));
+}
 import type { SignetIdentity } from '../types';
 
 // Wrap @scure/bip39 functions that require a wordlist parameter
@@ -43,7 +48,6 @@ export {
   parseQRPayload,
   getSignetDisplay,
   verifySignetWords,
-  encodeNpub,
   createVouch,
   computeBadge,
   buildBadgeFilters,

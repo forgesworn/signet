@@ -7,19 +7,17 @@
 
 import { signEvent, RelayClient } from 'signet-protocol';
 import type { UnsignedEvent } from 'signet-protocol';
-import { secp256k1 } from '@noble/curves/secp256k1';
-import { hexToBytes } from '@noble/hashes/utils';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
+import { hexToBytes } from '@noble/hashes/utils.js';
 
 /**
  * NIP-04 encrypt — local copy for NIP-46 compatibility.
  * TODO: Replace with NIP-44 when NIP-46 spec finalises NIP-44 support.
  */
 async function nip04Encrypt(privateKey: string, theirPubkey: string, plaintext: string): Promise<string> {
-  const theirPoint = secp256k1.ProjectivePoint.fromHex('02' + theirPubkey);
-  const scalar = BigInt('0x' + privateKey) % secp256k1.CURVE.n;
-  const shared = theirPoint.multiply(scalar);
-  const xHex = shared.toAffine().x.toString(16).padStart(64, '0');
-  const sharedX = hexToBytes(xHex);
+  // getSharedSecret returns compressed point (33 bytes): prefix + x-coordinate
+  const sharedPoint = secp256k1.getSharedSecret(hexToBytes(privateKey), hexToBytes('02' + theirPubkey));
+  const sharedX = sharedPoint.slice(1, 33); // x-coordinate only
   const iv = globalThis.crypto.getRandomValues(new Uint8Array(16));
   const key = await globalThis.crypto.subtle.importKey('raw',
     sharedX.buffer.slice(sharedX.byteOffset, sharedX.byteOffset + sharedX.byteLength) as ArrayBuffer,
