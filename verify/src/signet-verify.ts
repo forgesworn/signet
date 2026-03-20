@@ -65,6 +65,7 @@ interface PresentationRequest {
   requiredAgeRange: string;
   callbackUrl?: string;
   relayUrl?: string;
+  origin?: string;
   timestamp: number;
 }
 
@@ -249,6 +250,7 @@ export async function verifyAge(requiredAgeRange: string, options?: Partial<Sign
     requestId,
     requiredAgeRange: opts.requiredAgeRange,
     relayUrl: opts.relayUrl,
+    origin: typeof window !== 'undefined' ? window.location.origin : undefined,
     timestamp: Math.floor(Date.now() / 1000),
   };
 

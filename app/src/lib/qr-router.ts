@@ -106,6 +106,7 @@ export function routeQR(data: string): QRAction {
             requiredAgeRange: obj.requiredAgeRange as string,
             callbackUrl: typeof obj.callbackUrl === 'string' ? (obj.callbackUrl as string).slice(0, 1024) : undefined,
             relayUrl: typeof obj.relayUrl === 'string' ? (obj.relayUrl as string).slice(0, 1024) : undefined,
+            origin: typeof obj.origin === 'string' ? (obj.origin as string).slice(0, 1024) : undefined,
             timestamp: ts,
           };
           return { type: 'verify', request };
@@ -177,6 +178,7 @@ export function routeQR(data: string): QRAction {
             requiredAgeRange: obj.requiredAgeRange as string,
             callbackUrl: typeof obj.callbackUrl === 'string' ? (obj.callbackUrl as string).slice(0, 1024) : undefined,
             relayUrl: typeof obj.relayUrl === 'string' ? (obj.relayUrl as string).slice(0, 1024) : undefined,
+            origin: typeof obj.origin === 'string' ? (obj.origin as string).slice(0, 1024) : undefined,
             timestamp: ts,
           };
           return { type: 'verify', request };
