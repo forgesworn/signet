@@ -1,4 +1,4 @@
-// Identity Bridge Tests (kind 30476)
+// Identity Bridge Tests (kind 31000)
 
 import { describe, it, expect } from 'vitest';
 import {
