@@ -1,16 +1,18 @@
-// Identity Bridge (kind 30999, type: identity-bridge)
+// Identity Bridge (kind 31000, type: identity-bridge)
 // Allows an anonymous account to cryptographically prove it is controlled by
 // a verified real account, without revealing which one. Uses SAG ring signatures.
 //
 // Published from the anon account. Content contains a ring signature proving
 // one of N verified accounts also controls this anon account.
 
+import { createAttestation } from 'nostr-attestations';
+import { parseAttestation } from 'nostr-attestations';
 import { ATTESTATION_KIND, ATTESTATION_TYPES, SIGNET_LABEL, MIN_BRIDGE_RING_SIZE, TRUST_WEIGHTS, DEFAULT_CRYPTO_ALGORITHM } from './constants.js';
 import { getPublicKey, signEvent, verifyEvent } from './crypto.js';
 import { ringSign, ringVerify } from './ring-signature.js';
 import { getTagValue } from './validation.js';
 import { randomBytes } from '@noble/hashes/utils.js';
-import type { NostrEvent, UnsignedEvent, SignetTier, ParsedIdentityBridge, CryptoAlgorithm } from './types.js';
+import type { NostrEvent, SignetTier, ParsedIdentityBridge, CryptoAlgorithm } from './types.js';
 import { SignetValidationError, SignetCryptoError } from './errors.js';
 import type { RingSignature } from './ring-signature.js';
 
@@ -86,7 +88,7 @@ export function computeBridgeWeight(ringMinTier: SignetTier): number {
 }
 
 /**
- * Create an identity bridge event (kind 30999, type: identity-bridge).
+ * Create an identity bridge event (kind 31000, type: identity-bridge).
  * Published from the anonymous account, it proves the anon account owner
  * also controls one of the verified accounts in the ring.
  *
@@ -95,7 +97,7 @@ export function computeBridgeWeight(ringMinTier: SignetTier): number {
  * @param ring - Array of verified pubkeys forming the anonymity set
  * @param signerIndex - Position of the real account in the ring
  * @param ringMinTier - Minimum verification tier among ring members
- * @returns Signed kind 30999 (type: identity-bridge) NostrEvent
+ * @returns Signed kind 31000 (type: identity-bridge) NostrEvent
  */
 export async function createIdentityBridge(
   anonPrivateKey: string,
@@ -117,7 +119,7 @@ export async function createIdentityBridge(
   // Ring signature: real private key signs binding message inside the ring
   const ringSig = ringSign(bindingMessage, ring, signerIndex, realPrivateKey);
 
-  const content = JSON.stringify({
+  const contentPayload = JSON.stringify({
     ringSig: {
       ring: ringSig.ring,
       c0: ringSig.c0,
@@ -128,21 +130,23 @@ export async function createIdentityBridge(
     timestamp,
   });
 
-  const unsigned: UnsignedEvent = {
-    kind: ATTESTATION_KIND,
-    pubkey: anonPubkey,
-    created_at: timestamp,
+  const template = createAttestation({
+    type: ATTESTATION_TYPES.IDENTITY_BRIDGE,
+    summary: 'Anonymous account linked to verified identity via ring signature',
     tags: [
-      ['d', 'identity-bridge'],
-      ['type', ATTESTATION_TYPES.IDENTITY_BRIDGE],
       ['ring-min-tier', String(ringMinTier)],
       ['ring-size', String(ring.length)],
-      ['summary', 'Anonymous account linked to verified identity via ring signature'],
       ['algo', DEFAULT_CRYPTO_ALGORITHM],
       ['L', SIGNET_LABEL],
       ['l', 'identity-bridge', SIGNET_LABEL],
     ],
-    content,
+    content: contentPayload,
+  });
+
+  const unsigned = {
+    ...template,
+    pubkey: anonPubkey,
+    created_at: timestamp,
   };
 
   return signEvent(unsigned, anonPrivateKey);
@@ -215,8 +219,9 @@ export async function verifyIdentityBridge(
  * Parse an identity bridge event into a structured form.
  */
 export function parseIdentityBridge(event: NostrEvent): ParsedIdentityBridge | null {
-  if (event.kind !== ATTESTATION_KIND) return null;
-  if (getTagValue(event, 'type') !== ATTESTATION_TYPES.IDENTITY_BRIDGE) return null;
+  const base = parseAttestation(event);
+  if (!base) return null;
+  if (base.type !== ATTESTATION_TYPES.IDENTITY_BRIDGE) return null;
 
   try {
     const parsed = JSON.parse(event.content);

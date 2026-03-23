@@ -1,6 +1,6 @@
 // Level 1 Badge Display Library
 // Minimal drop-in module for Nostr clients to display Signet trust badges.
-// Requires only kind 30999 (type: credential and type: vouch) and Schnorr verification.
+// Requires only kind 31000 (type: credential and type: vouch) and Schnorr verification.
 
 import { ATTESTATION_KIND, ATTESTATION_TYPES, TRUST_WEIGHTS, MAX_TRUST_SCORE } from './constants.js';
 import { verifyEvent } from './crypto.js';
@@ -51,7 +51,7 @@ const TIER_TO_TRUST_LEVEL: Record<SignetTier, TrustLevel> = {
  * This is the main entry point for Level 1 integration.
  *
  * @param pubkey - The Nostr pubkey to compute a badge for
- * @param events - All relevant kind 30999 (`type: credential` and `type: vouch`) events
+ * @param events - All relevant kind 31000 (`type: credential` and `type: vouch`) events
  * @param options - Optional configuration
  * @returns Badge info for display
  */
@@ -77,7 +77,7 @@ export async function computeBadge(
     if (subject !== pubkey) continue;
 
     // Check expiry — NaN must be treated as expired (not perpetually valid)
-    const expires = getTagValue(event, 'expires');
+    const expires = getTagValue(event, 'expiration');
     if (expires) {
       const exp = parseInt(expires, 10);
       if (isNaN(exp) || exp < now) continue;
