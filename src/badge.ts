@@ -77,7 +77,7 @@ export async function computeBadge(
     if (subject !== pubkey) continue;
 
     // Check expiry — NaN must be treated as expired (not perpetually valid)
-    const expires = getTagValue(event, 'expires');
+    const expires = getTagValue(event, 'expiration');
     if (expires) {
       const exp = parseInt(expires, 10);
       if (isNaN(exp) || exp < now) continue;

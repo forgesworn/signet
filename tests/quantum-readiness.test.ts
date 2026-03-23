@@ -254,7 +254,7 @@ describe('quantum readiness — algo tag', () => {
           ['verification-type', 'self'],
           ['scope', 'adult'],
           ['method', 'self-declaration'],
-          ['expires', String(Math.floor(Date.now() / 1000) + 86400)],
+          ['expiration', String(Math.floor(Date.now() / 1000) + 86400)],
           ['L', 'signet'],
           ['l', 'verification', 'signet'],
           // No ['algo', ...] tag — legacy event
@@ -308,7 +308,7 @@ describe('quantum readiness — algo tag', () => {
           ['verification-type', 'professional'],
           ['scope', 'adult'],
           ['method', 'in-person-id'],
-          ['expires', String(Math.floor(Date.now() / 1000) + 86400)],
+          ['expiration', String(Math.floor(Date.now() / 1000) + 86400)],
           ['algo', 'ml-kem-768'],
           ['L', 'signet'],
           ['l', 'verification', 'signet'],
