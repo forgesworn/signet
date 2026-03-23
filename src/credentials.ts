@@ -1,6 +1,7 @@
-// Verification Credential (kind 30999, type: credential)
+// Verification Credential (kind 31000, type: credential)
 // Create, sign, verify, and parse Signet credentials for all 4 tiers
 
+import { createAttestation } from 'nostr-attestations';
 import { ATTESTATION_KIND, ATTESTATION_TYPES, SIGNET_LABEL, DEFAULT_CREDENTIAL_EXPIRY_SECONDS, DEFAULT_CRYPTO_ALGORITHM } from './constants.js';
 import { signEvent, verifyEvent, getPublicKey, hash } from './crypto.js';
 import { validateCredential, getTagValue, getTagValues } from './validation.js';
@@ -30,40 +31,43 @@ export function buildCredentialEvent(
   verifierPubkey: string,
   params: CredentialParams
 ): UnsignedEvent {
-  const tags: string[][] = [
-    ['d', `credential:${params.subjectPubkey}`],
-    ['p', params.subjectPubkey],
-    ['type', ATTESTATION_TYPES.CREDENTIAL],
+  const signetTags: string[][] = [
     ['tier', String(params.tier)],
     ['verification-type', params.type],
     ['scope', params.scope],
     ['method', params.method],
-    ['expires', String(params.expiresAt)],
-    ['summary', `${params.type} verification (tier ${params.tier}) for ${params.subjectPubkey.slice(0, 8)}...`],
     ['algo', DEFAULT_CRYPTO_ALGORITHM],
     ['L', SIGNET_LABEL],
     ['l', 'verification', SIGNET_LABEL],
   ];
 
-  if (params.profession) tags.push(['profession', params.profession]);
-  if (params.jurisdiction) tags.push(['jurisdiction', params.jurisdiction]);
-  if (params.ageRange) tags.push(['age-range', params.ageRange]);
-  if (params.entityType) tags.push(['entity-type', params.entityType]);
-  if (params.nullifier) tags.push(['nullifier', params.nullifier]);
-  if (params.merkleRoot) tags.push(['merkle-root', params.merkleRoot]);
+  if (params.profession) signetTags.push(['profession', params.profession]);
+  if (params.jurisdiction) signetTags.push(['jurisdiction', params.jurisdiction]);
+  if (params.ageRange) signetTags.push(['age-range', params.ageRange]);
+  if (params.entityType) signetTags.push(['entity-type', params.entityType]);
+  if (params.nullifier) signetTags.push(['nullifier', params.nullifier]);
+  if (params.merkleRoot) signetTags.push(['merkle-root', params.merkleRoot]);
   if (params.guardianPubkeys) {
     for (const gp of params.guardianPubkeys) {
-      tags.push(['guardian', gp]);
+      signetTags.push(['guardian', gp]);
     }
   }
-  if (params.supersedes) tags.push(['supersedes', params.supersedes]);
+  if (params.supersedes) signetTags.push(['supersedes', params.supersedes]);
+
+  const template = createAttestation({
+    type: ATTESTATION_TYPES.CREDENTIAL,
+    identifier: params.subjectPubkey,
+    subject: params.subjectPubkey,
+    expiration: params.expiresAt,
+    summary: `${params.type} verification (tier ${params.tier}) for ${params.subjectPubkey.slice(0, 8)}...`,
+    content: params.content || '',
+    tags: signetTags,
+  });
 
   return {
-    kind: ATTESTATION_KIND,
+    ...template,
     pubkey: verifierPubkey,
     created_at: Math.floor(Date.now() / 1000),
-    tags,
-    content: params.content || '',
   };
 }
 
@@ -167,7 +171,7 @@ export async function verifyCredential(event: NostrEvent): Promise<{
 }> {
   const signatureValid = await verifyEvent(event);
   const validation = validateCredential(event);
-  const expiresStr = getTagValue(event, 'expires');
+  const expiresStr = getTagValue(event, 'expiration');
   const expired = expiresStr ? (() => { const exp = parseInt(expiresStr, 10); return isNaN(exp) || exp < Math.floor(Date.now() / 1000); })() : false;
 
   return {
@@ -180,10 +184,10 @@ export async function verifyCredential(event: NostrEvent): Promise<{
 
 /** Check if a credential is expired */
 export function isCredentialExpired(event: NostrEvent): boolean {
-  const expiresStr = getTagValue(event, 'expires');
+  const expiresStr = getTagValue(event, 'expiration');
   if (!expiresStr) return false;
   const exp = parseInt(expiresStr, 10);
-  // NaN expires is treated as expired (not perpetually valid)
+  // NaN expiration is treated as expired (not perpetually valid)
   return isNaN(exp) || exp < Math.floor(Date.now() / 1000);
 }
 
@@ -211,7 +215,7 @@ export function parseCredential(event: NostrEvent): ParsedCredential | null {
     profession: getTagValue(event, 'profession'),
     jurisdiction: getTagValue(event, 'jurisdiction'),
     ageRange: getTagValue(event, 'age-range'),
-    expiresAt: (() => { const expiresStr = getTagValue(event, 'expires'); const expiresNum = expiresStr ? parseInt(expiresStr, 10) : undefined; return (expiresNum !== undefined && !isNaN(expiresNum)) ? expiresNum : undefined; })(),
+    expiresAt: (() => { const expiresStr = getTagValue(event, 'expiration'); const expiresNum = expiresStr ? parseInt(expiresStr, 10) : undefined; return (expiresNum !== undefined && !isNaN(expiresNum)) ? expiresNum : undefined; })(),
     entityType: getTagValue(event, 'entity-type') as EntityType | undefined,
     nullifier: getTagValue(event, 'nullifier'),
     merkleRoot: getTagValue(event, 'merkle-root'),
@@ -448,7 +452,7 @@ export async function renewCredential(
  */
 export function needsRenewal(event: NostrEvent, withinDays: number = 30): boolean {
   if (withinDays < 0) throw new SignetValidationError('withinDays must be non-negative');
-  const expiresStr = getTagValue(event, 'expires');
+  const expiresStr = getTagValue(event, 'expiration');
   if (!expiresStr) return false;
 
   const expiresAt = parseInt(expiresStr, 10);

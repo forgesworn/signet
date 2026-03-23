@@ -131,7 +131,7 @@ describe('credential renewal', () => {
     expect(getTagValue(renewed, 'profession')).toBe('solicitor');
 
     // New expiry should be in the future
-    const expiresAt = parseInt(getTagValue(renewed, 'expires')!);
+    const expiresAt = parseInt(getTagValue(renewed, 'expiration')!);
     expect(expiresAt).toBeGreaterThan(Math.floor(Date.now() / 1000));
   });
 
