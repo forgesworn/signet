@@ -246,7 +246,7 @@ describe('badge display (Level 1)', () => {
       // Forge an event with a malformed expires tag (filter any existing expires first)
       const forged: NostrEvent = {
         ...cred,
-        tags: [...cred.tags.filter(t => t[0] !== 'expires'), ['expires', 'not-a-number']],
+        tags: [...cred.tags.filter(t => t[0] !== 'expiration'), ['expiration', 'not-a-number']],
       };
       const badge = await computeBadge(kp.publicKey, [forged]);
       // Credential with unparseable expires should be skipped

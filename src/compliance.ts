@@ -106,7 +106,7 @@ export function checkCredentialCompliance(
   }
 
   // Check credential expiry
-  const expiresStr = getTagValue(credential, 'expires');
+  const expiresStr = getTagValue(credential, 'expiration');
   if (expiresStr) {
     const expires = parseInt(expiresStr, 10);
     const now = Math.floor(Date.now() / 1000);
