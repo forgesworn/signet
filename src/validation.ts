@@ -1,6 +1,7 @@
 // Signet Event Validation
 // Validates structure and required fields for all 6 event kinds
 
+import { validateAttestation } from 'nostr-attestations';
 import { ATTESTATION_KIND, ATTESTATION_TYPES, APP_DATA_KIND, SIGNET_LABEL } from './constants.js';
 import type { NostrEvent } from './types.js';
 
@@ -48,14 +49,15 @@ function hasSignetLabel(event: NostrEvent): boolean {
   );
 }
 
-/** Validate a Verification Credential attestation (kind 30999, type: credential) */
+/** Validate a Verification Credential attestation (kind 31000, type: credential) */
 export function validateCredential(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
 
   validateFieldSizeBounds(event, errors);
 
-  if (event.kind !== ATTESTATION_KIND) {
-    errors.push(`Expected kind ${ATTESTATION_KIND}, got ${event.kind}`);
+  const base = validateAttestation(event);
+  if (!base.valid) {
+    return { valid: false, errors: [...base.errors] };
   }
 
   if (getTagValue(event, 'type') !== ATTESTATION_TYPES.CREDENTIAL) {
@@ -116,14 +118,15 @@ export function validateCredential(event: NostrEvent): ValidationResult {
   return { valid: errors.length === 0, errors };
 }
 
-/** Validate a Vouch Attestation (kind 30999, type: vouch) */
+/** Validate a Vouch Attestation (kind 31000, type: vouch) */
 export function validateVouch(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
 
   validateFieldSizeBounds(event, errors);
 
-  if (event.kind !== ATTESTATION_KIND) {
-    errors.push(`Expected kind ${ATTESTATION_KIND}, got ${event.kind}`);
+  const base = validateAttestation(event);
+  if (!base.valid) {
+    return { valid: false, errors: [...base.errors] };
   }
 
   if (getTagValue(event, 'type') !== ATTESTATION_TYPES.VOUCH) {
@@ -191,14 +194,15 @@ export function validatePolicy(event: NostrEvent): ValidationResult {
   return { valid: errors.length === 0, errors };
 }
 
-/** Validate a Verifier Credential attestation (kind 30999, type: verifier) */
+/** Validate a Verifier Credential attestation (kind 31000, type: verifier) */
 export function validateVerifier(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
 
   validateFieldSizeBounds(event, errors);
 
-  if (event.kind !== ATTESTATION_KIND) {
-    errors.push(`Expected kind ${ATTESTATION_KIND}, got ${event.kind}`);
+  const base = validateAttestation(event);
+  if (!base.valid) {
+    return { valid: false, errors: [...base.errors] };
   }
 
   if (getTagValue(event, 'type') !== ATTESTATION_TYPES.VERIFIER) {
@@ -228,14 +232,15 @@ export function validateVerifier(event: NostrEvent): ValidationResult {
   return { valid: errors.length === 0, errors };
 }
 
-/** Validate a Verifier Challenge attestation (kind 30999, type: challenge) */
+/** Validate a Verifier Challenge attestation (kind 31000, type: challenge) */
 export function validateChallenge(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
 
   validateFieldSizeBounds(event, errors);
 
-  if (event.kind !== ATTESTATION_KIND) {
-    errors.push(`Expected kind ${ATTESTATION_KIND}, got ${event.kind}`);
+  const base = validateAttestation(event);
+  if (!base.valid) {
+    return { valid: false, errors: [...base.errors] };
   }
 
   if (getTagValue(event, 'type') !== ATTESTATION_TYPES.CHALLENGE) {
@@ -266,14 +271,15 @@ export function validateChallenge(event: NostrEvent): ValidationResult {
   return { valid: errors.length === 0, errors };
 }
 
-/** Validate a Verifier Revocation attestation (kind 30999, type: revocation) */
+/** Validate a Verifier Revocation attestation (kind 31000, type: revocation) */
 export function validateRevocation(event: NostrEvent): ValidationResult {
   const errors: string[] = [];
 
   validateFieldSizeBounds(event, errors);
 
-  if (event.kind !== ATTESTATION_KIND) {
-    errors.push(`Expected kind ${ATTESTATION_KIND}, got ${event.kind}`);
+  const base = validateAttestation(event);
+  if (!base.valid) {
+    return { valid: false, errors: [...base.errors] };
   }
 
   if (getTagValue(event, 'type') !== ATTESTATION_TYPES.REVOCATION) {

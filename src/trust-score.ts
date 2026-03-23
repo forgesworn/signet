@@ -35,7 +35,7 @@ export function computeTrustScore(
     if (subject !== subjectPubkey) continue;
 
     // Skip expired credentials — NaN must be treated as expired (not perpetually valid)
-    const expires = getTagValue(cred, 'expires');
+    const expires = getTagValue(cred, 'expiration');
     if (expires) {
       const exp = parseInt(expires, 10);
       if (isNaN(exp) || exp < now) continue;
