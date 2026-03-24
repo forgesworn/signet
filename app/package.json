@@ -19,7 +19,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "signet-protocol": "file:../",
-    "spoken-token": "^1.0.3"
+    "spoken-token": "^2.0.3"
   },
   "devDependencies": {
     "@types/qrcode": "^1.5.5",
