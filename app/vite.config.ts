@@ -9,7 +9,9 @@ const hasCerts = fs.existsSync(path.join(certDir, 'signet.pem'));
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {},
+    alias: {
+      'node:crypto': path.resolve(__dirname, 'src/lib/crypto-shim.ts'),
+    },
   },
   server: {
     port: 5174,
