@@ -32,7 +32,7 @@ if (meetsMinimumTier(badge, 2)) {
 ## Key Concepts
 
 - **4 verification tiers**: Self-declared (Tier 1) → Web-of-trust via peer vouches (Tier 2) → Professional verification with ZKP age proof (Tier 3) → Professional + child safety (Tier 4)
-- **Signet IQ** (0–200): A continuous trust score weighted by professional verification, in-person vouches, online vouches, account age, and identity bridges. 100 represents the current government standard.
+- **Signet IQ** (0–200): A continuous identity quality score measuring statistical confidence that an identity is real, not fabricated. Weighted by professional verification, in-person vouches, online vouches, account age, and identity bridges. 100 represents the current government standard. IQ is not reputation — it measures identity quality, not trustworthiness.
 - **Zero-knowledge age proofs**: Bulletproofs on secp256k1 prove age ranges (e.g. "adult" or "child aged 8–12") without revealing date of birth.
 - **Document nullifiers**: SHA-256 of document fields prevents duplicate identity registration without storing any personal data.
 - **Single attestation kind** (31000, NIP-VA) plus policies (30078) and voting (30482–30484): All identity attestations (credentials, vouches, verifier management, challenges, revocations, identity bridges, delegation) share kind 31000, differentiated by `type` tag.

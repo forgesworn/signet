@@ -32,7 +32,7 @@ if (meetsMinimumTier(badge, 2)) {
 ## Key Concepts
 
 - **4 verification tiers**: Self-declared (Tier 1) → Web-of-trust via peer vouches (Tier 2) → Professional verification with ZKP age proof (Tier 3) → Professional + child safety (Tier 4)
-- **Signet IQ** (0–200): A continuous trust score weighted by professional verification, in-person vouches, online vouches, account age, and identity bridges. 100 represents the current government standard.
+- **Signet IQ** (0–200): A continuous identity quality score measuring statistical confidence that an identity is real, not fabricated. Weighted by professional verification, in-person vouches, online vouches, account age, and identity bridges. 100 represents the current government standard. IQ is not reputation — it measures identity quality, not trustworthiness.
 - **Zero-knowledge age proofs**: Bulletproofs on secp256k1 prove age ranges (e.g. "adult" or "child aged 8–12") without revealing date of birth.
 - **Document nullifiers**: SHA-256 of document fields prevents duplicate identity registration without storing any personal data.
 - **Event kinds**: Single attestation kind 31000 (NIP-VA, differentiated by `type` tag) for credentials, vouches, verifier registration, challenges, revocations, identity bridges, and delegation; kind 30078 (NIP-78) for community policies; and kinds 30482–30484 for elections, ballots, and results.
@@ -193,7 +193,7 @@ Nobody has built this for the decentralised world. Signet fills that gap.
 
 5. **Retroactive.** Verification attaches to existing accounts. Any active Nostr identity — adult or child — can get verified at any time. Not tied to account creation.
 
-6. **Composable.** Discrete tiers for policy gates + continuous score for reputation. Simple for end users, nuanced for power users.
+6. **Composable.** Discrete tiers for policy gates + continuous score for identity quality. Simple for end users, nuanced for power users.
 
 7. **Nostr-native.** Built on secp256k1. Uses existing Nostr event infrastructure. Zero new dependencies for basic functionality.
 
@@ -259,7 +259,7 @@ A predator who is a verified real adult (Tier 3) could still create a fake child
 
 ## 4. Signet IQ (Identification Quotient)
 
-On top of discrete tiers, a continuous Signet IQ score (0-200) provides nuanced reputation. A score of 100 represents the current UK/US standard that governments deem acceptable. Scores above 100 indicate multiple verifications, strong peer trust, bridges, and time on the network.
+On top of discrete tiers, a continuous Signet IQ score (0-200) measures identity quality — the statistical confidence that an identity is real, not fabricated. A score of 100 represents the current UK/US standard that governments deem acceptable (a human checking a passport face-to-face). Scores above 100 indicate multiple verifications from diverse independent sources, making the identity harder to fabricate than a government-issued passport.
 
 ### Score Components
 
@@ -297,7 +297,7 @@ Clients MUST respect this ordering. A single professional verification always ou
 ```
 
 - **Tier** = the gate (can you enter this space?)
-- **Signet IQ** = the reputation (how much should I trust this person?)
+- **Signet IQ** = identity quality (how confident are we that this identity is real?)
 - End users see a simple tier badge. Power users can drill into the score breakdown.
 
 ---
@@ -876,7 +876,7 @@ A verified creator can prove they're real without revealing their legal name. Co
 | ✓ | Web-of-trust vouched (Tier 2) |
 | ✓✓ | Professional verified, adult (Tier 3) |
 | ✓✓✓ | Professional verified, adult + child (Tier 4) |
-| Signet IQ | Continuous reputation (0–200) visible on drill-down |
+| Signet IQ | Continuous identity quality (0–200) visible on drill-down |
 
 ---
 
