@@ -104,7 +104,8 @@ export async function createIdentityBridge(
   realPrivateKey: string,
   ring: string[],
   signerIndex: number,
-  ringMinTier: SignetTier
+  ringMinTier: SignetTier,
+  opts?: { occurredAt?: number }
 ): Promise<NostrEvent> {
   if (ring.length < MIN_BRIDGE_RING_SIZE) {
     throw new SignetValidationError(`Ring must have at least ${MIN_BRIDGE_RING_SIZE} members`);
@@ -132,6 +133,7 @@ export async function createIdentityBridge(
 
   const template = createAttestation({
     type: ATTESTATION_TYPES.IDENTITY_BRIDGE,
+    occurredAt: opts?.occurredAt,
     summary: 'Anonymous account linked to verified identity via ring signature',
     tags: [
       ['ring-min-tier', String(ringMinTier)],

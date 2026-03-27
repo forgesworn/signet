@@ -34,6 +34,7 @@ export function buildVouchEvent(
     type: ATTESTATION_TYPES.VOUCH,
     identifier: params.subjectPubkey,
     subject: params.subjectPubkey,
+    occurredAt: params.occurredAt,
     summary: `${params.method} vouch for ${params.subjectPubkey.slice(0, 8)}...`,
     tags: signetTags,
   });

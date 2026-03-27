@@ -86,6 +86,7 @@ export interface VouchParams {
   context?: string;
   voucherTier: SignetTier;
   voucherScore: number;
+  occurredAt?: number;
 }
 
 // --- Community Verification Policy (NIP-78) ---
@@ -129,6 +130,7 @@ export interface ChallengeParams {
   evidenceType: string;
   reporterTier: SignetTier;
   evidence: string;
+  occurredAt?: number;
 }
 
 // --- Verifier Revocation (type: revocation) ---
@@ -401,6 +403,7 @@ export interface GuardianDelegationParams {
   delegatePubkey: string;
   scope: GuardianDelegationScope;
   expiresAt?: number;
+  occurredAt?: number;
 }
 
 export type GuardianDelegationScope =

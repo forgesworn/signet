@@ -860,6 +860,7 @@ export async function createGuardianDelegation(
     identifier: `${params.childPubkey}:${params.delegatePubkey}`,
     subject: params.delegatePubkey,
     expiration: params.expiresAt,
+    occurredAt: params.occurredAt,
     summary: `Guardian delegation for ${params.childPubkey.slice(0, 8)}... to ${params.delegatePubkey.slice(0, 8)}...`,
     content: '',
     tags: signetTags,

@@ -5,6 +5,7 @@ import {
   createPeerVouchedCredential,
   createProfessionalCredential,
   createChildSafetyCredential,
+  createGuardianDelegation,
   verifyCredential,
   isCredentialExpired,
   parseCredential,
@@ -193,5 +194,22 @@ describe('credentials', () => {
     expect(lTag![1]).toBe('credential');
     const signetL = cred.tags.find(t => t[0] === 'l' && t[2] === 'signet');
     expect(signetL).toBeUndefined();
+  });
+
+  it('guardian delegation includes occurredAt when provided', async () => {
+    const guardian = generateKeyPair();
+    const delegate = generateKeyPair();
+    const child = generateKeyPair();
+    const delegationTime = Math.floor(Date.now() / 1000) - 1800;
+
+    const event = await createGuardianDelegation(guardian.privateKey, {
+      childPubkey: child.publicKey,
+      delegatePubkey: delegate.publicKey,
+      scope: 'activity-approval',
+      expiresAt: Math.floor(Date.now() / 1000) + 86400,
+      occurredAt: delegationTime,
+    });
+
+    expect(getTagValue(event, 'occurred_at')).toBe(String(delegationTime));
   });
 });
