@@ -212,4 +212,35 @@ describe('vouches', () => {
     const signetL = vouch.tags.find(t => t[0] === 'l' && t[2] === 'signet');
     expect(signetL).toBeUndefined();
   });
+
+  it('includes occurredAt when provided', async () => {
+    const voucher = generateKeyPair();
+    const subject = generateKeyPair();
+    const meetingTime = Math.floor(Date.now() / 1000) - 3600;
+
+    const vouch = await createVouch(voucher.privateKey, {
+      subjectPubkey: subject.publicKey,
+      method: 'in-person',
+      voucherTier: 3,
+      voucherScore: 87,
+      occurredAt: meetingTime,
+    });
+
+    expect(getTagValue(vouch, 'occurred_at')).toBe(String(meetingTime));
+  });
+
+  it('omits occurredAt when not provided', async () => {
+    const voucher = generateKeyPair();
+    const subject = generateKeyPair();
+
+    const vouch = await createVouch(voucher.privateKey, {
+      subjectPubkey: subject.publicKey,
+      method: 'in-person',
+      voucherTier: 3,
+      voucherScore: 87,
+    });
+
+    const tag = vouch.tags.find(t => t[0] === 'occurred_at');
+    expect(tag).toBeUndefined();
+  });
 });

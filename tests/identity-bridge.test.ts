@@ -267,4 +267,23 @@ describe('Signet Score integration', () => {
     const without = computeTrustScore(anon.publicKey, [], []);
     expect(without.score).toBe(0);
   });
+
+  it('includes occurredAt when provided via opts', async () => {
+    const anon = generateKeyPair();
+    const real = generateKeyPair();
+    const decoys = Array.from({ length: 4 }, () => generateKeyPair().publicKey);
+    const ring = [real.publicKey, ...decoys];
+    const bridgeTime = Math.floor(Date.now() / 1000) - 600;
+
+    const bridge = await createIdentityBridge(
+      anon.privateKey,
+      real.privateKey,
+      ring,
+      0,
+      3 as SignetTier,
+      { occurredAt: bridgeTime },
+    );
+
+    expect(getTagValue(bridge, 'occurred_at')).toBe(String(bridgeTime));
+  });
 });

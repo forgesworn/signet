@@ -31,6 +31,7 @@ export function buildChallengeEvent(
     type: ATTESTATION_TYPES.CHALLENGE,
     identifier: params.verifierPubkey,
     subject: params.verifierPubkey,
+    occurredAt: params.occurredAt,
     summary: `Challenge: ${params.reason}`,
     content: params.evidence,
     tags: [

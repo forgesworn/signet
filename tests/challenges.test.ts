@@ -261,4 +261,21 @@ describe('revocations', () => {
     expect(lTag).toBeDefined();
     expect(lTag![1]).toBe('revocation');
   });
+
+  it('includes occurredAt when provided', async () => {
+    const reporter = generateKeyPair();
+    const verifier = generateKeyPair();
+    const incidentTime = Math.floor(Date.now() / 1000) - 86400;
+
+    const challenge = await createChallenge(reporter.privateKey, {
+      verifierPubkey: verifier.publicKey,
+      reason: 'anomalous-volume',
+      evidenceType: 'issuance-data',
+      reporterTier: 3,
+      evidence: 'Suspicious activity',
+      occurredAt: incidentTime,
+    });
+
+    expect(getTagValue(challenge, 'occurred_at')).toBe(String(incidentTime));
+  });
 });
