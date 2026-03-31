@@ -152,7 +152,7 @@ Protocol complexity is not the same as implementation complexity. Identity IS co
 ### The adoption sequence
 
 ```
-1. Build child safety in one client (Fathom)
+1. Build child safety in one client (reference implementation)
    ↓ creates demand for verification
 2. Recruit 6-8 UK solicitors as founding verifiers
    ↓ creates supply of verification

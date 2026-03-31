@@ -552,7 +552,7 @@ No realizamos elaboración de perfiles con fines de marketing, publicidad o aná
 
 El Protocolo Signet interopera con:
 - Relays Nostr (operados de forma independiente)
-- Clientes Nostr (como Fathom, el cliente de implementación de referencia)
+- Clientes Nostr (cualquier cliente que implemente el protocolo Signet)
 - Organismos profesionales y registros regulatorios (mediante el bot de verificación de código abierto)
 - El registro de tipos de documentos (un archivo YAML externo que define las definiciones de campos de documentos por país — no contiene datos personales)
 

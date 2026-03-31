@@ -555,7 +555,7 @@ Wir betreiben kein Profiling für Marketing-, Werbe- oder Verhaltensanalysezweck
 
 Das Signet-Protokoll interoperiert mit:
 - Nostr-Relays (unabhängig betrieben)
-- Nostr-Clients (wie Fathom, dem Referenzimplementierungs-Client)
+- Nostr-Clients (jeder Client, der das Signet-Protokoll implementiert)
 - Berufsverbänden und Regulierungsregistern (über den quelloffenen Verifizierungsbot)
 - Dem Dokumententyp-Register (eine externe YAML-Datei mit Dokumentfeld-Definitionen pro Land — enthält keine personenbezogenen Daten)
 

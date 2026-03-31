@@ -27,10 +27,6 @@ This repo contains:
 - **"Signet me"**: Time-based word verification (configurable 1-16 words, default 3) powered by canary-kit's CANARY-DERIVE
 - **nsec-tree identity model**: Master secret from BIP-39 mnemonic (`fromMnemonic()`) or existing nsec (`fromNsec()`). Two required personas (natural-person, persona) with optional extras. Linkage proofs (blind/full) via BIP-340 Schnorr. Shamir backup via `@forgesworn/shamir-words`.
 
-## Relationship to Fathom
-
-Fathom (https://github.com/decented/decented) is the first reference implementation. Signet is protocol-level — it doesn't depend on Fathom or any specific client.
-
 ## Development Workflow
 
 ### After ANY code change, you MUST:

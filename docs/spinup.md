@@ -74,11 +74,9 @@ bash app/cert/generate-cert.sh
 
 - **Software:** strfry (via Docker image `dockurr/strfry:latest`)
 - **Container name:** `strfry-relay`
-- **Config:** `/home/mintai/Fathom/relay/strfry.conf`
-- **Data:** `/home/mintai/Fathom/.relay-data`
+- **Config:** `/home/mintai/signet/relay/strfry.conf`
+- **Data:** `/home/mintai/signet/.relay-data`
 - **Port:** 7777 (bound to all interfaces)
-
-The relay is shared with the Fathom project. Fathom's `start-dev.sh` also starts it.
 
 ### First-time relay setup
 
@@ -89,8 +87,8 @@ docker run -d \
   --name strfry-relay \
   --restart unless-stopped \
   -p 7777:7777 \
-  -v /home/mintai/Fathom/relay/strfry.conf:/etc/strfry.conf \
-  -v /home/mintai/Fathom/.relay-data:/app/strfry-db \
+  -v /home/mintai/signet/relay/strfry.conf:/etc/strfry.conf \
+  -v /home/mintai/signet/.relay-data:/app/strfry-db \
   --health-cmd="curl -ILfSs http://localhost:7777/ > /dev/null || exit 1" \
   --health-interval=60s \
   --health-timeout=10s \
@@ -103,10 +101,9 @@ docker run -d \
 | Port | Service |
 |------|---------|
 | 5174 | My Signet app (HTTPS) |
-| 7777 | strfry relay (WebSocket, shared with Fathom) |
-| 7778 | Blossom server (Fathom) |
+| 7777 | strfry relay (WebSocket) |
 
-Avoid: 3000, 5173, 80, 443 (used by Fathom/nginx).
+Avoid: 3000, 5173, 80, 443 (may be used by other local services).
 
 ## Troubleshooting
 

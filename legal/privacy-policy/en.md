@@ -548,7 +548,7 @@ We do not engage in profiling for marketing, advertising, or behavioural analysi
 
 The Signet Protocol interoperates with:
 - Nostr relays (operated independently)
-- Nostr clients (such as Fathom, the reference implementation client)
+- Nostr clients (any client implementing the Signet protocol)
 - Professional bodies and regulatory registries (via the open-source verification bot)
 - The document type registry (an external YAML file defining document field definitions per country — contains no personal data)
 
