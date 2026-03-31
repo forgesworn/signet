@@ -37,7 +37,7 @@ If SAG is used for voting, the same voter can cast multiple ballots that cannot 
 This prevents npm publish. The `signet-words.ts` module depends on canary-kit for wordlist generation and CANARY-DERIVE.
 
 **Required:**
-- Publish canary-kit to npm (it's already live per the Fathom architecture doc)
+- Publish canary-kit to npm (it's already live per downstream architecture docs)
 - Update `package.json` to use a versioned npm dependency: `"canary-kit": "^x.y.z"`
 
 ### 3. BLOCKER - No `dist/` output

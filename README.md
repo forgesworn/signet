@@ -89,7 +89,7 @@ Kind numbers are placeholders pending NIP allocation.
 This repo includes:
 - `src/` — TypeScript protocol library (`signet-protocol` on npm)
 
-[Fathom](https://github.com/decented/decented) is the first external reference implementation, a sovereign learning and family management app on Nostr.
+Signet is a standalone protocol. Any Nostr client can implement it independently.
 
 ## Regulatory Compatibility
 

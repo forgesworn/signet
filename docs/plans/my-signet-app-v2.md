@@ -1297,7 +1297,7 @@ The MVP is fully offline. These features require Nostr relay connectivity:
 |---------|---------------------|
 | Checking verifier status (Kind 30473) | To confirm pending → confirmed |
 | Duplicate nullifier detection | To check if a document was already verified |
-| Publishing credentials for other apps | So Fathom and other clients can see your tier |
+| Publishing credentials for other apps | So other Signet-compatible clients can see your tier |
 | Receiving guardian delegation events | For cross-app delegation enforcement |
 | "Find a verifier near me" | Verifier directory lookup |
 
@@ -2072,7 +2072,7 @@ These items require further thought before production. They are acknowledged gap
 
 ### 26.1 Credential portability
 
-Users may switch from My Signet to another Signet-compatible app (e.g., Fathom). Credentials are standard Nostr events and can be exported. Merkle proofs could be transferred via QR or recovered from Blossom (if the user opted for Blossom backup).
+Users may switch from My Signet to another Signet-compatible app. Credentials are standard Nostr events and can be exported. Merkle proofs could be transferred via QR or recovered from Blossom (if the user opted for Blossom backup).
 
 **Vulnerability concern:** The transfer of Merkle proofs is a sensitive operation — the proofs contain private attribute data (name, DOB, etc.). The transfer mechanism must be end-to-end encrypted and authenticated. QR exchange (in person) is safe. Remote transfer via relay needs encryption. **This needs careful design before production — it is a potential vulnerability point.**
 

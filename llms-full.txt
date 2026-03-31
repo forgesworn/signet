@@ -948,23 +948,25 @@ Every other approach to age verification involves a trade-off: privacy vs safety
 
 ---
 
-## 14. Reference Implementation
+## 14. Implementation
 
-The first reference implementation of Signet is being built within [Fathom](https://github.com/decented/decented), a sovereign learning and family management app built on Nostr. Fathom's implementation integrates Signet credentials with:
+Signet is designed as a standalone NIP. Any Nostr client can implement it independently. The protocol does not depend on any specific client.
+
+### Integration Points
+
+Clients implementing Signet can integrate credentials with:
 
 - Parent-controlled vault tiers (cryptographic access control)
 - Child account protection (NIP-26 delegation)
-- Community verification policies for home-education groups
+- Community verification policies
 - Age-based permission defaults
-
-Signet is designed as a standalone NIP. Any Nostr client can implement it independently. The protocol does not depend on Fathom or any specific client.
 
 ### Contributing
 
 Signet is open source. Contributions, feedback, and NIP discussion are welcome.
 
 - Protocol specification: this document
-- Reference implementation: [Fathom](https://github.com/decented/decented)
+- TypeScript library: `signet-protocol` on npm
 - NIP proposal: pending (kind numbers are placeholders)
 
 ---
