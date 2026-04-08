@@ -1,7 +1,7 @@
 // Signet Score Computation
 // Continuous 0-200 Signet Score from weighted signals
 
-import { TRUST_WEIGHTS, MAX_TRUST_SCORE, ATTESTATION_KIND, ATTESTATION_TYPES } from './constants.js';
+import { TRUST_WEIGHTS, TRUST_CAPS, MAX_TRUST_SCORE, ATTESTATION_KIND, ATTESTATION_TYPES } from './constants.js';
 import { getTagValue } from './validation.js';
 import type {
   NostrEvent,
@@ -54,13 +54,15 @@ export function computeTrustScore(
     const verificationType = getTagValue(cred, 'verification-type');
     if (verificationType === 'professional') {
       professionalVerifications++;
-      const weight = TRUST_WEIGHTS.PROFESSIONAL_VERIFICATION;
-      rawScore += weight;
-      signals.push({
-        type: 'professional-verification',
-        weight,
-        source: cred.pubkey,
-      });
+      if (professionalVerifications <= TRUST_CAPS.PROFESSIONAL_VERIFICATION) {
+        const weight = TRUST_WEIGHTS.PROFESSIONAL_VERIFICATION;
+        rawScore += weight;
+        signals.push({
+          type: 'professional-verification',
+          weight,
+          source: cred.pubkey,
+        });
+      }
     }
   }
 
@@ -84,24 +86,28 @@ export function computeTrustScore(
 
     if (method === 'in-person') {
       inPersonVouches++;
-      const weight = TRUST_WEIGHTS.IN_PERSON_VOUCH * scoreMultiplier;
-      rawScore += weight;
-      signals.push({
-        type: 'in-person-vouch',
-        weight,
-        source: vouch.pubkey,
-        score: voucherScore,
-      });
+      if (inPersonVouches <= TRUST_CAPS.IN_PERSON_VOUCH) {
+        const weight = TRUST_WEIGHTS.IN_PERSON_VOUCH * scoreMultiplier;
+        rawScore += weight;
+        signals.push({
+          type: 'in-person-vouch',
+          weight,
+          source: vouch.pubkey,
+          score: voucherScore,
+        });
+      }
     } else {
       onlineVouches++;
-      const weight = TRUST_WEIGHTS.ONLINE_VOUCH * scoreMultiplier;
-      rawScore += weight;
-      signals.push({
-        type: 'online-vouch',
-        weight,
-        source: vouch.pubkey,
-        score: voucherScore,
-      });
+      if (onlineVouches <= TRUST_CAPS.ONLINE_VOUCH) {
+        const weight = TRUST_WEIGHTS.ONLINE_VOUCH * scoreMultiplier;
+        rawScore += weight;
+        signals.push({
+          type: 'online-vouch',
+          weight,
+          source: vouch.pubkey,
+          score: voucherScore,
+        });
+      }
     }
   }
 

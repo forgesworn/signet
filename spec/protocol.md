@@ -184,15 +184,29 @@ A score of 100 represents the confidence level equivalent to a human checking a 
 | Account age | Passive | Time on the network adds weight gradually |
 | Voucher's own Signet Score | Multiplier | A vouch from someone at IQ 150 carries more than from someone at IQ 40 |
 
+### RECOMMENDED Weights
+
+| Signal | RECOMMENDED weight | Per-type cap (MUST) | Max contribution |
+|--------|-------------------|---------------------|-----------------|
+| Professional verification | 80 | 1 event | 80 |
+| Identity bridge | 50 × (ringMinTier / 4) | 1 bridge | 50 |
+| In-person vouch (Tier 2+) | 16 × (voucher\_score / 200) | 3 vouches | 48 |
+| Online vouch (Tier 2+) | 4 × (voucher\_score / 200) | 5 vouches | 20 |
+| Account age | 10 / year | 2 years (20 pts) | 20 |
+
+Clients MAY adjust individual weight values but MUST enforce per-type caps. Without caps, vouch farming trivially inflates scores: 10 in-person vouches from high-score accounts would yield 160+ points, exceeding a professional verification.
+
+The `voucher-score` tag is a snapshot of the voucher's Signet IQ at publication time. Vouchers MAY republish their vouch to update their embedded score. Clients MUST use the score from the most recent version of the vouch event.
+
 ### Score Algorithm
 
-The exact algorithm is implementation-defined (clients can weight signals differently), but the protocol specifies the **signal types and their relative ordering**:
+The exact algorithm is implementation-defined (clients can weight signals differently), but the protocol specifies the **signal types, their relative ordering, and per-type caps**:
 
 ```
 professional verification > identity bridge > in-person vouch > online vouch > account age
 ```
 
-Clients MUST respect this ordering. A single professional verification always outweighs any number of online vouches. This prevents gaming through vouch farms.
+Clients MUST respect this ordering. A single professional verification always outweighs any number of online vouches. Clients MUST enforce per-type caps as specified in the weights table above. These two constraints together prevent gaming through vouch farms.
 
 ### Display
 

@@ -6,6 +6,8 @@ import {
   computeTrustScore,
   formatTrustDisplay,
   verifySignalOrdering,
+  TRUST_WEIGHTS,
+  TRUST_CAPS,
 } from '../src/index.js';
 import { buildTier3Opts } from './fixtures.js';
 
@@ -135,6 +137,107 @@ describe('trust-score', () => {
 
     const breakdown = computeTrustScore(subject.publicKey, [], vouches);
     expect(breakdown.inPersonVouches + breakdown.onlineVouches).toBe(1);
+  });
+
+  describe('per-type caps', () => {
+    it('caps in-person vouches at 3', async () => {
+      const subject = generateKeyPair();
+
+      const vouches = await Promise.all(
+        Array.from({ length: 10 }, () => {
+          const v = generateKeyPair();
+          return createVouch(v.privateKey, {
+            subjectPubkey: subject.publicKey,
+            method: 'in-person',
+            voucherTier: 3,
+            voucherScore: 200, // max score => multiplier = 1
+          });
+        })
+      );
+
+      const breakdown = computeTrustScore(subject.publicKey, [], vouches);
+
+      // 10 vouches counted but only 3 contribute to score
+      expect(breakdown.inPersonVouches).toBe(10);
+      const cappedMax = TRUST_CAPS.IN_PERSON_VOUCH * TRUST_WEIGHTS.IN_PERSON_VOUCH;
+      expect(breakdown.score).toBe(cappedMax);
+      expect(breakdown.signals.filter(s => s.type === 'in-person-vouch')).toHaveLength(3);
+    });
+
+    it('caps online vouches at 5', async () => {
+      const subject = generateKeyPair();
+
+      const vouches = await Promise.all(
+        Array.from({ length: 20 }, () => {
+          const v = generateKeyPair();
+          return createVouch(v.privateKey, {
+            subjectPubkey: subject.publicKey,
+            method: 'online',
+            voucherTier: 2,
+            voucherScore: 200,
+          });
+        })
+      );
+
+      const breakdown = computeTrustScore(subject.publicKey, [], vouches);
+
+      expect(breakdown.onlineVouches).toBe(20);
+      const cappedMax = TRUST_CAPS.ONLINE_VOUCH * TRUST_WEIGHTS.ONLINE_VOUCH;
+      expect(breakdown.score).toBe(cappedMax);
+      expect(breakdown.signals.filter(s => s.type === 'online-vouch')).toHaveLength(5);
+    });
+
+    it('caps account age at 20 points (2 years)', () => {
+      const subject = generateKeyPair();
+      const fiveYearsAgo = Math.floor(Date.now() / 1000) - 5 * 365 * 24 * 60 * 60;
+
+      const breakdown = computeTrustScore(subject.publicKey, [], [], fiveYearsAgo);
+
+      expect(breakdown.score).toBe(TRUST_WEIGHTS.ACCOUNT_AGE_MAX); // 20
+      expect(breakdown.accountAgeDays).toBeGreaterThan(4 * 365);
+    });
+
+    it('10 in-person vouches contribute same as 3 (capped)', async () => {
+      const subject = generateKeyPair();
+
+      const make = (n: number) => Promise.all(
+        Array.from({ length: n }, () => {
+          const v = generateKeyPair();
+          return createVouch(v.privateKey, {
+            subjectPubkey: subject.publicKey,
+            method: 'in-person',
+            voucherTier: 3,
+            voucherScore: 150,
+          });
+        })
+      );
+
+      const three = computeTrustScore(subject.publicKey, [], await make(3));
+      const ten = computeTrustScore(subject.publicKey, [], await make(10));
+
+      expect(ten.score).toBe(three.score);
+    });
+
+    it('20 online vouches contribute same as 5 (capped)', async () => {
+      const subject = generateKeyPair();
+
+      const make = (n: number) => Promise.all(
+        Array.from({ length: n }, () => {
+          const v = generateKeyPair();
+          return createVouch(v.privateKey, {
+            subjectPubkey: subject.publicKey,
+            method: 'online',
+            voucherTier: 2,
+            voucherScore: 100,
+          });
+        })
+      );
+
+      const five = computeTrustScore(subject.publicKey, [], await make(5));
+      const twenty = computeTrustScore(subject.publicKey, [], await make(20));
+
+      expect(twenty.score).toBe(five.score);
+    });
   });
 
   describe('formatTrustDisplay', () => {

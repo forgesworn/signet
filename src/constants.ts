@@ -60,8 +60,16 @@ export const TRUST_WEIGHTS = {
   IN_PERSON_VOUCH: 16,
   ONLINE_VOUCH: 4,
   ACCOUNT_AGE_PER_YEAR: 10,
-  ACCOUNT_AGE_MAX: 30,
+  ACCOUNT_AGE_MAX: 20,
   IDENTITY_BRIDGE: 50,
+} as const;
+
+/** Per-signal-type caps — maximum number of signals counted per type */
+export const TRUST_CAPS = {
+  PROFESSIONAL_VERIFICATION: 1,
+  IN_PERSON_VOUCH: 3,
+  ONLINE_VOUCH: 5,
+  IDENTITY_BRIDGE: 1,
 } as const;
 
 /** Minimum ring size for identity bridges (anonymity threshold) */
