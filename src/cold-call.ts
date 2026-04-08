@@ -15,6 +15,7 @@ import {
   NATO_ALPHABET,
   WELL_KNOWN_MAX_PUBKEYS,
   WELL_KNOWN_MAX_SIZE,
+  WELL_KNOWN_V2_MAX_SIZE,
   WELL_KNOWN_PATH,
 } from './constants.js';
 import { deriveWords } from './signet-words.js';
@@ -24,8 +25,8 @@ import { deriveWords } from './signet-words.js';
 /**
  * Fetch and validate an institution's verification keys from `.well-known/signet.json`.
  *
- * Always uses HTTPS. Enforces a 10 KB size limit, version 1, at most 20 pubkeys,
- * and validates that each pubkey is a 64-char lowercase hex string.
+ * Always uses HTTPS. Enforces size limits (10 KB v1, 100 KB v2), version 1 or 2,
+ * at most 20 pubkeys, and validates that each pubkey is a 64-char lowercase hex string.
  *
  * @param domain - The institution's domain (e.g. `'acmelegal.com'`). Do NOT include scheme.
  * @returns Validated InstitutionKeys object.
@@ -41,19 +42,15 @@ export async function fetchInstitutionKeys(domain: string): Promise<InstitutionK
   }
 
   // Early-exit on Content-Length if available (avoids reading large bodies into memory)
+  // Use v2 limit for the initial check — version isn't known yet
   const contentLength = response.headers.get('content-length');
-  if (contentLength && parseInt(contentLength, 10) > WELL_KNOWN_MAX_SIZE) {
-    throw new SignetValidationError(`.well-known/signet.json exceeds ${WELL_KNOWN_MAX_SIZE} bytes`);
+  if (contentLength && parseInt(contentLength, 10) > WELL_KNOWN_V2_MAX_SIZE) {
+    throw new SignetValidationError(`.well-known/signet.json exceeds ${WELL_KNOWN_V2_MAX_SIZE} bytes`);
   }
 
   const text = await response.text();
 
-  // Enforce size limit (Content-Length may be absent for chunked responses)
-  if (text.length > WELL_KNOWN_MAX_SIZE) {
-    throw new SignetValidationError(`.well-known/signet.json exceeds ${WELL_KNOWN_MAX_SIZE} bytes`);
-  }
-
-  // Parse with runtime type guard
+  // Parse first to determine version, then enforce version-specific size limit
   let data: unknown;
   try {
     data = JSON.parse(text);
@@ -67,8 +64,15 @@ export async function fetchInstitutionKeys(domain: string): Promise<InstitutionK
 
   const obj = data as Record<string, unknown>;
 
-  if (obj['version'] !== 1) {
-    throw new SignetValidationError(`Unsupported signet.json version: ${obj['version']}`);
+  const version = obj['version'];
+  if (version !== 1 && version !== 2) {
+    throw new SignetValidationError(`Unsupported signet.json version: ${version}`);
+  }
+
+  // Enforce version-specific size limit
+  const maxSize = version === 2 ? WELL_KNOWN_V2_MAX_SIZE : WELL_KNOWN_MAX_SIZE;
+  if (text.length > maxSize) {
+    throw new SignetValidationError(`.well-known/signet.json exceeds ${maxSize} bytes`);
   }
 
   if (!obj['name'] || typeof obj['name'] !== 'string') {

@@ -73,14 +73,27 @@ describe('fetchInstitutionKeys', () => {
     expect(globalThis.fetch).toHaveBeenCalledWith('https://example.com/.well-known/signet.json', expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
-  it('rejects responses larger than 10 KB', async () => {
+  it('rejects v1 responses larger than 10 KB', async () => {
     const big = JSON.stringify(validPayload()) + ' '.repeat(10241);
     mockFetch(big);
     await expect(fetchInstitutionKeys('example.com')).rejects.toThrow(SignetValidationError);
   });
 
-  it('rejects version !== 1', async () => {
-    mockFetch(JSON.stringify(validPayload({ version: 2 })));
+  it('rejects unsupported versions', async () => {
+    mockFetch(JSON.stringify(validPayload({ version: 3 } as any)));
+    await expect(fetchInstitutionKeys('example.com')).rejects.toThrow(SignetValidationError);
+  });
+
+  it('accepts version 2 documents', async () => {
+    const payload = validPayload({ version: 2 } as any);
+    mockFetch(JSON.stringify(payload));
+    const result = await fetchInstitutionKeys('example.com');
+    expect(result.version).toBe(2);
+  });
+
+  it('enforces 100 KB limit for version 2', async () => {
+    const big = JSON.stringify(validPayload({ version: 2 } as any)) + ' '.repeat(102401);
+    mockFetch(big);
     await expect(fetchInstitutionKeys('example.com')).rejects.toThrow(SignetValidationError);
   });
 
