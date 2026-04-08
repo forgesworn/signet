@@ -503,3 +503,6 @@ export {
   buildVenueEntryEventTemplate,
   VENUE_ENTRY_KIND,
 } from './venue-entry.js';
+
+// Signing Backend (interface and type)
+export type { SigningBackend, SigningMode } from './signing-backend.js';
