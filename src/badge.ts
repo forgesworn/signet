@@ -5,7 +5,7 @@
 import { ATTESTATION_KIND, ATTESTATION_TYPES, TRUST_WEIGHTS, MAX_TRUST_SCORE } from './constants.js';
 import { verifyEvent } from './crypto.js';
 import { getTagValue } from './validation.js';
-import type { NostrEvent, SignetTier } from './types.js';
+import type { NostrEvent, SignetTier, EntityType } from './types.js';
 
 // --- Types ---
 
@@ -26,6 +26,8 @@ export interface BadgeInfo {
   credentialCount: number;
   /** Number of valid vouches */
   vouchCount: number;
+  /** Entity type from the first valid credential that declares one (§17) */
+  entityType?: EntityType;
 }
 
 export type TrustLevel = 'unverified' | 'self-declared' | 'vouched' | 'professional' | 'professional-child';
@@ -67,6 +69,7 @@ export async function computeBadge(
   let rawScore = 0;
   let credentialCount = 0;
   let hasAnyCredential = false;
+  let entityType: EntityType | undefined;
 
   // Process credentials
   for (const event of events) {
@@ -94,6 +97,12 @@ export async function computeBadge(
 
     hasAnyCredential = true;
     credentialCount++;
+
+    // Capture entity type from the first credential that declares one
+    if (!entityType) {
+      const et = getTagValue(event, 'entity-type') as EntityType | undefined;
+      if (et) entityType = et;
+    }
 
     const rawTier = parseInt(getTagValue(event, 'tier') || '1', 10);
     const tier = (rawTier >= 1 && rawTier <= 4 ? rawTier : 1) as SignetTier;
@@ -155,6 +164,7 @@ export async function computeBadge(
     displayLabel,
     credentialCount,
     vouchCount,
+    entityType,
   };
 }
 

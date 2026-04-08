@@ -6,6 +6,8 @@ import {
   createProfessionalCredential,
   createVouch,
   ATTESTATION_KIND,
+  buildCredentialEvent,
+  signEvent,
 } from '../src/index.js';
 import {
   computeBadge,
@@ -151,6 +153,60 @@ describe('badge display (Level 1)', () => {
       const badge = await computeBadge(kp1.publicKey, [cred]);
 
       expect(badge.isVerified).toBe(false);
+    });
+
+    it('returns entityType from the first valid credential that declares one', async () => {
+      const kp = generateKeyPair();
+      const unsigned = buildCredentialEvent(kp.publicKey, {
+        subjectPubkey: kp.publicKey,
+        tier: 1,
+        type: 'self',
+        scope: 'adult',
+        method: 'self-declaration',
+        expiresAt: Math.floor(Date.now() / 1000) + 86400,
+        entityType: 'natural_person',
+      });
+      const cred = await signEvent(unsigned, kp.privateKey);
+      const badge = await computeBadge(kp.publicKey, [cred]);
+
+      expect(badge.isVerified).toBe(true);
+      expect(badge.entityType).toBe('natural_person');
+    });
+
+    it('returns undefined entityType when no credential declares one', async () => {
+      const kp = generateKeyPair();
+      const cred = await createSelfDeclaredCredential(kp.privateKey);
+      const badge = await computeBadge(kp.publicKey, [cred]);
+
+      expect(badge.entityType).toBeUndefined();
+    });
+
+    it('uses entityType from first valid credential, ignores subsequent', async () => {
+      const kp = generateKeyPair();
+      const unsigned1 = buildCredentialEvent(kp.publicKey, {
+        subjectPubkey: kp.publicKey,
+        tier: 1,
+        type: 'self',
+        scope: 'adult',
+        method: 'self-declaration',
+        expiresAt: Math.floor(Date.now() / 1000) + 86400,
+        entityType: 'natural_person',
+      });
+      const cred1 = await signEvent(unsigned1, kp.privateKey);
+      const unsigned2 = buildCredentialEvent(kp.publicKey, {
+        subjectPubkey: kp.publicKey,
+        tier: 1,
+        type: 'self',
+        scope: 'adult',
+        method: 'self-declaration',
+        expiresAt: Math.floor(Date.now() / 1000) + 86400,
+        entityType: 'persona',
+      });
+      const cred2 = await signEvent(unsigned2, kp.privateKey);
+      const badge = await computeBadge(kp.publicKey, [cred1, cred2]);
+
+      // First credential wins
+      expect(badge.entityType).toBe('natural_person');
     });
   });
 
