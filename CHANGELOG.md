@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/forgesworn/signet/compare/v1.1.0...v1.2.0) (2026-04-10)
+
+
+### Features
+
+* **spec:** lock attestation kind 31000 as canonical ([1ab041a](https://github.com/forgesworn/signet/commit/1ab041a03ee78b74d6a918744214fd62ad531cea))
+
 # [1.1.0](https://github.com/forgesworn/signet/compare/v1.0.0...v1.1.0) (2026-04-10)
 
 
