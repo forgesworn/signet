@@ -935,11 +935,11 @@ Clients implementing Signet can integrate credentials with:
 
 ### Contributing
 
-Signet is open source. Contributions, feedback, and NIP discussion are welcome.
+Signet is open source. Contributions, feedback, and protocol discussion are welcome.
 
 - Protocol specification: this document
 - TypeScript library: `signet-protocol` on npm
-- NIP proposal: pending (kind numbers are placeholders)
+- **Attestation kind:** Kind 31000 is used for all Signet identity attestations (credentials, vouches, verifier registration, challenges, revocations, identity bridges, delegation). Kind 30078 (NIP-78) is used for community policies. The voting extension uses kinds 30482–30484.
 
 ---
 

@@ -82,7 +82,7 @@ Layer 3: General-purpose ZK (future, if needed)
 
 **v1.0.0** — spec complete, TypeScript library implemented, reference apps functional. Seeking community feedback.
 
-Kind numbers are placeholders pending NIP allocation.
+All identity attestations use kind 31000 (NIP-VA, Verifiable Attestations), differentiated by `type` tag.
 
 ## Implementation
 

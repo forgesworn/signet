@@ -118,8 +118,6 @@ The Protocol uses the following Nostr event kinds:
 | 31000 | Delegation events (guardian and agent) |
 | 30482–30484 | Voting extension (election, ballot, result) |
 
-Event kind numbers are pending final NIP allocation.
-
 ### 3.4 Cryptographic Stack
 
 The Protocol uses:

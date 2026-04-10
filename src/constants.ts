@@ -1,7 +1,11 @@
 // Signet Protocol Constants
 import { ATTESTATION_KIND } from 'nostr-attestations';
 
-/** Generic Verifiable Attestation kind (NIP-VA, kind 31000) */
+/**
+ * Generic Verifiable Attestation kind (NIP-VA, kind 31000).
+ * Used for all Signet identity attestations (credentials, vouches, verifier registration,
+ * challenges, revocations, identity bridges, delegation).
+ */
 export { ATTESTATION_KIND };
 
 /** NIP-78 App-specific Data kind (existing Nostr kind) */
