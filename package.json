@@ -1,6 +1,6 @@
 {
   "name": "signet-protocol",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Decentralised identity verification protocol for Nostr",
   "type": "module",
   "main": "./dist/index.js",
