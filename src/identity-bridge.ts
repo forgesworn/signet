@@ -133,6 +133,7 @@ export async function createIdentityBridge(
 
   const template = createAttestation({
     type: ATTESTATION_TYPES.IDENTITY_BRIDGE,
+    identifier: anonPubkey,
     occurredAt: opts?.occurredAt,
     summary: 'Anonymous account linked to verified identity via ring signature',
     tags: [

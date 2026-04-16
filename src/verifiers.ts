@@ -33,6 +33,7 @@ export function buildVerifierEvent(
 
   const template = createAttestation({
     type: ATTESTATION_TYPES.VERIFIER,
+    identifier: verifierPubkey,
     summary: `${params.profession} verifier in ${params.jurisdiction}`,
     tags: signetTags,
     content: params.statement || '',

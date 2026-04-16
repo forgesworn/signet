@@ -102,7 +102,7 @@ describe('shamir', () => {
 
   describe('validation', () => {
     it('throws when threshold < 2', () => {
-      expect(() => splitSecret(secret16, 1, 3)).toThrow('at least 2');
+      expect(() => splitSecret(secret16, 1, 3)).toThrow('Threshold must be in [2, 255]');
     });
 
     it('throws when shares < threshold', () => {
