@@ -96,7 +96,7 @@ These conventions were established during the security hardening review (2026-03
 ## Gotchas
 
 - **spoken-token dependency** — `spoken-token` is published on npm as `^2.0.3`. Used in `src/signet-words.ts` for word-based verification tokens. v2.0 has breaking changes (PIN encoding bias fix, directional pair domain separation, whitespace context rejection) but Signet's usage (deriveTokenBytes + encodeAsWords) is backwards-compatible.
-- **npm publication** — `signet-protocol` is published to npm via semantic-release on push to main.
+- **npm publication** — `signet-protocol` is published to npm via `forgesworn/anvil@v0` (workflow_call) on push to main.
 - **`@noble/hashes` v2 import paths** — v2 requires `.js` suffix on subpath imports (e.g. `@noble/hashes/sha2.js`, `@noble/hashes/utils.js`, `@noble/curves/secp256k1.js`). The old `sha256` subpath is now `sha2` (but the `sha256` named export still exists within it). `randomPrivateKey` was renamed to `randomSecretKey`. Several functions now require `Uint8Array` instead of hex strings.
 - **nsec-tree dependency** — `nsec-tree` is published on npm as `^1.4.1`. Provides identity derivation, personas, sub-identity derivation, linkage proofs, NIP-19 encoding. Requires Node `>=22`.
 
