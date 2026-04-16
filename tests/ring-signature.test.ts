@@ -54,9 +54,10 @@ describe('ring-signature', () => {
     it('rejects tampered responses', () => {
       const { keys, pubkeys } = makeRing(3);
       const sig = ringSign('test', pubkeys, 0, keys[0].privateKey);
-      // Flip a byte in one response
+      // XOR first byte so tamper is never a no-op
       const r = sig.responses[1];
-      sig.responses[1] = 'ff' + r.slice(2);
+      const flipped = (parseInt(r.slice(0, 2), 16) ^ 0x01).toString(16).padStart(2, '0');
+      sig.responses[1] = flipped + r.slice(2);
       expect(ringVerify(sig)).toBe(false);
     });
 
