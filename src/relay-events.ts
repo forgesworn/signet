@@ -12,7 +12,7 @@ import type { VerifyResponse } from './presentation.js';
 /**
  * Auth response payload published via relay (cross-device flow).
  *
- * Contains the full signed Kind-27235 auth event rather than a raw signature,
+ * Contains the full signed Kind-21236 auth event rather than a raw signature,
  * so the ceremony is compatible with every Nostr signer backend — local,
  * NIP-46 bunker, and NIP-07 browser-extension — each of which exposes
  * `signEvent` but never raw-byte signing.
@@ -21,14 +21,14 @@ import type { VerifyResponse } from './presentation.js';
  *   1. Recomputing `authEvent.id` from its canonical serialisation.
  *   2. Checking the recomputed id matches `authEvent.id`.
  *   3. Schnorr-verifying `authEvent.sig` over `authEvent.id` with `authEvent.pubkey`.
- *   4. Asserting `authEvent.kind === 27235`.
+ *   4. Asserting `authEvent.kind === 21236`.
  *   5. Asserting `authEvent.tags` contains the expected `challenge` and `origin`.
  */
 export interface AuthResponse {
   type: 'signet-auth-response';
   /** The challenge issued by the consumer. Also the correlation key on the relay subscription. */
   requestId: string;
-  /** The signed Kind-27235 auth event — this is the cryptographic proof. */
+  /** The signed Kind-21236 auth event — this is the cryptographic proof. */
   authEvent: NostrEvent;
   /** Optional credential (included for signet-login-request flows) */
   credential?: {
