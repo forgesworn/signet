@@ -93,6 +93,14 @@ function isValidAuthRequest(obj: Record<string, unknown>): obj is Record<string,
     if (typeof obj.relay !== 'string' || obj.relay.length > 1024) return false;
     if (!isValidWssUrl(obj.relay)) return false;
   }
+  if (obj.sessionPubkey !== undefined) {
+    if (typeof obj.sessionPubkey !== 'string' || !/^[0-9a-f]{64}$/i.test(obj.sessionPubkey)) return false;
+    // Gift-wrap is non-optional when relay delivery is in play — reject
+    // sessionPubkey without a matching relay (and vice versa).
+    if (obj.relay === undefined) return false;
+  } else if (obj.relay !== undefined) {
+    return false;
+  }
   return true;
 }
 
@@ -116,6 +124,12 @@ function isValidLoginRequest(obj: Record<string, unknown>): obj is Record<string
   if (obj.relay !== undefined) {
     if (typeof obj.relay !== 'string' || obj.relay.length > 1024) return false;
     if (!isValidWssUrl(obj.relay)) return false;
+  }
+  if (obj.sessionPubkey !== undefined) {
+    if (typeof obj.sessionPubkey !== 'string' || !/^[0-9a-f]{64}$/i.test(obj.sessionPubkey)) return false;
+    if (obj.relay === undefined) return false;
+  } else if (obj.relay !== undefined) {
+    return false;
   }
   if (obj.requiredAgeRange !== undefined) {
     if (typeof obj.requiredAgeRange !== 'string' || !(VALID_AGE_RANGES as readonly string[]).includes(obj.requiredAgeRange)) return false;
