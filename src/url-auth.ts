@@ -20,6 +20,11 @@ function isValidAuthUrl(url: string): boolean {
   }
 }
 
+/** Check if a URL is wss:// or ws://localhost (dev). Used for relay delivery mode. */
+function isValidRelayUrl(url: string): boolean {
+  return /^wss:\/\//i.test(url) || /^ws:\/\/(localhost|127\.0\.0\.1)([:\/]|$)/i.test(url);
+}
+
 /**
  * Parse URL auth params from a query string (e.g. window.location.search).
  * Returns a LoginRequest compatible with the approval flow,
@@ -64,7 +69,25 @@ export function parseUrlAuthParams(search: string): LoginRequest | null {
   const timestamp = parseInt(timestampParam, 10);
   if (isNaN(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 300) return null;
 
-  return {
+  // Optional cross-device relay delivery params.
+  // Both must be present together — gift-wrap is non-optional in relay mode,
+  // so a relay URL without a session pubkey (or vice versa) is rejected.
+  const relayParam = params.get('relay');
+  const sessionPubkeyParam = params.get('sessionPubkey');
+
+  let relay: string | undefined;
+  let sessionPubkey: string | undefined;
+
+  if (relayParam !== null || sessionPubkeyParam !== null) {
+    if (!relayParam || !sessionPubkeyParam) return null;
+    if (relayParam.length > 1024) return null;
+    if (!isValidRelayUrl(relayParam)) return null;
+    if (!/^[0-9a-f]{64}$/i.test(sessionPubkeyParam)) return null;
+    relay = relayParam;
+    sessionPubkey = sessionPubkeyParam.toLowerCase();
+  }
+
+  const result: LoginRequest = {
     type: 'signet-login-request',
     requestId: normalizedChallenge, // use challenge as requestId for URL auth
     challenge: normalizedChallenge,
@@ -72,6 +95,9 @@ export function parseUrlAuthParams(search: string): LoginRequest | null {
     callbackUrl: callback,
     timestamp,
   };
+  if (relay !== undefined) result.relay = relay;
+  if (sessionPubkey !== undefined) result.sessionPubkey = sessionPubkey;
+  return result;
 }
 
 /**
