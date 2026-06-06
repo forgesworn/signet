@@ -883,7 +883,7 @@ Bei Fragen zu diesen Bedingungen, zur Ausübung von Datenschutzrechten oder zur 
 **Das Signet-Protokoll**
 E-Mail: admin@forgesworn.dev
 Sicherheitsmeldungen: admin@forgesworn.dev
-Repository: https://github.com/forgesworn/signet-protocol
+Repository: https://github.com/forgesworn/signet
 
 ---
 

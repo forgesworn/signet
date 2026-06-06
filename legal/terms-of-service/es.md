@@ -880,7 +880,7 @@ Para preguntas sobre estos Términos, para ejercer derechos de protección de da
 **El Protocolo Signet**
 Correo electrónico: admin@forgesworn.dev
 Divulgaciones de seguridad: admin@forgesworn.dev
-Repositorio: https://github.com/forgesworn/signet-protocol
+Repositorio: https://github.com/forgesworn/signet
 
 ---
 

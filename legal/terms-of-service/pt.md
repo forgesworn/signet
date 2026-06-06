@@ -883,7 +883,7 @@ Para perguntas sobre estes Termos, para exercer direitos de proteção de dados,
 **The Signet Protocol**
 E-mail: admin@forgesworn.dev
 Divulgações de segurança: admin@forgesworn.dev
-Repositório: https://github.com/forgesworn/signet-protocol
+Repositório: https://github.com/forgesworn/signet
 
 ---
 

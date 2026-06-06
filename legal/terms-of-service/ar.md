@@ -882,7 +882,7 @@ SHA-256(LP(docType) || LP(country) || LP(docNumber) || LP("signet-nullifier-v2")
 **بروتوكول Signet**
 البريد الإلكتروني: admin@forgesworn.dev
 الإفصاحات الأمنية: admin@forgesworn.dev
-المستودع: https://github.com/forgesworn/signet-protocol
+المستودع: https://github.com/forgesworn/signet
 
 ---
 

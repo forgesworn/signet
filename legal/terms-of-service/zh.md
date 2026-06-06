@@ -882,7 +882,7 @@ signet-verify.js SDK依据协议仓库中指定的开源许可提供。商业使
 **The Signet Protocol**
 电子邮件：admin@forgesworn.dev
 安全披露：admin@forgesworn.dev
-仓库：https://github.com/forgesworn/signet-protocol
+仓库：https://github.com/forgesworn/signet
 
 ---
 

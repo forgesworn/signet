@@ -874,7 +874,7 @@ For questions about these Terms, to exercise data protection rights, or to repor
 **The Signet Protocol**
 Email: admin@forgesworn.dev
 Security disclosures: admin@forgesworn.dev
-Repository: https://github.com/forgesworn/signet-protocol
+Repository: https://github.com/forgesworn/signet
 
 ---
 

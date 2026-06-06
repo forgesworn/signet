@@ -883,7 +883,7 @@ Pour toute question relative aux présentes Conditions, pour exercer des droits 
 **Le Protocole Signet**
 E-mail : admin@forgesworn.dev
 Divulgations de sécurité : admin@forgesworn.dev
-Dépôt : https://github.com/forgesworn/signet-protocol
+Dépôt : https://github.com/forgesworn/signet
 
 ---
 

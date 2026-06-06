@@ -882,7 +882,7 @@ EU消費者の場合、国内裁判所とEU ODRプラットフォームも使用
 **The Signet Protocol**
 メール：admin@forgesworn.dev
 セキュリティ開示：admin@forgesworn.dev
-リポジトリ：https://github.com/forgesworn/signet-protocol
+リポジトリ：https://github.com/forgesworn/signet
 
 ---
 
