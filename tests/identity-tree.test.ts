@@ -11,6 +11,7 @@ import {
   verifyLinkageProof,
   destroyIdentity,
 } from '../src/identity-tree.js'
+import { derive } from '../src/index.js'
 
 const TEST_MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
 
@@ -203,5 +204,26 @@ describe('Shamir backup round-trip', () => {
     expect(recovered.root.masterPubkey).toBe(original.root.masterPubkey)
     original.root.destroy()
     recovered.root.destroy()
+  })
+})
+
+describe('raw derive() re-export', () => {
+  it('reproduces a raw-purpose identity, distinct from the persona namespace', () => {
+    const identity = createSignetIdentity(TEST_MNEMONIC)
+
+    // A persona named X is purpose nostr:persona:X (PROTOCOL v1.1 §3.1).
+    const persona = deriveAdditionalPersona(identity.root, 'social')
+    const viaRawPersonaPurpose = derive(identity.root, 'nostr:persona:social', 0)
+    expect(viaRawPersonaPurpose.npub).toBe(persona.identity.npub)
+    expect(viaRawPersonaPurpose.npub).toBe(
+      'npub1qdztfxg9z46k8qg4707n747y9rt7kl3f954lju2pneesmc3ypf2q83gm0e',
+    )
+
+    // The RAW purpose "social" is a different identity (e.g. an nsec-tree CLI
+    // `derive path social`) — the re-export lets signet reproduce it too.
+    const raw = derive(identity.root, 'social', 0)
+    expect(raw.npub).not.toBe(persona.identity.npub)
+
+    destroyIdentity(identity)
   })
 })

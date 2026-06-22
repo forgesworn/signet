@@ -386,7 +386,11 @@ export {
 export type { SignetIdentity } from './identity-tree.js';
 
 // nsec-tree re-exports
-export { zeroise } from 'nsec-tree';
+// `derive` is the raw child-derivation primitive (root, purpose, index). Use it
+// to reproduce identities created under a RAW purpose — e.g. the nsec-tree CLI's
+// `derive path <name>` or a bunker's raw derivation — which live in a different
+// namespace from signet's `nostr:persona:<name>` personas (PROTOCOL v1.1 §3.1).
+export { derive, zeroise } from 'nsec-tree';
 export type { TreeRoot, Identity, Persona, LinkageProof } from 'nsec-tree';
 
 // NIP-19 encoding (nsec-tree/encoding)
