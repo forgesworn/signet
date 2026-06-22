@@ -7,6 +7,14 @@
 
 # [1.2.0](https://github.com/forgesworn/signet/compare/v1.1.0...v1.2.0) (2026-04-12)
 
+## 1.9.0 (2026-06-22)
+
+### Features
+
+- re-export raw derive() for raw-purpose identities
+
+
+
 ## 1.8.1 (2026-05-11)
 
 ### Bug Fixes
