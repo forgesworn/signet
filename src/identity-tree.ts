@@ -15,6 +15,13 @@ export interface SignetIdentity {
   readonly mnemonic?: string
 }
 
+export interface DependantIdentity {
+  /** Stable base path; the two derived persona names append `-np` / `-persona`. */
+  readonly derivationPath: string
+  readonly naturalPerson: Persona
+  readonly persona: Persona
+}
+
 function deriveRequiredPersonas(root: TreeRoot): { naturalPerson: Persona; persona: Persona } {
   const naturalPerson = derivePersona(root, NATURAL_PERSON_PERSONA)
   const persona = derivePersona(root, ANONYMOUS_PERSONA)
@@ -52,6 +59,26 @@ export function deriveAdditionalPersona(root: TreeRoot, name: string, index = 0)
     throw new SignetValidationError('Persona name must not be empty')
   }
   return derivePersona(root, name, index)
+}
+
+/**
+ * Derive the two key identities owned by dependant N.
+ *
+ * These names are a cross-app compatibility contract used by My Signet and
+ * Fledgling: `dependant-N-np` and `dependant-N-persona`, both at nsec-tree
+ * persona index 0. Callers must zeroise the two returned persona identities
+ * after copying any required key material.
+ */
+export function deriveDependantIdentity(root: TreeRoot, dependantIndex: number): DependantIdentity {
+  if (!Number.isSafeInteger(dependantIndex) || dependantIndex < 0) {
+    throw new SignetValidationError('Dependant index must be a non-negative safe integer')
+  }
+  const derivationPath = `dependant-${dependantIndex}`
+  return {
+    derivationPath,
+    naturalPerson: deriveAdditionalPersona(root, `${derivationPath}-np`),
+    persona: deriveAdditionalPersona(root, `${derivationPath}-persona`),
+  }
 }
 
 /**
