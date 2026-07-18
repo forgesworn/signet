@@ -7,6 +7,14 @@
 
 # [1.2.0](https://github.com/forgesworn/signet/compare/v1.1.0...v1.2.0) (2026-04-12)
 
+## 1.10.0 (2026-07-18)
+
+### Features
+
+- own dependant identity derivation
+
+
+
 ## 1.9.0 (2026-06-22)
 
 ### Features
