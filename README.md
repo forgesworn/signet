@@ -91,6 +91,11 @@ All identity attestations use kind 31000 (NIP-VA, Verifiable Attestations), diff
 This repo includes:
 - `src/` — TypeScript protocol library (`signet-protocol` on npm)
 
+The identity-tree API includes `deriveDependantIdentity(root, index)`, the
+canonical My Signet/Fledgling derivation for `dependant-N-np` and
+`dependant-N-persona`. Exact mnemonic-to-key vectors are frozen in the test
+suite so recovery-compatible paths cannot drift silently.
+
 Signet is a standalone protocol. Any Nostr client can implement it independently.
 
 ## Regulatory Compatibility

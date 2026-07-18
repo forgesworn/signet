@@ -6,12 +6,14 @@ import {
   createSignetIdentity,
   createSignetIdentityFromNsec,
   deriveAdditionalPersona,
+  deriveDependantIdentity,
   deriveSubIdentity,
   createLinkageProof,
   verifyLinkageProof,
   destroyIdentity,
 } from '../src/identity-tree.js'
 import { derive } from '../src/index.js'
+import { bytesToHex } from '@noble/hashes/utils.js'
 
 const TEST_MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
 
@@ -132,6 +134,60 @@ describe('deriveAdditionalPersona', () => {
     const identity = createSignetIdentity(TEST_MNEMONIC)
     expect(() => deriveAdditionalPersona(identity.root, '')).toThrow()
     identity.root.destroy()
+  })
+})
+
+describe('deriveDependantIdentity frozen vectors', () => {
+  // Fledgling and My Signet shipped these exact named paths before the API
+  // moved here. Do not regenerate silently: mnemonic -> key drift or a path
+  // rename would strand an existing dependant identity after restore.
+  const vectors = [
+    {
+      index: 0,
+      npPublicKey: '2353d09c8668dfb41e80b5191bcac280bc42ee679f487f310958a88c5202b75a',
+      npPrivateKey: 'df1ad1ed87ebf1c4a92d24b1f471b13482bdcfbf138a0eecb97263fcfead4de1',
+      personaPublicKey: '0cbbe50a249f6c047580a735a8944c8b50fd82c9533f8c831923b049df951e5f',
+      personaPrivateKey: 'f6299a3d9a3df95becc687a8f4b1546d732deb6f4136ce93f44e936710af422f',
+    },
+    {
+      index: 1,
+      npPublicKey: 'bfde84e82fa1fd006654a0d44d40219c30f7a8d53f4a0782f0b2135b63442819',
+      npPrivateKey: '628767991af35d5ba99021ceb5452b6b6d317b4f3bc980699bac10be6915167a',
+      personaPublicKey: 'd5373e1b52c326aaef8390de927b1c8928dc331958dc6a425dcb2a11f38d9525',
+      personaPrivateKey: '8a43d863fafa7e85095f18208b6cf0b013e6eff24dea996bd0d0925f54bba1cd',
+    },
+    {
+      index: 2,
+      npPublicKey: 'a1bca68cc4351858314922aa1c50eeec267c0f9ce93001b73b13f82342cff8e4',
+      npPrivateKey: '0dc2c32ef9a6a2b11651d7719fa72a62108e64c270217d031195dd8337b06483',
+      personaPublicKey: '378a2184dd96e67733e3e01a2272f7dd98aa2eef7c06c2ebc462e1535ea015ef',
+      personaPrivateKey: '958c6ea704fb28a08f14020b0b301fc7952716563d9f7584f80842b0b939eb35',
+    },
+  ]
+
+  for (const vector of vectors) {
+    it(`freezes dependant-${vector.index}-np and dependant-${vector.index}-persona`, () => {
+      const tree = createSignetIdentity('legal winner thank year wave sausage worth useful legal winner thank yellow')
+      const dependant = deriveDependantIdentity(tree.root, vector.index)
+      expect(dependant.derivationPath).toBe(`dependant-${vector.index}`)
+      expect(dependant.naturalPerson.name).toBe(`dependant-${vector.index}-np`)
+      expect(dependant.persona.name).toBe(`dependant-${vector.index}-persona`)
+      expect(bytesToHex(dependant.naturalPerson.identity.publicKey)).toBe(vector.npPublicKey)
+      expect(bytesToHex(dependant.naturalPerson.identity.privateKey)).toBe(vector.npPrivateKey)
+      expect(bytesToHex(dependant.persona.identity.publicKey)).toBe(vector.personaPublicKey)
+      expect(bytesToHex(dependant.persona.identity.privateKey)).toBe(vector.personaPrivateKey)
+      destroyIdentity(tree)
+      dependant.naturalPerson.identity.privateKey.fill(0)
+      dependant.persona.identity.privateKey.fill(0)
+    })
+  }
+
+  it('rejects negative, fractional and unsafe indices', () => {
+    const tree = createSignetIdentity(TEST_MNEMONIC)
+    for (const invalid of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => deriveDependantIdentity(tree.root, invalid)).toThrow()
+    }
+    destroyIdentity(tree)
   })
 })
 

@@ -375,6 +375,7 @@ export {
   createSignetIdentity,
   createSignetIdentityFromNsec,
   deriveAdditionalPersona,
+  deriveDependantIdentity,
   deriveSubIdentity,
   createLinkageProof,
   verifyLinkageProof,
@@ -383,7 +384,7 @@ export {
   ANONYMOUS_PERSONA,
 } from './identity-tree.js';
 
-export type { SignetIdentity } from './identity-tree.js';
+export type { SignetIdentity, DependantIdentity } from './identity-tree.js';
 
 // nsec-tree re-exports
 // `derive` is the raw child-derivation primitive (root, purpose, index). Use it
