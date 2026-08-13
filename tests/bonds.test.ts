@@ -369,7 +369,7 @@ describe('verifyBondProof', () => {
     });
   });
 
-  describe('meetsThreshold', () => {
+  describe('declared amount threshold', () => {
     it('returns null when requiredSats not provided', async () => {
       const verifier = generateKeyPair();
       const now = Math.floor(Date.now() / 1000);
@@ -384,6 +384,8 @@ describe('verifyBondProof', () => {
       };
       const result = await verifyBondProof(proof, verifier.publicKey, { now });
       expect(result.meetsThreshold).toBeNull();
+      expect(result.declaredAmountMeetsThreshold).toBeNull();
+      expect(result.fundsVerified).toBe(false);
     });
 
     it('returns true when amount meets threshold', async () => {
@@ -400,6 +402,8 @@ describe('verifyBondProof', () => {
       };
       const result = await verifyBondProof(proof, verifier.publicKey, { now, requiredSats: 50_000 });
       expect(result.meetsThreshold).toBe(true);
+      expect(result.declaredAmountMeetsThreshold).toBe(true);
+      expect(result.fundsVerified).toBe(false);
     });
 
     it('returns false when amount is below threshold', async () => {
@@ -421,11 +425,11 @@ describe('verifyBondProof', () => {
 });
 
 describe('checkBondCompliance', () => {
-  it('returns meets: true when amount meets threshold', () => {
+  it('fails closed when the declared amount meets the threshold but funds are not independently verified', () => {
     const proof = makeBondProof({ amountSats: 200_000 });
     const result = checkBondCompliance(proof, 100_000);
-    expect(result.meets).toBe(true);
-    expect(result.reason).toBeUndefined();
+    expect(result.meets).toBe(false);
+    expect(result.reason).toContain('independent locked-funds verification');
   });
 
   it('returns meets: false when amount is below threshold', () => {
@@ -443,10 +447,11 @@ describe('checkBondCompliance', () => {
     expect(result.reason).toBeDefined();
   });
 
-  it('meets: true at exact threshold', () => {
+  it('meets only with explicit independent funds verification', () => {
     const proof = makeBondProof({ amountSats: 100_000 });
-    const result = checkBondCompliance(proof, 100_000);
+    const result = checkBondCompliance(proof, 100_000, { fundsVerified: true });
     expect(result.meets).toBe(true);
+    expect(result.reason).toBeUndefined();
   });
 });
 

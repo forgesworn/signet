@@ -157,7 +157,7 @@ export {
   isVerifierRevoked,
 } from './verifiers.js';
 
-// Bonds (proof-of-reserve bond attestation)
+// Bonds (BIP-322 address-control declaration; external funds proof required)
 export {
   buildBondMessage,
   createBondProof,

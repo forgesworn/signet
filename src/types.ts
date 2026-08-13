@@ -114,12 +114,12 @@ export interface PolicyCheckResult {
   actualScore?: number;
 }
 
-// --- Proof-of-Reserve Bond ---
+// --- Bond declaration and address-control proof ---
 
 /** Bitcoin address type for bond proofs */
 export type BitcoinAddressType = 'p2wpkh' | 'p2sh' | 'p2tr' | 'p2pkh';
 
-/** A proof-of-reserve bond attestation */
+/** A signed bond declaration. This does not by itself prove or lock funds. */
 export interface BondProof {
   address: string;
   addressType: BitcoinAddressType;
@@ -132,10 +132,16 @@ export interface BondProof {
 export type BondStatus = 'valid' | 'stale' | 'invalid' | 'unverified';
 
 export interface BondVerificationResult {
+  /** Validity of the address-control proof, not proof that funds exist or are locked. */
   status: BondStatus;
   signatureValid: boolean | null;
   fresh: boolean;
   ageSecs: number;
+  /** Whether the self-declared amount reaches the policy threshold. */
+  declaredAmountMeetsThreshold: boolean | null;
+  /** Always false in the core library. Funds require an independent verifier. */
+  fundsVerified: false;
+  /** @deprecated Use declaredAmountMeetsThreshold. This does not prove funds. */
   meetsThreshold: boolean | null;
   errors: string[];
 }

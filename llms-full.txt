@@ -452,17 +452,34 @@ Clients perform statistical anomaly detection:
 
 This is purely client-side — no central authority decides what's suspicious. Each client applies its own heuristics. The transparency of Nostr events makes this possible without surveillance.
 
-### Layer 4 — Lightning Bond (Skin in the Game)
+### Layer 4 — Optional External Bond (Skin in the Game)
 
-Professional verifiers stake sats via Lightning when registering as a verifier. The bond is:
+Communities may require professional verifiers to maintain an externally
+enforceable Bitcoin bond. If they do, the external mechanism defines how funds
+are locked, adjudicated, slashed, or returned. Signet records the community's
+threshold and the verifier's evidence; it does not custody or move the funds.
+
+An enforceable external bond can be:
 
 - **Locked** when the verifier credential (kind 31000, type: verifier) is published
 - **Slashed** (burned or redistributed to reporters) if the verifier is found fraudulent and revoked
 - **Returned** if the verifier deactivates cleanly (retires, leaves the network)
 
-Bond amount is configurable per community policy. A casual group might require 100,000 sats. A high-security community might require 1,000,000 sats. The bond makes corruption financially costly — a corrupt verifier doesn't just lose their reputation, they lose money.
+Bond amount is configurable per community policy. A casual group might require
+100,000 sats. A high-security community might require 1,000,000 sats. The
+economic deterrent exists only when the community independently verifies that
+the required funds are actually locked and slashable.
 
-Implementation: NWC (Nostr Wallet Connect) for bond locking. The bond mechanism is optional — communities that don't require it simply don't set a bond threshold in their policy (kind 30078).
+The core protocol currently carries a BIP-322 address-control attestation with a
+declared amount. BIP-322 proves control of the named address and binds the
+declaration to the verifier's Nostr key. It does **not** prove the address balance,
+lock funds, monitor reserves, or enforce slashing. Clients MUST NOT treat that
+attestation alone as an active economic bond. They need independent evidence from
+the community's chosen bond mechanism. NWC is a wallet communication protocol;
+it neither locks nor escrows funds and has no role in Signet bond verification.
+
+The bond mechanism is optional. Communities that do not require one omit the
+bond threshold from their policy (kind 30078).
 
 ### Layer 5 — Community Reporting and Revocation
 
@@ -484,7 +501,8 @@ Reporter ──── publishes kind 31000 (type: challenge) ────► cha
                 ├─ Verifier's kind 31000 (type: verifier) is superseded
                 │  by a revocation event (kind 31000, type: revocation)
                 │
-                ├─ Lightning bond is slashed
+                ├─ External bond provider may slash under its own rules
+                │  (Signet records the claimed bond action only)
                 │
                 └─ All credentials issued by this verifier
                    are flagged in clients
@@ -509,7 +527,7 @@ A corrupt professional in this system must:
 1. Be genuinely registered with a professional body (or be caught instantly by registry check)
 2. Convince professionals in *other* fields to vouch for them (cross-profession requirement)
 3. Keep issuance volume low enough to avoid anomaly detection (limits the profit from corruption)
-4. Risk losing their Lightning bond (direct financial cost)
+4. Risk losing an independently verified external bond, if the community requires one
 5. Risk community reporting, public revocation, and permanent reputation damage on Nostr
 6. Accept that every fake credential they ever issued is permanently traceable back to them
 

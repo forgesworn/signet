@@ -108,7 +108,7 @@ stateDiagram-v2
     Challenged --> Active: Challenge dismissed
     Challenged --> Revoked: Threshold confirmations\nreached (kind 30475)
     Active --> [*]: Voluntary retirement
-    Revoked --> [*]: Bond slashed,\ncredentials invalidated
+    Revoked --> [*]: External bond action recorded,\ncredentials invalidated
 ```
 
 ## Guides
