@@ -34,3 +34,6 @@ jobs:
 
       - name: Build
         run: npx tsc
+
+      - name: Audit dependencies
+        run: npm audit

@@ -1,5 +1,5 @@
-// Proof-of-Reserve Bond Attestation
-// Non-custodial bond system: verifiers prove Bitcoin address control via BIP-322
+// Bond declaration with BIP-322 address-control proof.
+// This does not prove funds, lock value, or make a bond slashable.
 
 import { BOND_DOMAIN_SEPARATOR, DEFAULT_BOND_MAX_AGE_SECS, VALID_BOND_ADDRESS_TYPES } from './constants.js';
 import { getTagValue } from './validation.js';
@@ -44,7 +44,7 @@ export interface VerifyBondProofOptions {
   verifier?: BIP322Verifier;
   /** Maximum age in seconds (default: DEFAULT_BOND_MAX_AGE_SECS) */
   maxAgeSecs?: number;
-  /** Minimum required amount in satoshis */
+  /** Minimum declared amount in satoshis. This does not verify funds. */
   requiredSats?: number;
   /** Override current time (unix seconds, for testing) */
   now?: number;
@@ -84,7 +84,7 @@ export async function verifyBondProof(
   const fresh = ageSecs <= maxAgeSecs;
 
   // Check threshold
-  const meetsThreshold = opts.requiredSats != null
+  const declaredAmountMeetsThreshold = opts.requiredSats != null
     ? proof.amountSats >= opts.requiredSats
     : null;
 
@@ -126,7 +126,9 @@ export async function verifyBondProof(
     signatureValid,
     fresh,
     ageSecs,
-    meetsThreshold,
+    declaredAmountMeetsThreshold,
+    fundsVerified: false,
+    meetsThreshold: declaredAmountMeetsThreshold,
     errors,
   };
 }
@@ -185,10 +187,14 @@ export function parseBondProof(event: NostrEvent | { tags: string[][] }): BondPr
   };
 }
 
-/** Check whether a bond proof meets a required amount threshold */
+/**
+ * Check policy compliance using independently verified funds evidence.
+ * Safe by default: BIP-322 plus a declared amount is never enough on its own.
+ */
 export function checkBondCompliance(
   proof: BondProof | null,
   requiredSats: number,
+  opts: { fundsVerified?: boolean } = {},
 ): { meets: boolean; reason?: string } {
   if (!proof) {
     return { meets: false, reason: 'No bond proof provided' };
@@ -197,6 +203,12 @@ export function checkBondCompliance(
     return {
       meets: false,
       reason: `Bond amount ${proof.amountSats} sats is below required ${requiredSats} sats`,
+    };
+  }
+  if (opts.fundsVerified !== true) {
+    return {
+      meets: false,
+      reason: 'BIP-322 proves address control only; independent locked-funds verification is required',
     };
   }
   return { meets: true };
