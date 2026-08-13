@@ -7,6 +7,14 @@
 
 # [1.2.0](https://github.com/forgesworn/signet/compare/v1.1.0...v1.2.0) (2026-04-12)
 
+## 1.10.1 (2026-08-13)
+
+### Bug Fixes
+
+- require external bond evidence
+
+
+
 ## 1.10.0 (2026-07-18)
 
 ### Features
