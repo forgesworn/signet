@@ -1,0 +1,33 @@
+# Draft bot ownership profile
+
+This unreleased profile uses nostr-attestations kind 31000 with type
+`bot-ownership`. Its replaceable d-tag is `bot-ownership:<bot pubkey>`, p-tag is
+the bot, and the event author is the selected owner persona. It cannot replace
+a credential or vouch. Ownership never grants the bot the owner's trust.
+
+A live claim has `valid_from` equal to `created_at`, matching `valid_to` and
+`expiration`, and content `{ "v": 1, "label": "…" }` (100 characters maximum).
+The event supplies principal, agent, issue date and expiry without requiring a
+raw-hash signature: ordinary NIP-46 sign_event works on hardware. Revocation is
+the existing same-address attestation with `status=revoked` and empty content.
+
+Builders return unsigned events and never publish. Product integration must ask
+for creation consent every time, sign with the chosen persona, and keep the
+signed claim private until publication is explicitly chosen. Hardware-derived
+bots must be registered on the device; this module does not register them.
+
+Default expiry is 30 days, permitted creation range 1–90 days. Readers apply the
+earliest of signed expiry, 90 days and an optional stricter per-bot ceiling,
+with five minutes of clock tolerance. Lapsed is different from revoked.
+Renewal becomes due with ten days left; retry at most daily. The scheduling
+helper never signs: local policy and hardware approvals remain in force.
+
+Consumers pin the expected owner and bot, verify signatures, and select the
+newest same-address event while retaining their previously seen high-water mark.
+A stale ownership claim must not resurrect a newer revocation. This module
+validates one event; it does not implement relay freshness or fetch ordering.
+`readBotOwnershipSync` applies identical validation for synchronous storage and
+transport codecs; `readBotOwnership` remains the asynchronous compatibility API.
+
+Protocol review, app lifecycle/UI, isolated bots contacts, downstream adoption,
+and hardware acceptance are still required before release.
