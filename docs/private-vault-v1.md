@@ -34,5 +34,8 @@ relay is offline or a new checkpoint fails to decrypt. A previously observed
 sequence is a rollback floor. A fresh device cannot detect a relay withholding
 all newer state without another trusted source; do not claim otherwise.
 
-Current helpers are read/validation foundations. Writer scheduling, rotation
-traversal, dataset import and durable canonical markers are subsequent stages.
+The SDK provides stateless read/validation and forward rotation traversal.
+Writer scheduling, dataset import and durable canonical markers belong to
+consumers. The candidate Signet app implements scheduling and confirmed-copy
+state; this does not establish equivalent Sapwood behaviour or end-to-end
+retirement discovery and durable enforcement.

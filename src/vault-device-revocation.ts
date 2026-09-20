@@ -3,11 +3,22 @@ import type { NostrEvent, UnsignedEvent } from './types.js'
 
 /** Additive owner-authorised vault-device retirement contract. Readers that do
  * not understand this event continue to read legacy history; aware readers
- * must apply the highest effective sequence before accepting a device head. */
+ * must retain the earliest authenticated cutoff before accepting a device head. */
 export const VAULT_DEVICE_REVOCATION_KIND = 30078
 export const VAULT_DEVICE_REVOCATION_TAG = 'signet:vault-device-revocation:v1'
 const HEX = /^[0-9a-f]{64}$/
 const uint = (v: unknown): v is number => Number.isSafeInteger(v) && Number(v) >= 0 && Number(v) <= 0xffff_ffff
+const sequence = (v: unknown): v is number => Number.isSafeInteger(v) && Number(v) >= 0
+const hex = (v: unknown): v is string => typeof v === 'string' && HEX.test(v)
+
+/** Authority must come from trusted recovery configuration, never the event. */
+export interface VaultRetirementContext { vault: string; authority: string; now: number }
+export interface VaultRetirementEvidence {
+  authority: string
+  now: number
+  /** Original signed events, including locally retained retirement history. */
+  events: readonly NostrEvent[]
+}
 
 export interface VaultDeviceRevocation {
   v: 1
@@ -43,7 +54,26 @@ export function readVaultDeviceRevocation(event: NostrEvent, expected?: { author
   return { v: 1, vault, device, effectiveSequence, issuedAt: event.created_at, authority: event.pubkey, eventId: event.id }
 }
 
-export function isVaultDeviceRetired(revocations: readonly VaultDeviceRevocation[], device: string, sequence: number): boolean {
-  if (!HEX.test(device) || !uint(sequence)) return false
-  return revocations.some(r => r.device === device && sequence >= r.effectiveSequence)
+/** Validate once per read and capture immutable, scope-bound cutoff values.
+ * Malformed evidence fails closed; valid events from other scopes are ignored.
+ * Parsed record objects alone are deliberately not accepted as authority. */
+export function createVaultDeviceRetirementCheck(events: readonly NostrEvent[], expected: VaultRetirementContext): (device: string, checkpointSequence: number) => boolean {
+  if (!expected || !hex(expected.vault) || !hex(expected.authority) || !sequence(expected.now)
+    || !Array.isArray(events) || events.length > 1024) throw new Error('Invalid vault retirement context')
+  const floors = new Map<string, number>()
+  for (const event of events) {
+    const record = readVaultDeviceRevocation(event, { now: expected.now })
+    if (!record) throw new Error('Invalid signed vault retirement evidence')
+    if (record.vault !== expected.vault || record.authority !== expected.authority) continue
+    floors.set(record.device, Math.min(floors.get(record.device) ?? Infinity, record.effectiveSequence))
+  }
+  return (device, checkpointSequence) => {
+    if (!hex(device) || !sequence(checkpointSequence)) throw new Error('Invalid vault retirement query')
+    const floor = floors.get(device)
+    return floor !== undefined && checkpointSequence >= floor
+  }
+}
+
+export function isVaultDeviceRetired(events: readonly NostrEvent[], expected: VaultRetirementContext & { device: string; sequence: number }): boolean {
+  return createVaultDeviceRetirementCheck(events, expected)(expected.device, expected.sequence)
 }

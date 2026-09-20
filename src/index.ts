@@ -528,7 +528,7 @@ export { VAULT_EVENT_KIND, MAX_VAULT_CHUNKS, MAX_VAULT_DEVICES, MAX_VAULT_CONTRO
 export type { VaultCheckpoint, VaultChunkRef } from './vault-checkpoint.js'
 export { VAULT_DEVICE_REVOCATION_KIND, VAULT_DEVICE_REVOCATION_TAG, buildVaultDeviceRevocation,
   readVaultDeviceRevocation, isVaultDeviceRetired } from './vault-device-revocation.js'
-export type { VaultDeviceRevocation } from './vault-device-revocation.js'
+export type { VaultDeviceRevocation, VaultRetirementContext, VaultRetirementEvidence } from './vault-device-revocation.js'
 export { readVaultSnapshot, readVaultRotations, readVaultHeads, readVaultHeadRotations } from './vault-recovery.js'
 export type { VaultReadResult, VaultReader, VaultHeadsResult } from './vault-recovery.js'
 

@@ -3,13 +3,13 @@ import { verifyEvent } from './crypto.js'
 import { MAX_VAULT_CHUNKS, MAX_VAULT_CONTROL_BYTES, VAULT_EVENT_KIND,
   matchesVaultChunk, parseVaultCheckpoint, vaultCheckpointTag, vaultContentHash } from './vault-checkpoint.js'
 import type { VaultCheckpoint } from './vault-checkpoint.js'
-import { isVaultDeviceRetired } from './vault-device-revocation.js'
-import type { VaultDeviceRevocation } from './vault-device-revocation.js'
+import { createVaultDeviceRetirementCheck } from './vault-device-revocation.js'
+import type { VaultRetirementEvidence } from './vault-device-revocation.js'
 
 export type VaultReadResult =
   | { state: 'absent' }
   | { state: 'unavailable' }
-  | { state: 'unusable'; reason: 'checkpoint' | 'rollback' | 'chunk' | 'revision' }
+  | { state: 'unusable'; reason: 'checkpoint' | 'rollback' | 'chunk' | 'revision' | 'retirement' }
   | { state: 'ready'; plaintext: string; checkpoint: VaultCheckpoint; event: NostrEvent }
 
 export interface VaultReader {
@@ -105,9 +105,17 @@ export type VaultHeadsResult = Exclude<VaultReadResult, { state: 'ready' }>
  */
 export async function readVaultHeads(reader: VaultReader, expected: {
   author: string; purpose: string; rotation: number; sequenceFloors?: Readonly<Record<string, number>>;
-  /** Revocations must be fetched and signature-checked by the caller. */
-  revokedDevices?: readonly VaultDeviceRevocation[];
+  /** Omission means no retirement enforcement. Supplied evidence is validated
+   * against author (the vault key) and the independently pinned authority. */
+  retirement?: VaultRetirementEvidence;
 }): Promise<VaultHeadsResult> {
+  let retired: ReturnType<typeof createVaultDeviceRetirementCheck> | undefined
+  try {
+    // Refuse old JavaScript callers rather than silently ignoring their evidence.
+    if ('revokedDevices' in expected) throw new Error('Unscoped retirement evidence is unsupported')
+    if (expected.retirement !== undefined) retired = createVaultDeviceRetirementCheck(expected.retirement.events,
+      { vault: expected.author, authority: expected.retirement.authority, now: expected.retirement.now })
+  } catch { return { state: 'unusable', reason: 'retirement' } }
   let events: NostrEvent[]
   try { events = await reader.checkpoints(expected.author) } catch { return { state: 'unavailable' } }
   if (!events.length) return { state: 'absent' }
@@ -129,9 +137,10 @@ export async function readVaultHeads(reader: VaultReader, expected: {
     try { raw = await reader.open(event.content, expected.author) } catch { return { state: 'unusable', reason: 'checkpoint' } }
     const checkpoint = raw === null ? null : parseVaultCheckpoint(raw, expected)
     if (!checkpoint || tag !== vaultCheckpointTag(expected.author, checkpoint.publisher)) return { state: 'unusable', reason: 'checkpoint' }
-    if (expected.revokedDevices) {
-      const publishers = checkpoint.publisher ? [checkpoint.publisher] : checkpoint.devicePubkeys
-      if (publishers.length > 0 && publishers.every(device => isVaultDeviceRetired(expected.revokedDevices!, device, checkpoint.sequence))) continue
+    if (retired) {
+      // Legacy multi-device heads cannot attribute a safe subset of their data.
+      // Also reject retired chunk authors in otherwise live publisher heads.
+      if (checkpoint.devicePubkeys.some(device => retired(device, checkpoint.sequence))) continue
     }
     const result = await readVaultSnapshot({ ...reader, checkpoints: async () => [event],
       open: (content, author) => content === event.content ? Promise.resolve(raw) : reader.open(content, author),
@@ -149,12 +158,16 @@ export async function readVaultHeads(reader: VaultReader, expected: {
 
 export async function readVaultHeadRotations(resolve: (rotation: number) => Promise<{
   reader: VaultReader; author: string; sequenceFloors?: Readonly<Record<string, number>>;
+  retirement?: VaultRetirementEvidence;
 }>, purpose: string): Promise<VaultHeadsResult> {
   let rotation = 0
+  let retirementAuthority: string | undefined
   const carried: Extract<VaultReadResult, { state: 'ready' }>[] = []
   for (let hop = 0; hop < 32; hop++) {
     let context: Awaited<ReturnType<typeof resolve>>
     try { context = await resolve(rotation) } catch { return { state: 'unavailable' } }
+    if (hop === 0) retirementAuthority = context.retirement?.authority
+    if (context.retirement?.authority !== retirementAuthority) return { state: 'unusable', reason: 'retirement' }
     const result = await readVaultHeads(context.reader, { ...context, purpose, rotation })
     if (result.state !== 'ready') return rotation > 0 && result.state === 'absent' ? { state: 'unusable', reason: 'checkpoint' } : result
     carried.push(...result.snapshots)
