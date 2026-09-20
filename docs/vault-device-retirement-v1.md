@@ -13,7 +13,11 @@ unavailable revocation query as unavailable recovery data, never as an empty
 vault. A device holding recovery words remains able to derive keys, so this
 contract is authority over accepted published heads, not physical key erasure.
 
-Each event uses `d = signet:vault-device-revocation:v1:<vault>:<device>` so
+The retirement authority is a distinct key from the vault key and every device
+key. A vault signing device must not be able to mint retirement evidence. Any
+authority transition needs a separately authenticated epoch transition and
+rollback protection; v1 has no implicit key rotation. Each event uses
+`d = signet:vault-device-revocation:v1:<vault>:<device>` so
 retiring one device cannot replace another device's revocation, including across
 vaults controlled by the same authority. The earlier unpublished constant-tag
 draft is rejected by the reader: it could retain only one retirement per
@@ -38,7 +42,9 @@ checkpoint query or decryption. Evidence is bounded to 1,024 events per read.
 The earliest authenticated cutoff wins: a subsequent larger cutoff cannot
 restore a previously retired sequence. Callers must retain that history.
 
-A head is excluded at or above a listed device's cutoff. If any device in a
+A head is excluded whenever it contains a listed retired device, regardless of
+sequence. A retired device can otherwise publish a newer replaceable head at a
+lower or equal sequence, so a sequence-only cutoff is insufficient. If any device in a
 legacy multi-device head is retired, reject the entire head, even when a live
 device signed its chunks: the manifest does not identify a safe data subset.
 The same conservative rule covers retired chunk authors in publisher heads.

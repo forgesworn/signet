@@ -33,7 +33,8 @@ export interface VaultDeviceRevocation {
 export function buildVaultDeviceRevocation(args: {
   authority: string; vault: string; device: string; effectiveSequence: number; issuedAt: number
 }): UnsignedEvent {
-  if (![args.authority, args.vault, args.device].every(v => HEX.test(v)) || args.authority === args.device
+  if (![args.authority, args.vault, args.device].every(v => HEX.test(v)) || args.authority === args.vault
+    || args.authority === args.device
     || !uint(args.effectiveSequence) || !uint(args.issuedAt)) throw new Error('Invalid vault device revocation')
   return { pubkey: args.authority, kind: VAULT_DEVICE_REVOCATION_KIND, created_at: args.issuedAt,
     tags: [['d', `${VAULT_DEVICE_REVOCATION_TAG}:${args.vault}:${args.device}`], ['p', args.device], ['vault', args.vault], ['sequence', String(args.effectiveSequence)]], content: '' }
@@ -58,7 +59,7 @@ export function readVaultDeviceRevocation(event: NostrEvent, expected?: { author
  * Malformed evidence fails closed; valid events from other scopes are ignored.
  * Parsed record objects alone are deliberately not accepted as authority. */
 export function createVaultDeviceRetirementCheck(events: readonly NostrEvent[], expected: VaultRetirementContext): (device: string, checkpointSequence: number) => boolean {
-  if (!expected || !hex(expected.vault) || !hex(expected.authority) || !sequence(expected.now)
+  if (!expected || !hex(expected.vault) || !hex(expected.authority) || expected.authority === expected.vault || !sequence(expected.now)
     || !Array.isArray(events) || events.length > 1024) throw new Error('Invalid vault retirement context')
   const floors = new Map<string, number>()
   for (const event of events) {

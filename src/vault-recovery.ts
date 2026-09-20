@@ -140,7 +140,10 @@ export async function readVaultHeads(reader: VaultReader, expected: {
     if (retired) {
       // Legacy multi-device heads cannot attribute a safe subset of their data.
       // Also reject retired chunk authors in otherwise live publisher heads.
-      if (checkpoint.devicePubkeys.some(device => retired(device, checkpoint.sequence))) continue
+      // A retired device may rewrite an older or same-sequence replaceable head.
+      // Sequence cutoffs alone cannot distinguish that replacement from history,
+      // so retirement rejects every head containing that device.
+      if (checkpoint.devicePubkeys.some(device => retired(device, Number.MAX_SAFE_INTEGER))) continue
     }
     const result = await readVaultSnapshot({ ...reader, checkpoints: async () => [event],
       open: (content, author) => content === event.content ? Promise.resolve(raw) : reader.open(content, author),

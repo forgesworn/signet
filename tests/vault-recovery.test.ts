@@ -66,24 +66,25 @@ it('never falls back to legacy when an authenticated rotation target is absent',
   expect(resolve.mock.calls.map(c => c[0])).toEqual([0, 1])
 })
 
-async function retirement(effectiveSequence = 2, vault = author, signer = sk, retiredDevice = device) {
+const authoritySk = '03'.repeat(32)
+async function retirement(effectiveSequence = 2, vault = author, signer = authoritySk, retiredDevice = device) {
   const authority = bytesToHex(schnorr.getPublicKey(hexToBytes(signer)))
   return { authority, now: 110, events: [await signEvent(buildVaultDeviceRevocation({ authority, vault, device: retiredDevice, effectiveSequence, issuedAt: 110 }), signer)] }
 }
 
-it.each([1, 2, 3])('applies only signed, scoped retirement at cutoff %s', async effectiveSequence => {
+it.each([1, 2, 3])('rejects every head containing a retired device, including cutoff %s', async effectiveSequence => {
   const { reader } = await fixture()
   const result = await readVaultHeads(reader, { ...expected, retirement: await retirement(effectiveSequence) })
-  expect(result.state).toBe(effectiveSequence <= 2 ? 'unusable' : 'ready')
-  if (effectiveSequence <= 2) expect(reader.chunk).not.toHaveBeenCalled()
+  expect(result.state).toBe('unusable')
+  expect(reader.chunk).not.toHaveBeenCalled()
 })
 
 it('does not cross-retire a device from another vault or authority', async () => {
   const { reader } = await fixture()
   const otherVault = await retirement(1, '3'.repeat(64))
-  const wrongAuthority = { ...await retirement(1, author, '03'.repeat(32)), authority: author }
+  const wrongAuthority = await retirement(1, author, authoritySk)
   expect((await readVaultHeads(reader, { ...expected, retirement: otherVault })).state).toBe('ready')
-  expect((await readVaultHeads(reader, { ...expected, retirement: wrongAuthority })).state).toBe('ready')
+  expect((await readVaultHeads(reader, { ...expected, retirement: wrongAuthority })).state).toBe('unusable')
 })
 
 it('refuses malformed evidence and the old unscoped API before decrypting or allowing absence fallback', async () => {
@@ -112,7 +113,19 @@ it('fails closed on a partially retired legacy checkpoint, even if its live sign
   const { reader, manifest } = await fixture()
   const retiredDevice = '4'.repeat(64)
   reader.open.mockImplementation(async c => c === 'control' ? JSON.stringify({ ...manifest, devicePubkeys: [device, retiredDevice] }) : 'data')
-  expect((await readVaultHeads(reader, { ...expected, retirement: await retirement(2, author, sk, retiredDevice) })).state).toBe('unusable')
+  expect((await readVaultHeads(reader, { ...expected, retirement: await retirement(2, author, authoritySk, retiredDevice) })).state).toBe('unusable')
+  expect(reader.chunk).not.toHaveBeenCalled()
+})
+
+it.each([1, 2])('rejects a newer replacement head that reuses a retired device at sequence %s', async sequence => {
+  const { reader, manifest, checkpoint } = await fixture()
+  const replacement = await signEvent({ ...checkpoint, created_at: checkpoint.created_at + 10,
+    content: `replacement-${sequence}` }, sk)
+  reader.checkpoints.mockResolvedValue([checkpoint, replacement])
+  reader.open.mockImplementation(async c => c === 'control' ? JSON.stringify(manifest) : c.startsWith('replacement-')
+    ? JSON.stringify({ ...manifest, sequence }) : 'data')
+  const result = await readVaultHeads(reader, { ...expected, retirement: await retirement(2) })
+  expect(result).toEqual({ state: 'unusable', reason: 'checkpoint' })
   expect(reader.chunk).not.toHaveBeenCalled()
 })
 
@@ -135,7 +148,7 @@ it('retains a live publisher head while rejecting a retired publisher', async ()
 it('carries mandatory authority and rotation-specific vault scope through forward recovery', async () => {
   const { reader, manifest } = await fixture()
   reader.open.mockImplementation(async c => c === 'control' ? JSON.stringify({ ...manifest, nextRotation: 1 }) : 'data')
-  const proof = await retirement(3)
+  const proof = await retirement(3, author, authoritySk, '4'.repeat(64))
   const resolve = vi.fn(async (rotation: number) => ({ author, reader, ...(rotation === 0 ? { retirement: proof } : {}) }))
   expect(await readVaultHeadRotations(resolve, expected.purpose)).toEqual({ state: 'unusable', reason: 'retirement' })
   expect(resolve.mock.calls.map(c => c[0])).toEqual([0, 1])
@@ -147,7 +160,7 @@ it('carries mandatory authority and rotation-specific vault scope through forwar
 it('scopes retirement independently to each authenticated rotation vault', async () => {
   const { reader, manifest, checkpoint } = await fixture()
   reader.open.mockImplementation(async c => c === 'control' ? JSON.stringify({ ...manifest, nextRotation: 1 }) : 'data')
-  const nextSk = '03'.repeat(32), nextAuthor = bytesToHex(schnorr.getPublicKey(hexToBytes(nextSk)))
+  const nextSk = '04'.repeat(32), nextAuthor = bytesToHex(schnorr.getPublicKey(hexToBytes(nextSk)))
   const nextCheckpoint = await signEvent({ ...checkpoint, pubkey: nextAuthor, tags: [['d', vaultCheckpointTag(nextAuthor)]] }, nextSk)
   const nextReader = { ...reader, checkpoints: async () => [nextCheckpoint],
     open: async (c: string) => c === 'control' ? JSON.stringify({ ...manifest, rotation: 1 }) : 'data' }

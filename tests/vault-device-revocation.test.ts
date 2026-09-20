@@ -24,6 +24,13 @@ describe('vault device revocation', () => {
     expect(isVaultDeviceRetired([event], { ...context, sequence: 8 })).toBe(true)
     expect(isVaultDeviceRetired([event], { ...context, sequence: 2 ** 32 })).toBe(true)
   })
+
+  it('requires a retirement authority distinct from the vault key', () => {
+    expect(() => buildVaultDeviceRevocation({ authority: vault, vault, device, effectiveSequence: 1, issuedAt: 1 }))
+      .toThrow('Invalid vault device revocation')
+    expect(() => isVaultDeviceRetired([], { authority: vault, vault, device, sequence: 1, now: 1 }))
+      .toThrow('Invalid vault retirement context')
+  })
   it('rejects foreign, malformed and cross-vault events', async () => {
     const event = await signEvent(buildVaultDeviceRevocation({ authority, vault, device, effectiveSequence: 7, issuedAt: 100 }), secret)
     expect(readVaultDeviceRevocation(event, { authority: other, vault })).toBeNull()
