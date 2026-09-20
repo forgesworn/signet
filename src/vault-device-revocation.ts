@@ -25,18 +25,19 @@ export function buildVaultDeviceRevocation(args: {
   if (![args.authority, args.vault, args.device].every(v => HEX.test(v)) || args.authority === args.device
     || !uint(args.effectiveSequence) || !uint(args.issuedAt)) throw new Error('Invalid vault device revocation')
   return { pubkey: args.authority, kind: VAULT_DEVICE_REVOCATION_KIND, created_at: args.issuedAt,
-    tags: [['d', VAULT_DEVICE_REVOCATION_TAG], ['p', args.device], ['vault', args.vault], ['sequence', String(args.effectiveSequence)]], content: '' }
+    tags: [['d', `${VAULT_DEVICE_REVOCATION_TAG}:${args.vault}:${args.device}`], ['p', args.device], ['vault', args.vault], ['sequence', String(args.effectiveSequence)]], content: '' }
 }
 
 export function readVaultDeviceRevocation(event: NostrEvent, expected?: { authority?: string; vault?: string; now?: number }): VaultDeviceRevocation | null {
   if (!event || event.kind !== VAULT_DEVICE_REVOCATION_KIND || !HEX.test(event.pubkey) || !uint(event.created_at)
     || event.content !== '' || !Array.isArray(event.tags) || event.tags.length !== 4
     || !event.tags.every(t => Array.isArray(t) && t.length === 2 && t.every(v => typeof v === 'string'))
-    || event.tags[0][0] !== 'd' || event.tags[0][1] !== VAULT_DEVICE_REVOCATION_TAG
+    || event.tags[0][0] !== 'd'
     || event.tags[1][0] !== 'p' || !HEX.test(event.tags[1][1]) || event.tags[2][0] !== 'vault' || !HEX.test(event.tags[2][1])
     || event.tags[3][0] !== 'sequence' || !/^\d+$/.test(event.tags[3][1])) return null
   const device = event.tags[1][1], vault = event.tags[2][1], effectiveSequence = Number(event.tags[3][1])
-  if (!uint(effectiveSequence) || expected?.authority !== undefined && expected.authority !== event.pubkey
+  if (event.tags[0][1] !== `${VAULT_DEVICE_REVOCATION_TAG}:${vault}:${device}`
+    || !uint(effectiveSequence) || expected?.authority !== undefined && expected.authority !== event.pubkey
     || expected?.vault !== undefined && expected.vault !== vault || expected?.now !== undefined && event.created_at > expected.now + 300
     || !verifyEventSync(event)) return null
   return { v: 1, vault, device, effectiveSequence, issuedAt: event.created_at, authority: event.pubkey, eventId: event.id }

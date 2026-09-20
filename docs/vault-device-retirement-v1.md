@@ -12,3 +12,11 @@ must obtain the revocation floor before accepting heads and must report an
 unavailable revocation query as unavailable recovery data, never as an empty
 vault. A device holding recovery words remains able to derive keys, so this
 contract is authority over accepted published heads, not physical key erasure.
+
+Each event uses `d = signet:vault-device-revocation:v1:<vault>:<device>` so
+retiring one device cannot replace another device's revocation, including across
+vaults controlled by the same authority. The earlier unpublished constant-tag
+draft is rejected by the reader: it could retain only one retirement per
+authority. This draft wire correction requires compatibility review before any
+release. Readers still need durable replay floors and independent authority
+validation; this address change does not implement recovery discovery or UI.
