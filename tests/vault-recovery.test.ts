@@ -4,7 +4,6 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { signEvent } from '../src/crypto.js'
 import { readVaultSnapshot, readVaultRotations, readVaultHeads, readVaultHeadRotations } from '../src/vault-recovery.js'
 import { vaultCheckpointTag, vaultContentHash } from '../src/vault-checkpoint.js'
-import { buildVaultDeviceRevocation, readVaultDeviceRevocation } from '../src/vault-device-revocation.js'
 import type { NostrEvent } from '../src/types.js'
 const sk = '01'.repeat(32), deviceSk = '02'.repeat(32)
 const author = bytesToHex(schnorr.getPublicKey(hexToBytes(sk)))
@@ -66,110 +65,34 @@ it('never falls back to legacy when an authenticated rotation target is absent',
   expect(resolve.mock.calls.map(c => c[0])).toEqual([0, 1])
 })
 
-const authoritySk = '03'.repeat(32)
-async function retirement(effectiveSequence = 2, vault = author, signer = authoritySk, retiredDevice = device) {
-  const authority = bytesToHex(schnorr.getPublicKey(hexToBytes(signer)))
-  return { authority, now: 110, events: [await signEvent(buildVaultDeviceRevocation({ authority, vault, device: retiredDevice, effectiveSequence, issuedAt: 110 }), signer)] }
-}
 
-it.each([1, 2, 3])('rejects every head containing a retired device, including cutoff %s', async effectiveSequence => {
-  const { reader } = await fixture()
-  const result = await readVaultHeads(reader, { ...expected, retirement: await retirement(effectiveSequence) })
-  expect(result.state).toBe('unusable')
-  expect(reader.chunk).not.toHaveBeenCalled()
-})
-
-it('does not cross-retire a device from another vault or authority', async () => {
-  const { reader } = await fixture()
-  const otherVault = await retirement(1, '3'.repeat(64))
-  const wrongAuthority = await retirement(1, author, authoritySk)
-  expect((await readVaultHeads(reader, { ...expected, retirement: otherVault })).state).toBe('ready')
-  expect((await readVaultHeads(reader, { ...expected, retirement: wrongAuthority })).state).toBe('unusable')
-})
-
-it('refuses malformed evidence and the old unscoped API before decrypting or allowing absence fallback', async () => {
-  const { reader } = await fixture()
-  const proof = await retirement()
-  const unvalidated = readVaultDeviceRevocation(proof.events[0]) as unknown as NostrEvent
-  for (const evidence of [unvalidated, { ...proof.events[0], sig: '0'.repeat(128) }]) {
-    expect(await readVaultHeads(reader, { ...expected, retirement: { ...proof, events: [evidence] } })).toEqual({ state: 'unusable', reason: 'retirement' })
-  }
-  const oldOptions = { ...expected, revokedDevices: [unvalidated] }
-  expect(await readVaultHeads(reader, oldOptions)).toEqual({ state: 'unusable', reason: 'retirement' })
-  reader.checkpoints.mockResolvedValue([])
-  expect(await readVaultHeads(reader, { ...expected, retirement: { ...proof, authority: undefined! } })).toEqual({ state: 'unusable', reason: 'retirement' })
-  expect(reader.checkpoints).not.toHaveBeenCalled()
-  expect(reader.open).not.toHaveBeenCalled()
-})
-
-it('preserves pre-retirement reader behaviour when enforcement is not requested', async () => {
-  const { reader } = await fixture()
-  expect((await readVaultHeads(reader, expected)).state).toBe('ready')
-  expect((await readVaultSnapshot(reader, expected)).state).toBe('ready')
-  expect((await readVaultHeads(reader, { ...expected, retirement: await retirement() })).state).toBe('unusable')
-})
-
-it('fails closed on a partially retired legacy checkpoint, even if its live signer wrote the chunks', async () => {
-  const { reader, manifest } = await fixture()
-  const retiredDevice = '4'.repeat(64)
-  reader.open.mockImplementation(async c => c === 'control' ? JSON.stringify({ ...manifest, devicePubkeys: [device, retiredDevice] }) : 'data')
-  expect((await readVaultHeads(reader, { ...expected, retirement: await retirement(2, author, authoritySk, retiredDevice) })).state).toBe('unusable')
-  expect(reader.chunk).not.toHaveBeenCalled()
-})
-
-it.each([1, 2])('rejects a newer replacement head that reuses a retired device at sequence %s', async sequence => {
+it('merges every per-device publisher head rather than selecting one latest', async () => {
   const { reader, manifest, checkpoint } = await fixture()
-  const replacement = await signEvent({ ...checkpoint, created_at: checkpoint.created_at + 10,
-    content: `replacement-${sequence}` }, sk)
-  reader.checkpoints.mockResolvedValue([checkpoint, replacement])
-  reader.open.mockImplementation(async c => c === 'control' ? JSON.stringify(manifest) : c.startsWith('replacement-')
-    ? JSON.stringify({ ...manifest, sequence }) : 'data')
-  const result = await readVaultHeads(reader, { ...expected, retirement: await retirement(2) })
-  expect(result).toEqual({ state: 'unusable', reason: 'checkpoint' })
-  expect(reader.chunk).not.toHaveBeenCalled()
-})
-
-it('retains a live publisher head while rejecting a retired publisher', async () => {
-  const { reader, manifest, checkpoint } = await fixture()
-  const liveDevice = '4'.repeat(64)
-  const live = await signEvent({ ...checkpoint, tags: [['d', vaultCheckpointTag(author, liveDevice)]], content: 'live' }, sk)
-  // The live head uses an independent, non-retired chunk signer.
-  const liveSk = '04'.repeat(32), liveSigner = bytesToHex(schnorr.getPublicKey(hexToBytes(liveSk)))
-  const chunk = await signEvent({ kind: 30078, pubkey: liveSigner, created_at: 100, tags: [['d', 'live-chunk']], content: 'body' }, liveSk)
-  reader.checkpoints.mockResolvedValue([checkpoint, live])
+  const otherDevice = '4'.repeat(64)
+  const other = await signEvent({ ...checkpoint, tags: [['d', vaultCheckpointTag(author, otherDevice)]], content: 'other' }, sk)
+  const otherSk = '04'.repeat(32), otherSigner = bytesToHex(schnorr.getPublicKey(hexToBytes(otherSk)))
+  const chunk = await signEvent({ kind: 30078, pubkey: otherSigner, created_at: 100, tags: [['d', 'other-chunk']], content: 'body' }, otherSk)
+  reader.checkpoints.mockResolvedValue([checkpoint, other])
   reader.chunk.mockResolvedValue(chunk)
-  reader.open.mockImplementation(async c => c === 'control' ? JSON.stringify(manifest) : c === 'live' ? JSON.stringify({ ...manifest,
-    publisher: liveDevice, devicePubkeys: [liveDevice, liveSigner], chunks: [{ eventId: chunk.id, author: liveSigner, contentHash: vaultContentHash('body'), contentBytes: 4 }] }) : 'data')
-  const result = await readVaultHeads(reader, { ...expected, retirement: await retirement() })
+  reader.open.mockImplementation(async c => c === 'control' ? JSON.stringify({ ...manifest, chunks: [{ ...manifest.chunks[0], eventId: chunk.id, author: otherSigner }], devicePubkeys: [otherSigner] })
+    : c === 'other' ? JSON.stringify({ ...manifest, publisher: otherDevice, devicePubkeys: [otherDevice, otherSigner],
+      chunks: [{ eventId: chunk.id, author: otherSigner, contentHash: vaultContentHash('body'), contentBytes: 4 }] }) : 'data')
+  const result = await readVaultHeads(reader, expected)
   expect(result.state).toBe('ready')
-  if (result.state === 'ready') expect(result.snapshots.map(s => s.checkpoint.publisher)).toEqual([liveDevice])
+  if (result.state === 'ready') expect(result.snapshots.map(s => s.checkpoint.publisher).sort()).toEqual([undefined, otherDevice].sort())
 })
 
-it('carries mandatory authority and rotation-specific vault scope through forward recovery', async () => {
-  const { reader, manifest } = await fixture()
-  reader.open.mockImplementation(async c => c === 'control' ? JSON.stringify({ ...manifest, nextRotation: 1 }) : 'data')
-  const proof = await retirement(3, author, authoritySk, '4'.repeat(64))
-  const resolve = vi.fn(async (rotation: number) => ({ author, reader, ...(rotation === 0 ? { retirement: proof } : {}) }))
-  expect(await readVaultHeadRotations(resolve, expected.purpose)).toEqual({ state: 'unusable', reason: 'retirement' })
-  expect(resolve.mock.calls.map(c => c[0])).toEqual([0, 1])
-  const changedAuthority = { ...proof, authority: '3'.repeat(64) }
-  expect(await readVaultHeadRotations(async rotation => ({ author, reader, retirement: rotation === 0 ? proof : changedAuthority }), expected.purpose))
-    .toEqual({ state: 'unusable', reason: 'retirement' })
-})
-
-it('scopes retirement independently to each authenticated rotation vault', async () => {
+it('follows forward rotations across per-device heads', async () => {
   const { reader, manifest, checkpoint } = await fixture()
   reader.open.mockImplementation(async c => c === 'control' ? JSON.stringify({ ...manifest, nextRotation: 1 }) : 'data')
   const nextSk = '04'.repeat(32), nextAuthor = bytesToHex(schnorr.getPublicKey(hexToBytes(nextSk)))
   const nextCheckpoint = await signEvent({ ...checkpoint, pubkey: nextAuthor, tags: [['d', vaultCheckpointTag(nextAuthor)]] }, nextSk)
   const nextReader = { ...reader, checkpoints: async () => [nextCheckpoint],
     open: async (c: string) => c === 'control' ? JSON.stringify({ ...manifest, rotation: 1 }) : 'data' }
-  // A retirement for the next vault cannot reject the earlier vault's head.
-  const proof = await retirement(2, nextAuthor)
   const resolve = vi.fn(async (rotation: number) => ({ author: rotation === 0 ? author : nextAuthor,
-    reader: rotation === 0 ? reader : nextReader, retirement: proof }))
-  expect(await readVaultHeadRotations(resolve, expected.purpose)).toEqual({ state: 'unusable', reason: 'checkpoint' })
+    reader: rotation === 0 ? reader : nextReader }))
+  const result = await readVaultHeadRotations(resolve, expected.purpose)
+  expect(result.state).toBe('ready')
+  if (result.state === 'ready') expect(result.snapshots).toHaveLength(2)
   expect(resolve.mock.calls.map(c => c[0])).toEqual([0, 1])
-  expect((await readVaultHeadRotations(async rotation => ({ author: rotation === 0 ? author : nextAuthor,
-    reader: rotation === 0 ? reader : nextReader, retirement: { ...proof, events: [] } }), expected.purpose)).state).toBe('ready')
 })

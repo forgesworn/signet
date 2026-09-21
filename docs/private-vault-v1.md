@@ -11,7 +11,7 @@ that device and lists exact chunk event IDs, encrypted-content SHA-256 hashes,
 byte lengths and order. The complete plaintext SHA-256 is the revision. Recovery discovers and merges all
 device heads rather than selecting one global latest snapshot, so concurrent
 offline writers cannot replace each other. The reader fails closed beyond 16
-heads instead of dropping devices; device retirement/compaction is future work. Readers
+heads instead of dropping devices; head compaction is future work. Readers
 verify signatures, scope, bounds, sequence, every chunk and the revision before
 returning any data. Missing chunks never mean an empty dataset.
 
@@ -37,5 +37,4 @@ all newer state without another trusted source; do not claim otherwise.
 The SDK provides stateless read/validation and forward rotation traversal.
 Writer scheduling, dataset import and durable canonical markers belong to
 consumers. The candidate Signet app implements scheduling and confirmed-copy
-state; this does not establish equivalent Sapwood behaviour or end-to-end
-retirement discovery and durable enforcement.
+state; this does not establish equivalent Sapwood behaviour.
