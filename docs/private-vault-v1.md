@@ -1,5 +1,8 @@
 # Private vault checkpoint v1 (staged, not released)
 
+Unstable. Import from `signet-protocol/experimental`; nothing here is exported
+from the package root, and any of it may change without a deprecation period.
+
 Keys derive flat from the tree root using `vaultPurpose`; index means rotation.
 Legacy Natural Person rails remain permanently readable. No writer is switched
 until both the app and Sapwood can restore the new dataset.

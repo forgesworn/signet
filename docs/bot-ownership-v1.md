@@ -1,5 +1,8 @@
 # Draft bot ownership profile
 
+Unstable. Import from `signet-protocol/experimental`; nothing here is exported
+from the package root, and any of it may change without a deprecation period.
+
 This unreleased profile uses nostr-attestations kind 31000 with type
 `bot-ownership`. Its replaceable d-tag is `bot-ownership:<bot pubkey>`, p-tag is
 the bot, and the event author is the selected owner persona. It cannot replace
@@ -27,7 +30,7 @@ newest same-address event while retaining their previously seen high-water mark.
 A stale ownership claim must not resurrect a newer revocation. This module
 validates one event; it does not implement relay freshness or fetch ordering.
 `readBotOwnershipSync` applies identical validation for synchronous storage and
-transport codecs; `readBotOwnership` remains the asynchronous compatibility API.
+transport codecs; `readBotOwnership` is the asynchronous form of the same check.
 
 Protocol review, app lifecycle/UI, isolated bots contacts, downstream adoption,
 and hardware acceptance are still required before release.
