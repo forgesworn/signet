@@ -100,3 +100,15 @@ it('allows the zero-width joiner in emoji labels but still refuses bidi marks an
   expect(await readBotOwnership(event, expected)).toMatchObject({ status: 'valid', claim: { label } });
   for (const bad of ['Bot‎', 'Bot‮']) expect(() => buildBotOwnership({ ...expected, label: bad })).toThrow();
 });
+
+it('refuses soft hyphen, Mongolian vowel separator, word joiner, invisible math operators and the BOM, while still allowing the zero-width joiner', async () => {
+  for (const label of ['Bot­', 'Bot᠎', 'Bot⁠', 'Bot⁡', 'Bot⁢', 'Bot⁣', 'Bot⁤', 'Bot﻿']) {
+    expect(() => buildBotOwnership({ ...expected, label })).toThrow();
+    const base = buildBotOwnership({ ...expected, label: 'Assistant' });
+    const forged = await signEvent({ ...base, content: JSON.stringify({ v: 1, label }) }, owner.privateKey);
+    expect((await readBotOwnership(forged, expected)).status).toBe('invalid');
+  }
+  const joined = 'Coder \u{1F468}‍\u{1F4BB}';
+  const event = await signEvent(buildBotOwnership({ ...expected, label: joined }), owner.privateKey);
+  expect(await readBotOwnership(event, expected)).toMatchObject({ status: 'valid', claim: { label: joined } });
+});

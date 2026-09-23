@@ -29,6 +29,10 @@ export const UNSAFE_TEXT_CHARS = /[\u0000-\u001f\u007f-\u009f\u061c\u200b-\u200f
 
 /**
  * `UNSAFE_TEXT_CHARS` minus U+200D (zero-width joiner), which is not a bidi
- * control and is needed for emoji sequences. Used to validate labels.
+ * control and is needed for emoji sequences, plus other invisible/deprecated-
+ * format characters a label has no legitimate use for: soft hyphen (U+00AD),
+ * Mongolian vowel separator (U+180E), word joiner and the deprecated invisible
+ * math operators (U+2060-U+2064), and the BOM / zero width no-break space
+ * (U+FEFF). Used to validate labels.
  */
-export const UNSAFE_LABEL_CHARS = /[\u0000-\u001f\u007f-\u009f\u061c\u200b\u200c\u200e\u200f\u2028-\u202e\u2066-\u2069]/u;
+export const UNSAFE_LABEL_CHARS = /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b\u200c\u200e\u200f\u2028-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/u;
