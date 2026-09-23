@@ -46,6 +46,18 @@ export function vaultCheckpointTag(author: string, publisher?: string): string {
   return bytesToHex(hmac(sha256, hexToBytes(author), encoder.encode(`signet-vault-route\u0000checkpoint\u0000${publisher ?? '0'}`))).slice(0, 32)
 }
 
+const CHECKPOINT_TAG = /^[0-9a-f]{32}$/
+
+/** The single d-tag of a checkpoint-shaped event, or null. Every checkpoint tag
+ * is `vaultCheckpointTag` output: 32 lowercase hex characters. Necessary, not
+ * sufficient: the publisher is encrypted, so the shape cannot prove the tag. */
+export function vaultCheckpointShapedTag(event: { tags?: unknown }): string | null {
+  if (!event || !Array.isArray(event.tags)) return null
+  const dTags = event.tags.filter((t): t is unknown[] => Array.isArray(t) && t[0] === 'd')
+  if (dTags.length !== 1 || dTags[0].length !== 2 || typeof dTags[0][1] !== 'string' || !CHECKPOINT_TAG.test(dTags[0][1])) return null
+  return dTags[0][1]
+}
+
 export function vaultContentHash(content: string): string {
   return bytesToHex(sha256(encoder.encode(content)))
 }

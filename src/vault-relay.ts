@@ -1,7 +1,7 @@
 import { RelayClient, type NostrFilter } from './relay.js'
 import type { NostrEvent } from './types.js'
 import type { VaultReader } from './vault-recovery.js'
-import { VAULT_EVENT_KIND } from './vault-checkpoint.js'
+import { VAULT_EVENT_KIND, vaultCheckpointShapedTag } from './vault-checkpoint.js'
 
 /** Matching events one relay may contribute to one query. More fails that relay. */
 export const MAX_VAULT_EVENTS_PER_RELAY = 128
@@ -31,11 +31,21 @@ function matchesFilter(filter: NostrFilter, event: NostrEvent): boolean {
   return true
 }
 
+/** A relay query that did not complete on every relay. `failedRelays` names the
+ * relays that errored, timed out or exceeded the cap. */
+export class VaultRelayError extends Error {
+  constructor(message: string, readonly failedRelays: string[]) {
+    super(message)
+    this.name = 'VaultRelayError'
+  }
+}
+
 /** EOSE is required: a timed-out empty query is not evidence of absence.
- * Events are filtered against `filter` and de-duplicated before the per-relay
- * cap applies, so unrelated events cannot crowd out the requested ones. */
+ * Events are filtered against `filter` (and `accept`, when given) and
+ * de-duplicated before the per-relay cap applies, so unrelated events cannot
+ * crowd out the requested ones. */
 export function fetchVaultEvents(relay: Pick<RelayClient, 'subscribe' | 'closeSubscription'>,
-  filter: NostrFilter, timeoutMs = 10000): Promise<NostrEvent[]> {
+  filter: NostrFilter, timeoutMs = 10000, accept?: (event: NostrEvent) => boolean): Promise<NostrEvent[]> {
   return new Promise((resolve, reject) => {
     const events = new Map<string, NostrEvent>()
     let subId: string | undefined
@@ -50,7 +60,7 @@ export function fetchVaultEvents(relay: Pick<RelayClient, 'subscribe' | 'closeSu
     const timer = setTimeout(() => finish(new Error('Vault query did not complete')), timeoutMs)
     try {
       subId = relay.subscribe([filter], event => {
-        if (finished || !matchesFilter(filter, event) || events.has(event.id)) return
+        if (finished || !matchesFilter(filter, event) || (accept && !accept(event)) || events.has(event.id)) return
         if (events.size >= MAX_VAULT_EVENTS_PER_RELAY) finish(new Error('Vault query exceeds event limit'))
         else events.set(event.id, event)
       }, () => finish())
@@ -61,34 +71,42 @@ export function fetchVaultEvents(relay: Pick<RelayClient, 'subscribe' | 'closeSu
 
 /** Relay-backed reader. At most eight valid relay URLs are queried.
  *
- * A non-empty result needs at least one relay to have answered with EOSE. An
- * EMPTY result needs every queried relay to have answered with none failing:
- * one relay saying "nothing" while another timed out or errored is not evidence
- * of absence, so the query throws and recovery reports `unavailable`. */
+ * A checkpoint query, empty or not, completes only when EVERY queried relay
+ * answered with EOSE: one relay's "nothing" is not evidence of absence, and one
+ * relay's heads may omit a device head another relay holds. Otherwise it throws
+ * a `VaultRelayError` naming the failed relays, and recovery reports
+ * `unavailable` with `failedRelays`. A permanently dead configured relay keeps
+ * reads unavailable until it is removed from the set. A chunk fetch by exact
+ * ID succeeds as soon as any relay returns it (its hash is pinned); "not found"
+ * again needs every relay. Checkpoint queries drop events without a
+ * checkpoint-shaped d-tag before the per-relay cap. */
 export function createVaultRelayReader(relays: readonly string[], open: VaultReader['open']): VaultReader {
   const urls = [...new Set(relays.filter(validRelay))].slice(0, MAX_VAULT_RELAYS)
-  const query = async (filter: NostrFilter): Promise<NostrEvent[]> => {
+  const query = async (filter: NostrFilter, accept?: (event: NostrEvent) => boolean,
+    enough?: (events: NostrEvent[]) => boolean): Promise<NostrEvent[]> => {
+    if (!urls.length) throw new VaultRelayError('No valid vault relays', [])
     const events = new Map<string, NostrEvent>()
-    let answered = 0
-    let failed = 0
+    const failed: string[] = []
     await Promise.all(urls.map(async url => {
       let relay: RelayClient | undefined
       try {
         relay = new RelayClient(url)
         await relay.connect()
-        const found = await fetchVaultEvents(relay, filter)
-        answered++
+        const found = await fetchVaultEvents(relay, filter, undefined, accept)
         for (const e of found) events.set(e.id, e)
-      } catch { failed++ }
+      } catch { failed.push(url) }
       finally { relay?.disconnect() }
     }))
-    if (!answered) throw new Error('Vault relays unavailable')
-    if (!events.size && failed) throw new Error('Vault relays incomplete: empty answer while a relay failed')
-    return [...events.values()]
+    const result = [...events.values()]
+    if (failed.length && !(enough && enough(result))) {
+      throw new VaultRelayError(`Vault relays did not all answer: ${failed.length} of ${urls.length} failed`, failed.sort())
+    }
+    return result
   }
   return {
-    checkpoints: (author, dTag) => query({ kinds: [VAULT_EVENT_KIND], authors: [author], ...(dTag ? { '#d': [dTag] } : {}), limit: MAX_VAULT_EVENTS_PER_RELAY }),
-    chunk: async id => (await query({ ids: [id], limit: 1 })).find(e => e.id === id) ?? null,
+    checkpoints: (author, dTag) => query({ kinds: [VAULT_EVENT_KIND], authors: [author], ...(dTag ? { '#d': [dTag] } : {}), limit: MAX_VAULT_EVENTS_PER_RELAY },
+      event => vaultCheckpointShapedTag(event) !== null),
+    chunk: async id => (await query({ ids: [id], limit: 1 }, undefined, found => found.some(e => e.id === id))).find(e => e.id === id) ?? null,
     open,
   }
 }

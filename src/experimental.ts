@@ -12,13 +12,13 @@ export { vaultPurpose, parseVaultPurpose, vaultKeyContext, deriveVaultIdentity, 
 export type { VaultDataset } from './vault-keys.js'
 export { VAULT_EVENT_KIND, MAX_VAULT_CHUNKS, MAX_VAULT_DEVICES, MAX_VAULT_CONTROL_BYTES,
   MAX_VAULT_CHUNK_BYTES, vaultCheckpointTag, vaultContentHash, parseVaultCheckpoint,
-  matchesVaultChunk } from './vault-checkpoint.js'
+  matchesVaultChunk, vaultCheckpointShapedTag } from './vault-checkpoint.js'
 export type { VaultCheckpoint, VaultChunkRef } from './vault-checkpoint.js'
 export { readVaultSnapshot, readVaultRotations, readVaultHeads, readVaultHeadRotations,
   VAULT_CLOCK_TOLERANCE_SECONDS } from './vault-recovery.js'
 export type { VaultReadResult, VaultReader, VaultHeadsResult } from './vault-recovery.js'
 
-export { createVaultRelayReader, fetchVaultEvents, MAX_VAULT_EVENTS_PER_RELAY } from './vault-relay.js'
+export { createVaultRelayReader, fetchVaultEvents, MAX_VAULT_EVENTS_PER_RELAY, VaultRelayError } from './vault-relay.js'
 
 export { BOT_OWNERSHIP_TYPE, BOT_OWNERSHIP_POLICY, buildBotOwnership, buildBotOwnershipRevocation,
   readBotOwnership, readBotOwnershipSync, botOwnershipRenewalDue } from './bot-ownership.js';
