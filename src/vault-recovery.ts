@@ -31,7 +31,7 @@ function checkNow(now: number): number {
 
 function checkMinRotation(minRotation: number): number {
   if (!Number.isSafeInteger(minRotation) || minRotation < 0) {
-    throw new TypeError('Vault reader minRotation must be a non-negative integer')
+    throw new Error('Vault reader minRotation must be a non-negative integer')
   }
   return minRotation
 }
@@ -180,6 +180,12 @@ async function newestRotation<C extends { reader: VaultReader; author: string }>
  * contiguous from zero; see `newestRotation` for the revocation boundary. A
  * `nextRotation` pointer (always rotation + 1) to a rotation with no authentic
  * checkpoint is damage, not a never-migrated account.
+ *
+ * Any key present in `floors`, whatever its value (including 0), counts as a
+ * rotation this caller has already reached: the walk refuses to land below
+ * the highest such key. Callers must not pre-fill a floor for a rotation they
+ * have not actually reached, or a legitimate read of that rotation would be
+ * refused as a rollback.
  */
 export async function readVaultRotations(
   resolve: (rotation: number) => Promise<{ reader: VaultReader; author: string }>,

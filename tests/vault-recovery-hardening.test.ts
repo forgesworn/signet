@@ -268,7 +268,28 @@ describe('cross-rotation rollback: withholding the successor cannot resurrect a 
   })
   it('rejects a non-integer or negative minRotation the same way checkNow rejects a bad clock', async () => {
     const { resolve } = withheldSuccessor()
-    await expect(readVaultHeadRotations(resolve, purpose, NOW, -1)).rejects.toThrow(TypeError)
-    await expect(readVaultHeadRotations(resolve, purpose, NOW, 1.5)).rejects.toThrow(TypeError)
+    await expect(readVaultHeadRotations(resolve, purpose, NOW, -1)).rejects.toThrow(/minRotation/)
+    await expect(readVaultHeadRotations(resolve, purpose, NOW, 1.5)).rejects.toThrow(/minRotation/)
+  })
+  it('reads ready when the found rotation exactly equals the highest already seen', async () => {
+    const r1 = new Rotation(1), a = generateKeyPair()
+    await r1.head({ device: a, created_at: 100, sequence: 5, legacy: true })
+    const resolve = vi.fn(async (rotation: number) => {
+      const r = rotation === 1 ? r1 : new Rotation(rotation)
+      return { author: r.author, reader: r.reader() }
+    })
+    expect((await readVaultHeadRotations(resolve, purpose, NOW, 1)).state).toBe('ready')
+    expect((await readVaultRotations(resolve, purpose, { 1: 5 }, NOW)).state).toBe('ready')
+  })
+  it('refuses a two-hop walk that lands below a minRotation of 2', async () => {
+    const r0 = new Rotation(0), r1 = new Rotation(1), a = generateKeyPair()
+    await r0.head({ device: a, created_at: 100, sequence: 4, nextRotation: 1, legacy: true })
+    await r1.head({ device: a, created_at: 150, sequence: 1, legacy: true })
+    const resolve = vi.fn(async (rotation: number) => {
+      const r = [r0, r1][rotation] ?? new Rotation(rotation)
+      return { author: r.author, reader: r.reader() }
+    })
+    expect(await readVaultHeadRotations(resolve, purpose, NOW, 2)).toEqual({ state: 'unusable', reason: 'rollback' })
+    expect(await readVaultRotations(resolve, purpose, { 2: 1 }, NOW)).toEqual({ state: 'unusable', reason: 'rollback' })
   })
 })
