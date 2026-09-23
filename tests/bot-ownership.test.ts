@@ -47,3 +47,39 @@ it('gives synchronous transport codecs the same signature, expiry and revocation
     }
   }
 });
+
+it('rejects a claim or revocation with the wrong d or type tag', async () => {
+  const unsigned = buildBotOwnership({ ...expected, label: 'Assistant' });
+  const revocation = buildBotOwnershipRevocation(expected);
+  const other = generateKeyPair().publicKey;
+  const swap = (tags: string[][], name: string, value: string) => tags.map(t => t[0] === name ? [name, value] : t);
+  for (const base of [unsigned, revocation]) {
+    for (const tags of [swap(base.tags, 'd', `bot-ownership:${other}`), swap(base.tags, 'd', bot.publicKey),
+      swap(base.tags, 'type', 'vouch'), base.tags.filter(t => t[0] !== 'type'), [...base.tags, ['d', `bot-ownership:${bot.publicKey}`]]]) {
+      expect((await readBotOwnership(await signEvent({ ...base, tags }, owner.privateKey), expected)).status).toBe('invalid');
+    }
+  }
+});
+
+it('a stale claim cannot outrank a newer revocation, even by forward-dating', async () => {
+  const claim = await signEvent(buildBotOwnership({ ...expected, label: 'Assistant' }), owner.privateKey);
+  const revocation = await signEvent(buildBotOwnershipRevocation({ ...expected, now: now + DAY }), owner.privateKey);
+  const later = { ...expected, now: now + DAY };
+  // Each event is judged alone; the consumer keeps the newest same-address event.
+  const verdicts = await Promise.all([claim, revocation].map(async e => ({ e, r: await readBotOwnership(e, later) })));
+  verdicts.sort((a, b) => b.e.created_at - a.e.created_at);
+  expect(verdicts[0].r.status).toBe('revoked');
+  expect(verdicts[1].r.status).toBe('valid');
+  // Re-signing the claim past the reader's clock tolerance to beat the revocation is refused.
+  const forward = await signEvent(buildBotOwnership({ ...expected, now: now + DAY + 301, label: 'Assistant' }), owner.privateKey);
+  expect((await readBotOwnership(forward, later)).status).toBe('invalid');
+});
+
+it('refuses control and bidirectional-override characters in labels, on build and on read', async () => {
+  for (const label of ['Bot‮evil', 'Bot⁦x⁩', 'Bot\u0007', 'Line\nbreak', 'Tab\there', 'Del\u007f', '   ']) {
+    expect(() => buildBotOwnership({ ...expected, label })).toThrow();
+    const base = buildBotOwnership({ ...expected, label: 'Assistant' });
+    const forged = await signEvent({ ...base, content: JSON.stringify({ v: 1, label }) }, owner.privateKey);
+    expect((await readBotOwnership(forged, expected)).status).toBe('invalid');
+  }
+});
