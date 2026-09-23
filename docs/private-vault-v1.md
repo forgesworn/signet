@@ -59,6 +59,16 @@ writer must carry every head's state into the new rotation before publishing
 there; nothing written under an older rotation is recovered. Sequence floors
 apply to the rotation that is read.
 
+Rotation write order matters. The rotating writer first publishes the merged
+state under rotation n + 1 (every chunk, then the checkpoint) and only then
+declares `nextRotation` in rotation n. A pointer published first makes reads
+`unusable` until rotation n + 1 is complete, because a pointer to a rotation
+with no authentic checkpoint is damage. Once any authentic checkpoint-shaped
+event exists under rotation n + 1, rotation n is never read: if that event (or
+its chunks) is broken, the read is fail-closed `unusable` with no fallback to
+rotation n. Recovery walks at most 32 rotations (`MAX_ROTATION_HOPS`); a vault
+rotated more often reads `unusable`.
+
 Restore results distinguish absent, unavailable, unusable and ready. Legacy may
 be the canonical source only when the vault is absent, never merely because a
 relay is offline or a new checkpoint fails to decrypt. A previously observed

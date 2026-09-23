@@ -8,6 +8,8 @@ import type { VaultCheckpoint } from './vault-checkpoint.js'
  * so one device with a bad clock cannot outrank every later honest head. */
 export const VAULT_CLOCK_TOLERANCE_SECONDS = 300
 const MAX_VAULT_HEADS = 16
+/** Rotations recovery will walk. A vault rotated more than 32 times reads
+ * `unusable`; there is no way past it without raising this bound. */
 const MAX_ROTATION_HOPS = 32
 const encoder = new TextEncoder()
 const nowSeconds = () => Math.floor(Date.now() / 1000)
