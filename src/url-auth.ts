@@ -7,6 +7,7 @@
  */
 
 import type { LoginRequest } from './qr-router.js';
+import { UNSAFE_TEXT_CHARS } from './utils.js';
 
 /** Check if a URL is https:// or http://localhost (dev). */
 function isValidAuthUrl(url: string): boolean {
@@ -152,5 +153,5 @@ export function buildAuthDeniedUrl(callbackUrl: string): string {
 export function getUrlAuthSiteName(search: string): string {
   const params = new URLSearchParams(search);
   const name = params.get('name') ?? '';
-  return name.replace(/[\x00-\x1f\x7f-\x9f\u200b-\u200f\u2028-\u202e\u2066-\u2069]/g, '').slice(0, 64);
+  return name.replace(new RegExp(UNSAFE_TEXT_CHARS.source, 'gu'), '').slice(0, 64);
 }

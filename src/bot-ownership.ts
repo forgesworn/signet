@@ -1,6 +1,7 @@
 /** Draft bot ownership profile of nostr-attestations. Builders never publish. */
 import { createAttestation, createRevocation, buildDTag } from 'nostr-attestations';
 import { verifyEventSync } from './crypto.js';
+import { UNSAFE_TEXT_CHARS } from './utils.js';
 import type { NostrEvent, UnsignedEvent } from './types.js';
 export const BOT_OWNERSHIP_TYPE = 'bot-ownership';
 export const BOT_OWNERSHIP_POLICY = Object.freeze({ defaultDays: 30, minDays: 1, maxDays: 90,
@@ -8,7 +9,7 @@ export const BOT_OWNERSHIP_POLICY = Object.freeze({ defaultDays: 30, minDays: 1,
 const DAY = 86400, HEX = /^[0-9a-f]{64}$/;
 const stamp = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0;
 const labelOk = (label: unknown): label is string => typeof label === 'string' && !!label.trim() && label.length <= 100
-  && !/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/u.test(label);
+  && !UNSAFE_TEXT_CHARS.test(label);
 function validateParties(ownerPubkey: string, botPubkey: string, now: number) {
   if (!HEX.test(ownerPubkey) || !HEX.test(botPubkey) || ownerPubkey === botPubkey || !stamp(now)) throw new Error('Invalid bot ownership parties or time');
 }

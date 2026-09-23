@@ -83,3 +83,13 @@ it('refuses control and bidirectional-override characters in labels, on build an
     expect((await readBotOwnership(forged, expected)).status).toBe('invalid');
   }
 });
+
+it('refuses LRM/RLM, ALM, line/paragraph separators and C1 controls in labels', async () => {
+  for (const label of ['Bot‎', 'Bot‏', 'Bot؜', 'Bot x', 'Bot x', 'Bot\u0085', 'Bot\u009b', 'Bot​']) {
+    expect(() => buildBotOwnership({ ...expected, label })).toThrow();
+    const base = buildBotOwnership({ ...expected, label: 'Assistant' });
+    const forged = await signEvent({ ...base, content: JSON.stringify({ v: 1, label }) }, owner.privateKey);
+    expect((await readBotOwnership(forged, expected)).status).toBe('invalid');
+  }
+  expect(buildBotOwnership({ ...expected, label: 'Café ロボット 🤖' }).content).toContain('Café');
+});

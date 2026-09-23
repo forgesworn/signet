@@ -18,3 +18,11 @@ export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
   }
   return diff === 0;
 }
+
+/**
+ * One character class for text that is shown to people: C0 controls, DEL, C1
+ * controls, Arabic letter mark (U+061C), zero-width and LRM/RLM (U+200B-U+200F),
+ * line/paragraph separators and bidi embeddings/overrides (U+2028-U+202E), and
+ * bidi isolates (U+2066-U+2069). Not global: build a `g` copy to strip.
+ */
+export const UNSAFE_TEXT_CHARS = /[\u0000-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028-\u202e\u2066-\u2069]/u;
