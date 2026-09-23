@@ -90,9 +90,10 @@ it('follows forward rotations across per-device heads', async () => {
   const nextReader = { ...reader, checkpoints: async () => [nextCheckpoint],
     open: async (c: string) => c === 'control' ? JSON.stringify({ ...manifest, rotation: 1 }) : 'data' }
   const resolve = vi.fn(async (rotation: number) => ({ author: rotation === 0 ? author : nextAuthor,
-    reader: rotation === 0 ? reader : nextReader }))
+    reader: rotation === 0 ? reader : rotation === 1 ? nextReader : { ...reader, checkpoints: async () => [] } }))
   const result = await readVaultHeadRotations(resolve, expected.purpose)
   expect(result.state).toBe('ready')
-  if (result.state === 'ready') expect(result.snapshots).toHaveLength(2)
-  expect(resolve.mock.calls.map(c => c[0])).toEqual([0, 1])
+  // Rotation is a revocation boundary: only the newest rotation's heads are returned.
+  if (result.state === 'ready') expect(result.snapshots.map(s => s.checkpoint.rotation)).toEqual([1])
+  expect(resolve.mock.calls.map(c => c[0])).toEqual([0, 1, 2])
 })

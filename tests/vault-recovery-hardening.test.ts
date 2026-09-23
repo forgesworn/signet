@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { generateKeyPair, signEvent } from '../src/crypto.js'
-import { readVaultSnapshot, readVaultHeads, readVaultHeadRotations, VAULT_CLOCK_TOLERANCE_SECONDS } from '../src/vault-recovery.js'
+import { readVaultSnapshot, readVaultHeads, readVaultHeadRotations, readVaultRotations, VAULT_CLOCK_TOLERANCE_SECONDS } from '../src/vault-recovery.js'
 import type { VaultReader } from '../src/vault-recovery.js'
 import { vaultCheckpointTag, vaultContentHash } from '../src/vault-checkpoint.js'
 import type { NostrEvent } from '../src/types.js'
@@ -141,64 +141,93 @@ describe('checkpoint d-tag filter', () => {
   })
 })
 
-describe('rotation is a revocation boundary', () => {
+describe('rotation is a revocation boundary: superseded rotations are never read', () => {
   async function rotated() {
-    const r0 = new Rotation(0), r1 = new Rotation(1), a = generateKeyPair(), attacker = generateKeyPair()
-    const pointer = await r0.head({ device: a, created_at: 100, sequence: 4, nextRotation: 1 })
+    const r0 = new Rotation(0), r1 = new Rotation(1), r2 = new Rotation(2), a = generateKeyPair(), attacker = generateKeyPair()
+    await r0.head({ device: a, created_at: 100, sequence: 4, nextRotation: 1 })
     await r1.head({ device: a, created_at: 150, sequence: 1 })
+    const rotations = [r0, r1, r2]
     const resolve = vi.fn(async (rotation: number) => {
-      const r = rotation === 0 ? r0 : rotation === 1 ? r1 : new Rotation(rotation)
+      const r = rotations[rotation] ?? new Rotation(rotation)
       return { author: r.author, reader: r.reader() }
     })
-    return { r0, r1, a, attacker, pointer, resolve }
+    return { r0, r1, r2, a, attacker, resolve }
   }
-  it('sets aside old-key heads newer than the pointer instead of merging them', async () => {
+  const onlyRotation1 = (result: Awaited<ReturnType<typeof readVaultHeadRotations>>, a: Key) => {
+    expect(result.state).toBe('ready')
+    if (result.state === 'ready') expect(result.snapshots.map(s => [s.checkpoint.rotation, s.checkpoint.publisher])).toEqual([[1, a.publicKey]])
+  }
+  it('does not merge any old-rotation head once the next rotation exists', async () => {
     const { r0, a, attacker, resolve } = await rotated()
     await r0.head({ device: attacker, created_at: 200 })
-    expect(publishers(await readVaultHeads(r0.reader(), r0.expected()))).toEqual([a.publicKey, attacker.publicKey].sort())
-    const result = await readVaultHeadRotations(resolve, purpose, NOW)
-    expect(result.state).toBe('ready')
-    if (result.state === 'ready') {
-      expect(result.snapshots.map(s => [s.checkpoint.rotation, s.checkpoint.publisher])).toEqual([[0, a.publicKey], [1, a.publicKey]])
+    onlyRotation1(await readVaultHeadRotations(resolve, purpose, NOW), a)
+    expect(resolve.mock.calls.map(c => c[0])).toEqual([0, 1, 2])
+  })
+  it('ignores 17 fresh-tag old-key heads after the pointer (no cap on a superseded rotation)', async () => {
+    const { r0, a, resolve } = await rotated()
+    for (let i = 0; i < 17; i++) await r0.head({ device: generateKeyPair(), created_at: 200 + i, raw: 'undecryptable' })
+    const reader0 = r0.reader()
+    resolve.mockImplementationOnce(async () => ({ author: r0.author, reader: reader0 }))
+    onlyRotation1(await readVaultHeadRotations(resolve, purpose, NOW), a)
+    expect(reader0.open).not.toHaveBeenCalled()
+  })
+  it('ignores a garbage head backdated before the pointer', async () => {
+    const { r0, a, resolve } = await rotated()
+    await r0.head({ device: generateKeyPair(), created_at: 50, raw: 'garbage' })
+    onlyRotation1(await readVaultHeadRotations(resolve, purpose, NOW), a)
+  })
+  it('ignores more than 128 junk d-tag events under the old key', async () => {
+    const { r0, a, resolve } = await rotated()
+    for (let i = 0; i < 130; i++) {
+      r0.heads.push(await signEvent({ kind: 30078, pubkey: r0.author, created_at: 200 + i, tags: [['d', `junk-${i}`]], content: 'x' }, r0.vault.privateKey))
     }
+    onlyRotation1(await readVaultHeadRotations(resolve, purpose, NOW), a)
   })
-  it('an old key cannot declare a far rotation or plant junk after the pointer', async () => {
-    const { r0, a, attacker, resolve } = await rotated()
-    await r0.head({ device: attacker, created_at: 200, nextRotation: 4000 })
-    const junk = generateKeyPair()
-    await r0.head({ device: junk, created_at: 300, raw: 'not a checkpoint' })
-    const result = await readVaultHeadRotations(resolve, purpose, NOW)
-    expect(result.state).toBe('ready')
-    expect(resolve.mock.calls.map(c => c[0])).toEqual([0, 1])
-    expect(publishers(result)).toEqual([a.publicKey, a.publicKey])
+  it('never merges a backdated head injected under an honest publisher tag, whatever its sequence', async () => {
+    const { r0, a, resolve } = await rotated()
+    const honest = generateKeyPair()
+    await r0.head({ device: honest, created_at: 60, sequence: 2 })
+    await r0.head({ device: honest, created_at: 90, sequence: 1_000_000 }) // retired key, between honest head and pointer
+    onlyRotation1(await readVaultHeadRotations(resolve, purpose, NOW), a)
+    // Read on its own, the same rotation would merge the injected head: that is what the boundary prevents.
+    const alone = await readVaultHeads(r0.reader(), r0.expected())
+    expect(alone.state === 'ready' && alone.snapshots.some(s => s.checkpoint.sequence === 1_000_000)).toBe(true)
   })
-  it('uses the earliest pointer, so a later pointer from the old key does not move the boundary', async () => {
-    const { r0, a, attacker, resolve } = await rotated()
-    await r0.head({ device: attacker, created_at: 200 })
-    await r0.head({ device: generateKeyPair(), created_at: 250, nextRotation: 1 })
-    expect(publishers(await readVaultHeadRotations(resolve, purpose, NOW))).toEqual([a.publicKey, a.publicKey])
+  it('follows the successor even when the old key overwrote the pointer head', async () => {
+    const { r0, a, resolve } = await rotated()
+    r0.heads.length = 0 // relays kept only the newer replaceable event under the pointer's tag
+    await r0.head({ device: a, created_at: 200, sequence: 99 })
+    onlyRotation1(await readVaultHeadRotations(resolve, purpose, NOW), a)
   })
-  it('does not treat a floored publisher set aside by the boundary as rollback', async () => {
-    const { r0, r1, a, resolve } = await rotated()
-    const late = generateKeyPair()
-    await r0.head({ device: late, created_at: 200, sequence: 9 })
-    resolve.mockImplementation(async (rotation: number) => rotation === 0
-      ? { author: r0.author, reader: r0.reader(), sequenceFloors: { [late.publicKey]: 9, [a.publicKey]: 4 } }
-      : { author: r1.author, reader: r1.reader() })
-    expect((await readVaultHeadRotations(resolve, purpose, NOW)).state).toBe('ready')
-  })
-  it('still fails closed when junk predates the pointer, or the next rotation does not verify', async () => {
-    const { r0, r1, resolve } = await rotated()
-    await r0.head({ device: generateKeyPair(), created_at: 50, raw: 'junk' })
+  it('fails closed when the newest rotation is itself invalid or points to an absent rotation', async () => {
+    const { r1, resolve } = await rotated()
+    await r1.head({ device: generateKeyPair(), created_at: 160, raw: 'junk' })
     expect(await readVaultHeadRotations(resolve, purpose, NOW)).toEqual({ state: 'unusable', reason: 'checkpoint' })
-    r0.heads.pop(); r1.heads.length = 0
+    r1.heads.pop()
+    await r1.head({ device: generateKeyPair(), created_at: 170, nextRotation: 2 })
     expect(await readVaultHeadRotations(resolve, purpose, NOW)).toEqual({ state: 'unusable', reason: 'checkpoint' })
   })
-  it('without a rotation, a far nextRotation is refused rather than followed', async () => {
+  it('refuses a far nextRotation rather than following it', async () => {
     const r0 = new Rotation(0)
     await r0.head({ device: generateKeyPair(), created_at: 100, nextRotation: 4000 })
-    const resolve = vi.fn(async () => ({ author: r0.author, reader: r0.reader() }))
+    const resolve = vi.fn(async (rotation: number) => { const r = rotation === 0 ? r0 : new Rotation(rotation); return { author: r.author, reader: r.reader() } })
     expect(await readVaultHeadRotations(resolve, purpose, NOW)).toEqual({ state: 'unusable', reason: 'checkpoint' })
-    expect(resolve).toHaveBeenCalledTimes(1)
+    expect(resolve.mock.calls.map(c => c[0])).toEqual([0, 1])
+  })
+  it('reports unavailable with the failed relays when the successor cannot be probed', async () => {
+    const { resolve, r1 } = await rotated()
+    const failing: VaultReader = { ...r1.reader(), checkpoints: async () => { throw Object.assign(new Error('x'), { failedRelays: ['wss://dead.example'] }) } }
+    resolve.mockImplementation(async (rotation: number) => rotation === 1 ? { author: r1.author, reader: failing } : { author: new Rotation().author, reader: new Rotation().reader() })
+    expect(await readVaultHeadRotations(resolve, purpose, NOW)).toEqual({ state: 'unavailable', failedRelays: ['wss://dead.example'] })
+  })
+  it('the single-head reader applies the same boundary', async () => {
+    const r0 = new Rotation(0), r1 = new Rotation(1), dev = generateKeyPair()
+    await r0.head({ device: dev, created_at: 100, legacy: true, nextRotation: 1 })
+    await r1.head({ device: dev, created_at: 150, legacy: true })
+    r0.heads.length = 0
+    await r0.head({ device: generateKeyPair(), created_at: 200, legacy: true, raw: 'retired key junk' })
+    const resolve = vi.fn(async (rotation: number) => { const r = [r0, r1][rotation] ?? new Rotation(rotation); return { author: r.author, reader: r.reader() } })
+    const result = await readVaultRotations(resolve, purpose, {}, NOW)
+    expect(result.state === 'ready' && result.checkpoint.rotation).toBe(1)
   })
 })

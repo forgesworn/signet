@@ -1,18 +1,26 @@
 import type { NostrEvent } from './types.js'
 import { verifyEvent } from './crypto.js'
 import { MAX_VAULT_CHUNKS, MAX_VAULT_CONTROL_BYTES, VAULT_EVENT_KIND,
-  matchesVaultChunk, parseVaultCheckpoint, vaultCheckpointTag, vaultContentHash } from './vault-checkpoint.js'
+  matchesVaultChunk, parseVaultCheckpoint, vaultCheckpointShapedTag, vaultCheckpointTag, vaultContentHash } from './vault-checkpoint.js'
 import type { VaultCheckpoint } from './vault-checkpoint.js'
 
 /** A checkpoint dated further than this beyond the reader's clock is rejected,
  * so one device with a bad clock cannot outrank every later honest head. */
 export const VAULT_CLOCK_TOLERANCE_SECONDS = 300
-/** Every checkpoint d-tag is `vaultCheckpointTag`: 32 lowercase hex characters. */
-const CHECKPOINT_TAG = /^[0-9a-f]{32}$/
 const MAX_VAULT_HEADS = 16
+const MAX_ROTATION_HOPS = 32
 const encoder = new TextEncoder()
 const nowSeconds = () => Math.floor(Date.now() / 1000)
 type Ready = Extract<VaultReadResult, { state: 'ready' }>
+
+type Unavailable = Extract<VaultReadResult, { state: 'unavailable' }>
+/** Carry the failed relay list from a `VaultRelayError` (or any error with a
+ * string-array `failedRelays`) into the result. */
+function unavailable(error?: unknown): Unavailable {
+  const failed = (error as { failedRelays?: unknown } | undefined)?.failedRelays
+  return Array.isArray(failed) && failed.every(f => typeof f === 'string')
+    ? { state: 'unavailable', failedRelays: [...failed] } : { state: 'unavailable' }
+}
 
 function checkNow(now: number): number {
   if (!Number.isSafeInteger(now) || now < 0) throw new Error('Vault reader clock must be a non-negative integer')
@@ -29,20 +37,21 @@ async function authenticCheckpointEvent(event: NostrEvent, author: string, now: 
   if (!event || event.kind !== VAULT_EVENT_KIND || event.pubkey !== author || typeof event.id !== 'string'
     || typeof event.content !== 'string' || encoder.encode(event.content).length > MAX_VAULT_CONTROL_BYTES
     || !Number.isSafeInteger(event.created_at) || event.created_at < 0
-    || event.created_at > now + VAULT_CLOCK_TOLERANCE_SECONDS || !Array.isArray(event.tags)) return null
-  const dTags = event.tags.filter(t => Array.isArray(t) && t[0] === 'd')
-  if (dTags.length !== 1 || dTags[0].length !== 2 || typeof dTags[0][1] !== 'string') return null
-  return await verifyEvent(event) ? dTags[0][1] : null
+    || event.created_at > now + VAULT_CLOCK_TOLERANCE_SECONDS) return null
+  const tag = vaultCheckpointShapedTag(event)
+  return tag !== null && await verifyEvent(event) ? tag : null
 }
 
 export type VaultReadResult =
   | { state: 'absent' }
-  | { state: 'unavailable' }
+  /** `failedRelays`, when known, names the relays that did not answer. */
+  | { state: 'unavailable'; failedRelays?: string[] }
   | { state: 'unusable'; reason: 'checkpoint' | 'rollback' | 'chunk' | 'revision' }
   | { state: 'ready'; plaintext: string; checkpoint: VaultCheckpoint; event: NostrEvent }
 
 export interface VaultReader {
-  /** Must distinguish an empty reachable query from relay failure (throw). */
+  /** Must distinguish an empty reachable query from relay failure (throw).
+   * An error carrying `failedRelays: string[]` is reported in the result. */
   checkpoints(author: string, dTag?: string): Promise<NostrEvent[]>
   /** Exact ID query. Missing data is a failed restore, never an empty dataset. */
   chunk(eventId: string): Promise<NostrEvent | null>
@@ -62,7 +71,7 @@ export async function readVaultSnapshot(
   const now = checkNow(expected.now ?? nowSeconds())
   const tag = vaultCheckpointTag(expected.author, expected.publisher)
   let candidates: NostrEvent[]
-  try { candidates = await reader.checkpoints(expected.author, tag) } catch { return { state: 'unavailable' } }
+  try { candidates = await reader.checkpoints(expected.author, tag) } catch (e) { return unavailable(e) }
   if (!candidates.length) return { state: 'absent' }
   if (candidates.length > 128) return { state: 'unusable', reason: 'checkpoint' }
   // A corrupt newer event does not hide a valid older event. Once a valid signed
@@ -83,7 +92,7 @@ export async function readVaultSnapshot(
   let totalBytes = 0
   for (const ref of checkpoint.chunks) {
     let chunk: NostrEvent | null
-    try { chunk = await reader.chunk(ref.eventId) } catch { return { state: 'unavailable' } }
+    try { chunk = await reader.chunk(ref.eventId) } catch (e) { return unavailable(e) }
     if (!chunk || typeof chunk.content !== 'string' || !matchesVaultChunk(ref, chunk) || !await verifyEvent(chunk)) {
       return { state: 'unusable', reason: 'chunk' }
     }
@@ -99,9 +108,48 @@ export async function readVaultSnapshot(
   return { state: 'ready', plaintext, checkpoint, event }
 }
 
-/** Follow authenticated forward pointers (always rotation + 1). Missing a
- * referenced rotation is damage, not a never-migrated account. Bound traversal
- * to prevent untrusted endless work.
+/** Whether a rotation holds any authentic checkpoint-shaped event (optionally
+ * under one exact tag). Contents are never opened, so nothing written under a
+ * superseded key is decrypted, parsed or counted. */
+async function rotationPresent(reader: VaultReader, author: string, now: number, tag?: string):
+  Promise<'present' | 'absent' | Unavailable> {
+  let events: NostrEvent[]
+  try { events = await reader.checkpoints(author, tag) } catch (e) { return unavailable(e) }
+  for (const event of events.slice(0, 1024)) {
+    const found = await authenticCheckpointEvent(event, author, now)
+    if (found !== null && (tag === undefined || found === tag)) return 'present'
+  }
+  return 'absent'
+}
+
+/** Find the newest rotation: the first rotation whose successor holds no
+ * authentic checkpoint. Rotation is a revocation boundary: once rotation n + 1
+ * exists, rotation n is never read (only rotation n + 1's key can sign there),
+ * so a holder of a retired key can neither inject heads nor block recovery by
+ * writing to the old rotation, and cannot hide the successor by overwriting
+ * the pointer. Costs one extra resolve and query for the successor. */
+async function newestRotation<C extends { reader: VaultReader; author: string }>(
+  resolve: (rotation: number) => Promise<C>, now: number, tagFor?: (author: string) => string,
+): Promise<{ rotation: number; context: C } | Exclude<VaultReadResult, { state: 'ready' }>> {
+  let rotation = 0
+  let context: C
+  try { context = await resolve(0) } catch (e) { return unavailable(e) }
+  for (let hop = 0; hop < MAX_ROTATION_HOPS; hop++) {
+    let next: C
+    try { next = await resolve(rotation + 1) } catch (e) { return unavailable(e) }
+    const probe = await rotationPresent(next.reader, next.author, now, tagFor?.(next.author))
+    if (probe === 'absent') return { rotation, context }
+    if (probe !== 'present') return probe
+    rotation++
+    context = next
+  }
+  return { state: 'unusable', reason: 'checkpoint' }
+}
+
+/** Read the newest rotation's legacy (publisher-less) checkpoint. Rotations are
+ * contiguous from zero; see `newestRotation` for the revocation boundary. A
+ * `nextRotation` pointer (always rotation + 1) to a rotation with no authentic
+ * checkpoint is damage, not a never-migrated account.
  */
 export async function readVaultRotations(
   resolve: (rotation: number) => Promise<{ reader: VaultReader; author: string }>,
@@ -110,20 +158,15 @@ export async function readVaultRotations(
   now: number = nowSeconds(),
 ): Promise<VaultReadResult> {
   checkNow(now)
-  let rotation = 0
-  for (let hop = 0; hop < 32; hop++) {
-    let context: Awaited<ReturnType<typeof resolve>>
-    try { context = await resolve(rotation) } catch { return { state: 'unavailable' } }
-    const result = await readVaultSnapshot(context.reader, {
-      author: context.author, purpose, rotation, minSequence: floors[rotation], now,
-    })
-    if (result.state !== 'ready') {
-      return rotation > 0 && result.state === 'absent' ? { state: 'unusable', reason: 'checkpoint' } : result
-    }
-    if (result.checkpoint.nextRotation === undefined) return result
-    rotation = result.checkpoint.nextRotation
-  }
-  return { state: 'unusable', reason: 'checkpoint' }
+  const found = await newestRotation(resolve, now, author => vaultCheckpointTag(author))
+  if (!('context' in found)) return found
+  const { rotation, context } = found
+  const result = await readVaultSnapshot(context.reader, {
+    author: context.author, purpose, rotation, minSequence: floors[rotation], now,
+  })
+  if (result.state === 'absent') return rotation > 0 ? { state: 'unusable', reason: 'checkpoint' } : result
+  if (result.state === 'ready' && result.checkpoint.nextRotation !== undefined) return { state: 'unusable', reason: 'checkpoint' }
+  return result
 }
 
 export type VaultHeadsResult = Exclude<VaultReadResult, { state: 'ready' }>
@@ -132,46 +175,34 @@ export type VaultHeadsResult = Exclude<VaultReadResult, { state: 'ready' }>
 interface HeadsExpected {
   author: string; purpose: string; rotation: number; sequenceFloors?: Readonly<Record<string, number>>; now?: number
 }
-interface OpenedHead { tag: string; event: NostrEvent; raw: string | null; checkpoint: VaultCheckpoint | null }
 
-/** Discover, authenticate and open (control only) the newest head per d-tag.
- * Events whose d-tag is not checkpoint-shaped are not checkpoints and are
- * ignored before any limit applies. */
-async function openHeads(reader: VaultReader, expected: HeadsExpected, now: number):
-  Promise<Exclude<VaultReadResult, { state: 'ready' }> | OpenedHead[]> {
+/** Mergeable per-device heads prevent last-writer replacement across devices.
+ * Discovery queries only the private vault author. No device roster is public.
+ * Reads one rotation strictly: events without a checkpoint-shaped d-tag are
+ * ignored, then every remaining head must be valid, and more than 16 fails.
+ */
+export async function readVaultHeads(reader: VaultReader, expected: HeadsExpected): Promise<VaultHeadsResult> {
+  const now = checkNow(expected.now ?? nowSeconds())
   let events: NostrEvent[]
-  try { events = await reader.checkpoints(expected.author) } catch { return { state: 'unavailable' } }
-  if (events.length > 128) return { state: 'unusable', reason: 'checkpoint' }
-  const shaped = events.filter(e => !!e && e.pubkey === expected.author && e.kind === VAULT_EVENT_KIND && Array.isArray(e.tags)
-    && e.tags.some(t => Array.isArray(t) && t[0] === 'd' && typeof t[1] === 'string' && CHECKPOINT_TAG.test(t[1])))
+  try { events = await reader.checkpoints(expected.author) } catch (e) { return unavailable(e) }
+  const shaped = events.filter(e => !!e && e.pubkey === expected.author && e.kind === VAULT_EVENT_KIND
+    && vaultCheckpointShapedTag(e) !== null)
   if (!shaped.length) return { state: 'absent' }
+  if (shaped.length > 128) return { state: 'unusable', reason: 'checkpoint' }
   const heads = new Map<string, NostrEvent>()
   for (const event of shaped) {
     const tag = await authenticCheckpointEvent(event, expected.author, now)
-    if (tag === null || !CHECKPOINT_TAG.test(tag)) continue
+    if (tag === null) continue
     const previous = heads.get(tag)
     if (!previous || older(previous, event) < 0) heads.set(tag, event)
   }
   if (!heads.size || heads.size > MAX_VAULT_HEADS) return { state: 'unusable', reason: 'checkpoint' }
-  const opened: OpenedHead[] = []
+  const snapshots: Ready[] = []
   for (const [tag, event] of heads) {
     let raw: string | null
-    try { raw = await reader.open(event.content, expected.author) } catch { raw = null }
-    const parsed = raw === null ? null : parseVaultCheckpoint(raw, expected)
-    const checkpoint = parsed && tag === vaultCheckpointTag(expected.author, parsed.publisher) ? parsed : null
-    opened.push({ tag, event, raw, checkpoint })
-  }
-  return opened
-}
-
-/** Full snapshot reads for the chosen heads, then the per-publisher floors.
- * `excused` publishers had an authenticated head that the rotation boundary set
- * aside; their floor is not evidence of rollback. */
-async function readOpenedHeads(reader: VaultReader, expected: HeadsExpected, now: number, heads: OpenedHead[],
-  excused: ReadonlySet<string> = new Set()): Promise<VaultHeadsResult> {
-  const snapshots: Ready[] = []
-  for (const { event, raw, checkpoint } of heads) {
-    if (!checkpoint) return { state: 'unusable', reason: 'checkpoint' }
+    try { raw = await reader.open(event.content, expected.author) } catch { return { state: 'unusable', reason: 'checkpoint' } }
+    const checkpoint = raw === null ? null : parseVaultCheckpoint(raw, expected)
+    if (!checkpoint || tag !== vaultCheckpointTag(expected.author, checkpoint.publisher)) return { state: 'unusable', reason: 'checkpoint' }
     const result = await readVaultSnapshot({ ...reader, checkpoints: async () => [event],
       open: (content, author) => content === event.content ? Promise.resolve(raw) : reader.open(content, author),
     }, { author: expected.author, purpose: expected.purpose, rotation: expected.rotation, now,
@@ -180,58 +211,29 @@ async function readOpenedHeads(reader: VaultReader, expected: HeadsExpected, now
     snapshots.push(result)
   }
   for (const [publisher, floor] of Object.entries(expected.sequenceFloors ?? {})) {
-    if (floor > 0 && !excused.has(publisher) && !snapshots.some(s => (s.checkpoint.publisher ?? 'legacy') === publisher)) {
-      return { state: 'unusable', reason: 'rollback' }
-    }
+    if (floor > 0 && !snapshots.some(s => (s.checkpoint.publisher ?? 'legacy') === publisher)) return { state: 'unusable', reason: 'rollback' }
   }
-  if (!snapshots.length) return { state: 'unusable', reason: 'checkpoint' }
   snapshots.sort((a, b) => older(a.event, b.event))
   return { state: 'ready', snapshots }
 }
 
-/** Mergeable per-device heads prevent last-writer replacement across devices.
- * Discovery queries only the private vault author. No device roster is public.
- * Reads one rotation with no rotation boundary: every head must be valid.
- */
-export async function readVaultHeads(reader: VaultReader, expected: HeadsExpected): Promise<VaultHeadsResult> {
-  const now = checkNow(expected.now ?? nowSeconds())
-  const heads = await openHeads(reader, expected, now)
-  if (!Array.isArray(heads)) return heads
-  return readOpenedHeads(reader, expected, now, heads)
-}
-
-/** Read every rotation from zero, following `nextRotation` (always rotation + 1).
- *
- * Rotation is a revocation boundary. At each rotation the pointer is the
- * EARLIEST authenticated head declaring the next rotation. Heads of that
- * rotation newer than the pointer (ties by event ID) are set aside, whether or
- * not they open, because a holder of the old key could have written them; only
- * heads at or before the pointer are merged. The boundary is final only because
- * the next rotation must then read `ready`, or the whole read fails. A head
- * backdated before the pointer cannot be told apart from an honest one.
+/** Read the newest rotation's merged per-device heads. Rotation is a
+ * revocation boundary (see `newestRotation`): heads of a superseded rotation
+ * are never merged, opened or counted, so the rotating writer must carry every
+ * head's state into the new rotation before publishing there. Floors from
+ * `resolve` apply to the rotation that is read.
  */
 export async function readVaultHeadRotations(resolve: (rotation: number) => Promise<{
   reader: VaultReader; author: string; sequenceFloors?: Readonly<Record<string, number>>;
 }>, purpose: string, now: number = nowSeconds()): Promise<VaultHeadsResult> {
   checkNow(now)
-  let rotation = 0
-  const carried: Ready[] = []
-  for (let hop = 0; hop < 32; hop++) {
-    let context: Awaited<ReturnType<typeof resolve>>
-    try { context = await resolve(rotation) } catch { return { state: 'unavailable' } }
-    const expected = { ...context, purpose, rotation, now }
-    const heads = await openHeads(context.reader, expected, now)
-    if (!Array.isArray(heads)) return rotation > 0 && heads.state === 'absent' ? { state: 'unusable', reason: 'checkpoint' } : heads
-    const pointer = heads.filter(h => h.checkpoint?.nextRotation === rotation + 1)
-      .sort((a, b) => older(a.event, b.event))[0]
-    const kept = pointer ? heads.filter(h => older(h.event, pointer.event) <= 0) : heads
-    const excused = new Set(heads.filter(h => !kept.includes(h) && h.checkpoint).map(h => h.checkpoint!.publisher ?? 'legacy'))
-    const result = await readOpenedHeads(context.reader, expected, now, kept, excused)
-    if (result.state !== 'ready') return result
-    carried.push(...result.snapshots)
-    if (carried.length > 64 || carried.reduce((size, s) => size + encoder.encode(s.plaintext).length, 0) > 32 * 1024 * 1024) return { state: 'unusable', reason: 'checkpoint' }
-    if (!pointer) return { state: 'ready', snapshots: carried }
-    rotation++
+  const found = await newestRotation(resolve, now)
+  if (!('context' in found)) return found
+  const { rotation, context } = found
+  const result = await readVaultHeads(context.reader, { ...context, purpose, rotation, now })
+  if (result.state === 'absent') return rotation > 0 ? { state: 'unusable', reason: 'checkpoint' } : result
+  if (result.state === 'ready' && result.snapshots.some(s => s.checkpoint.nextRotation !== undefined)) {
+    return { state: 'unusable', reason: 'checkpoint' }
   }
-  return { state: 'unusable', reason: 'checkpoint' }
+  return result
 }

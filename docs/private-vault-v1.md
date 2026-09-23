@@ -28,7 +28,8 @@ are opaque, not secret: knowing a vault pubkey lets an observer compute its tag.
 
 Head discovery reads only kind-30078 events by the vault author whose single
 d-tag has the checkpoint shape (32 lowercase hex characters); other events by
-the vault key are ignored before the 16-head limit and never decrypted. The
+the vault key are ignored (by the relay reader and again by recovery) before
+any limit applies and are never decrypted. The
 shape is necessary, not sufficient, because the publisher is encrypted: the
 vault key must sign no other kind-30078 event with a 32-hex d-tag, or that
 event is read as a malformed head and the read is unusable.
@@ -45,17 +46,18 @@ rotation, sequence, revision, authorised device pubkeys and ordered chunk refs.
 value makes the checkpoint invalid. Recovery begins at zero. A rotation
 must not become canonical before the new copy is fetched, decrypted and verified.
 
-Rotation is a revocation boundary. When reading heads across rotations, the
-pointer is the EARLIEST authenticated head declaring the next rotation. Heads
-of the old rotation dated after the pointer (ties by event ID) are set aside,
-whether or not they decrypt, and their publishers' sequence floors are not
-treated as rollback; only heads at or before the pointer are merged, and the
-next rotation must then read ready or the whole read fails. A holder of a
-retired key therefore cannot add merged heads or redirect traversal after the
-rotation. It can still backdate a head before the pointer, which is
-indistinguishable from an honest one. The rotating writer must carry every
-head's state into the new rotation; writes made under the old rotation after
-the pointer are not recovered.
+Rotation is a revocation boundary. Recovery reads only the newest rotation:
+the first rotation n whose successor n + 1 holds no authentic checkpoint-shaped
+event. Before reading rotation n it always probes rotation n + 1 (one extra
+resolve and query). Once n + 1 exists, rotation n is never queried, opened,
+counted or merged, so a holder of a retired key can neither inject or tombstone
+data (backdated or not, under any publisher tag) nor block recovery with
+malformed, over-cap or junk-tag events, nor hide the successor by overwriting
+the pointer head. The newest rotation is read strictly; a pointer there to a
+rotation with no authentic checkpoint is damage (`unusable`). The rotating
+writer must carry every head's state into the new rotation before publishing
+there; nothing written under an older rotation is recovered. Sequence floors
+apply to the rotation that is read.
 
 Restore results distinguish absent, unavailable, unusable and ready. Legacy may
 be the canonical source only when the vault is absent, never merely because a
@@ -64,13 +66,20 @@ sequence is a rollback floor. A fresh device cannot detect a relay withholding
 all newer state without another trusted source; do not claim otherwise.
 
 `createVaultRelayReader` queries at most eight `wss://` relays (plain `ws://`
-only for `localhost` and `127.0.0.1`, matching `RelayClient`). An empty answer
-counts as absence only when every queried relay returned EOSE and none failed;
-one relay answering empty while another times out or errors is `unavailable`,
-never `absent`. A non-empty answer needs one relay to have answered. Each relay's
-events are re-checked against the requested author, kind, ID and d-tag and
-de-duplicated before a per-relay cap of 128, so unrelated events cannot crowd
-out requested ones; a relay over the cap counts as failed.
+only for `localhost` and `127.0.0.1`, matching `RelayClient`). A checkpoint
+query, empty or not, completes only when every queried relay returned EOSE and
+none failed: one relay's "nothing" is not evidence of absence, and one relay's
+heads may omit a device head that another relay holds. Otherwise the query
+throws a `VaultRelayError` whose `failedRelays` names the relays that failed,
+and recovery returns `{ state: 'unavailable', failedRelays }`. A permanently
+dead configured relay therefore keeps reads `unavailable` until it is removed
+from the relay set; that is deliberate, since `unavailable` is safe and a false
+`absent` is not. A chunk fetch by exact ID succeeds once any relay returns it
+(its hash is pinned by the checkpoint); "not found" again needs every relay.
+Each relay's events are re-checked against the requested author, kind, ID and
+d-tag, checkpoint queries also drop events without a checkpoint-shaped d-tag,
+and duplicates are removed, all before a per-relay cap of 128; a relay over the
+cap counts as failed.
 
 The SDK provides stateless read/validation and forward rotation traversal.
 Writer scheduling, dataset import and durable canonical markers belong to
