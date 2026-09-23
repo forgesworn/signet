@@ -59,6 +59,13 @@ writer must carry every head's state into the new rotation before publishing
 there; nothing written under an older rotation is recovered. Sequence floors
 apply to the rotation that is read.
 
+A rotation revokes only a holder of THAT rotation's key, not the tree root: a
+holder of the root key can derive every rotation regardless. A caller that
+walks forward and finds every relay withholding the true newest rotation's
+successor cannot tell that from a vault that never rotated further, so any
+caller tracking the highest rotation it has already reached must treat a walk
+that lands below it as a rollback, not as ready.
+
 Rotation write order matters. The rotating writer first publishes the merged
 state under rotation n + 1 (every chunk, then the checkpoint) and only then
 declares `nextRotation` in rotation n. A pointer published first makes reads

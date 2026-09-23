@@ -231,3 +231,44 @@ describe('rotation is a revocation boundary: superseded rotations are never read
     expect(result.state === 'ready' && result.checkpoint.rotation).toBe(1)
   })
 })
+
+describe('cross-rotation rollback: withholding the successor cannot resurrect a superseded rotation', () => {
+  /** Rotation 1 is never actually populated: this is what "every relay
+   * withholds rotation 1" looks like from the walk's point of view. */
+  function withheldSuccessor() {
+    const r0 = new Rotation(0), a = generateKeyPair()
+    const resolve = vi.fn(async (rotation: number) => {
+      const r = rotation === 0 ? r0 : new Rotation(rotation)
+      return { author: r.author, reader: r.reader() }
+    })
+    return { r0, a, resolve }
+  }
+  it('readVaultRotations refuses rotation 0 when the caller already holds a floor for rotation 1', async () => {
+    const { r0, a, resolve } = withheldSuccessor()
+    await r0.head({ device: a, created_at: 100, sequence: 5, legacy: true })
+    expect(await readVaultRotations(resolve, purpose, { 1: 1 }, NOW)).toEqual({ state: 'unusable', reason: 'rollback' })
+  })
+  it('readVaultHeadRotations refuses the same walk when minRotation is 1', async () => {
+    const { r0, a, resolve } = withheldSuccessor()
+    await r0.head({ device: a, created_at: 100, sequence: 5, legacy: true })
+    expect(await readVaultHeadRotations(resolve, purpose, NOW, 1)).toEqual({ state: 'unusable', reason: 'rollback' })
+  })
+  it('minRotation 0 or no floors leaves rotation 0 readable, unchanged', async () => {
+    const { r0, a, resolve } = withheldSuccessor()
+    await r0.head({ device: a, created_at: 100, sequence: 5, legacy: true })
+    expect((await readVaultHeadRotations(resolve, purpose, NOW)).state).toBe('ready')
+    expect((await readVaultHeadRotations(resolve, purpose, NOW, 0)).state).toBe('ready')
+    expect((await readVaultRotations(resolve, purpose, {}, NOW)).state).toBe('ready')
+  })
+  it('a floor or minRotation equal to the found rotation still reads ready', async () => {
+    const { r0, a, resolve } = withheldSuccessor()
+    await r0.head({ device: a, created_at: 100, sequence: 5, legacy: true })
+    expect((await readVaultHeadRotations(resolve, purpose, NOW, 0)).state).toBe('ready')
+    expect((await readVaultRotations(resolve, purpose, { 0: 5 }, NOW)).state).toBe('ready')
+  })
+  it('rejects a non-integer or negative minRotation the same way checkNow rejects a bad clock', async () => {
+    const { resolve } = withheldSuccessor()
+    await expect(readVaultHeadRotations(resolve, purpose, NOW, -1)).rejects.toThrow(TypeError)
+    await expect(readVaultHeadRotations(resolve, purpose, NOW, 1.5)).rejects.toThrow(TypeError)
+  })
+})

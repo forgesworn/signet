@@ -29,6 +29,25 @@ function checkNow(now: number): number {
   return now
 }
 
+function checkMinRotation(minRotation: number): number {
+  if (!Number.isSafeInteger(minRotation) || minRotation < 0) {
+    throw new TypeError('Vault reader minRotation must be a non-negative integer')
+  }
+  return minRotation
+}
+
+/** The highest rotation number a caller's floors already name, ignoring any
+ * non-integer or negative key. -1 when `floors` names none, so a rotation-0
+ * result is never treated as a rollback when nothing has been seen yet. */
+function highestFloorRotation(floors: Readonly<Record<number, number>>): number {
+  let highest = -1
+  for (const key of Object.keys(floors)) {
+    const rotation = Number(key)
+    if (Number.isInteger(rotation) && rotation >= 0 && rotation > highest) highest = rotation
+  }
+  return highest
+}
+
 /** Ascending (created_at, id): the order used for every newest/tie decision.
  * Of two events with the same created_at, the lower ID is the newer head,
  * matching NIP-01 replaceable-event resolution. */
@@ -129,7 +148,16 @@ async function rotationPresent(reader: VaultReader, author: string, now: number,
  * exists, rotation n is never read (only rotation n + 1's key can sign there),
  * so a holder of a retired key can neither inject heads nor block recovery by
  * writing to the old rotation, and cannot hide the successor by overwriting
- * the pointer. Costs one extra resolve and query for the successor. */
+ * the pointer. Costs one extra resolve and query for the successor.
+ *
+ * A rotation revokes only a holder of THAT rotation's key, not the tree root:
+ * a holder of the root key can derive every rotation regardless, so rotation
+ * is a boundary against a retired per-rotation key, not against root
+ * compromise. This walk can find a rotation older than one a caller has
+ * already read (every relay withholding the successor); callers that track
+ * the highest rotation they have seen must reject a lower result as a
+ * rollback rather than trust it, since "not found" here never means "does
+ * not exist". */
 async function newestRotation<C extends { reader: VaultReader; author: string }>(
   resolve: (rotation: number) => Promise<C>, now: number, tagFor?: (author: string) => string,
 ): Promise<{ rotation: number; context: C } | Exclude<VaultReadResult, { state: 'ready' }>> {
@@ -163,6 +191,7 @@ export async function readVaultRotations(
   const found = await newestRotation(resolve, now, author => vaultCheckpointTag(author))
   if (!('context' in found)) return found
   const { rotation, context } = found
+  if (rotation < highestFloorRotation(floors)) return { state: 'unusable', reason: 'rollback' }
   const result = await readVaultSnapshot(context.reader, {
     author: context.author, purpose, rotation, minSequence: floors[rotation], now,
   })
@@ -224,14 +253,22 @@ export async function readVaultHeads(reader: VaultReader, expected: HeadsExpecte
  * are never merged, opened or counted, so the rotating writer must carry every
  * head's state into the new rotation before publishing there. Floors from
  * `resolve` apply to the rotation that is read.
+ *
+ * `minRotation` is the highest rotation this caller has already reached. If
+ * every relay withholds the true newest rotation's successor, `newestRotation`
+ * cannot distinguish that from a vault that never rotated further, and would
+ * otherwise report a lower rotation's heads as `ready`; a caller-tracked floor
+ * on the walk itself is what catches that withholding.
  */
 export async function readVaultHeadRotations(resolve: (rotation: number) => Promise<{
   reader: VaultReader; author: string; sequenceFloors?: Readonly<Record<string, number>>;
-}>, purpose: string, now: number = nowSeconds()): Promise<VaultHeadsResult> {
+}>, purpose: string, now: number = nowSeconds(), minRotation = 0): Promise<VaultHeadsResult> {
   checkNow(now)
+  checkMinRotation(minRotation)
   const found = await newestRotation(resolve, now)
   if (!('context' in found)) return found
   const { rotation, context } = found
+  if (rotation < minRotation) return { state: 'unusable', reason: 'rollback' }
   const result = await readVaultHeads(context.reader, { ...context, purpose, rotation, now })
   if (result.state === 'absent') return rotation > 0 ? { state: 'unusable', reason: 'checkpoint' } : result
   if (result.state === 'ready' && result.snapshots.some(s => s.checkpoint.nextRotation !== undefined)) {
