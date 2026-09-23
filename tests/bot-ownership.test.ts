@@ -93,3 +93,10 @@ it('refuses LRM/RLM, ALM, line/paragraph separators and C1 controls in labels', 
   }
   expect(buildBotOwnership({ ...expected, label: 'Café ロボット 🤖' }).content).toContain('Café');
 });
+
+it('allows the zero-width joiner in emoji labels but still refuses bidi marks and overrides', async () => {
+  const label = 'Coder \u{1F468}‍\u{1F4BB}';
+  const event = await signEvent(buildBotOwnership({ ...expected, label }), owner.privateKey);
+  expect(await readBotOwnership(event, expected)).toMatchObject({ status: 'valid', claim: { label } });
+  for (const bad of ['Bot‎', 'Bot‮']) expect(() => buildBotOwnership({ ...expected, label: bad })).toThrow();
+});

@@ -26,3 +26,9 @@ export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
  * bidi isolates (U+2066-U+2069). Not global: build a `g` copy to strip.
  */
 export const UNSAFE_TEXT_CHARS = /[\u0000-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028-\u202e\u2066-\u2069]/u;
+
+/**
+ * `UNSAFE_TEXT_CHARS` minus U+200D (zero-width joiner), which is not a bidi
+ * control and is needed for emoji sequences. Used to validate labels.
+ */
+export const UNSAFE_LABEL_CHARS = /[\u0000-\u001f\u007f-\u009f\u061c\u200b\u200c\u200e\u200f\u2028-\u202e\u2066-\u2069]/u;
