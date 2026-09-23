@@ -87,7 +87,7 @@ export function createVaultRelayReader(relays: readonly string[], open: VaultRea
     return [...events.values()]
   }
   return {
-    checkpoints: (author, dTag) => query({ kinds: [VAULT_EVENT_KIND], authors: [author], ...(dTag ? { '#d': [dTag] } : {}), limit: 17 }),
+    checkpoints: (author, dTag) => query({ kinds: [VAULT_EVENT_KIND], authors: [author], ...(dTag ? { '#d': [dTag] } : {}), limit: MAX_VAULT_EVENTS_PER_RELAY }),
     chunk: async id => (await query({ ids: [id], limit: 1 })).find(e => e.id === id) ?? null,
     open,
   }

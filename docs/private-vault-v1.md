@@ -26,10 +26,36 @@ chunk replacement cannot alter an already signed checkpoint reference. No public
 tags name the dataset or connect device chunks to the vault author. Routing tags
 are opaque, not secret: knowing a vault pubkey lets an observer compute its tag.
 
+Head discovery reads only kind-30078 events by the vault author whose single
+d-tag has the checkpoint shape (32 lowercase hex characters); other events by
+the vault key are ignored before the 16-head limit and never decrypted. The
+shape is necessary, not sufficient, because the publisher is encrypted: the
+vault key must sign no other kind-30078 event with a 32-hex d-tag, or that
+event is read as a malformed head and the read is unusable.
+
+Checkpoints dated more than `VAULT_CLOCK_TOLERANCE_SECONDS` (300) after the
+reader's clock are rejected; every reader takes `now` as a parameter. A device
+whose clock ran ahead therefore cannot outrank its own later honest heads, but
+its future-dated head is ignored until the clock catches up. Of two events with
+the same created_at under one tag, the lower event ID is the newer (NIP-01).
+
 Checkpoint plaintext shape is exported as `VaultCheckpoint`. It contains purpose,
 rotation, sequence, revision, authorised device pubkeys and ordered chunk refs.
-`nextRotation` is optional and forward-only; recovery begins at zero. A rotation
+`nextRotation` is optional and, when present, exactly `rotation + 1`; any other
+value makes the checkpoint invalid. Recovery begins at zero. A rotation
 must not become canonical before the new copy is fetched, decrypted and verified.
+
+Rotation is a revocation boundary. When reading heads across rotations, the
+pointer is the EARLIEST authenticated head declaring the next rotation. Heads
+of the old rotation dated after the pointer (ties by event ID) are set aside,
+whether or not they decrypt, and their publishers' sequence floors are not
+treated as rollback; only heads at or before the pointer are merged, and the
+next rotation must then read ready or the whole read fails. A holder of a
+retired key therefore cannot add merged heads or redirect traversal after the
+rotation. It can still backdate a head before the pointer, which is
+indistinguishable from an honest one. The rotating writer must carry every
+head's state into the new rotation; writes made under the old rotation after
+the pointer are not recovered.
 
 Restore results distinguish absent, unavailable, unusable and ready. Legacy may
 be the canonical source only when the vault is absent, never merely because a

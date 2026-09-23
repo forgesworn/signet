@@ -35,7 +35,7 @@ export interface VaultCheckpoint {
   devicePubkeys: string[]
   /** Ordered chunk references; empty datasets still have one encrypted chunk. */
   chunks: VaultChunkRef[]
-  /** Optional next index; recovery follows forward-only rotations from index zero. */
+  /** Optional pointer, exactly rotation + 1; recovery follows it from index zero. */
   nextRotation?: number
 }
 
@@ -72,7 +72,7 @@ export function parseVaultCheckpoint(raw: string, expected: { purpose: string; r
     chunks.push({ eventId: c.eventId, author: c.author, contentHash: c.contentHash, contentBytes: c.contentBytes })
   }
   if (new Set(chunks.map(c => c.eventId)).size !== chunks.length) return null
-  if (v.nextRotation !== undefined && (!uint(v.nextRotation) || v.nextRotation <= v.rotation || v.nextRotation > 0xffff_ffff)) return null
+  if (v.nextRotation !== undefined && (v.nextRotation !== v.rotation + 1 || v.nextRotation > 0xffff_ffff)) return null
   return { v: 1, purpose: v.purpose, rotation: v.rotation, sequence: v.sequence,
     revision: v.revision, ...(v.publisher === undefined ? {} : { publisher: v.publisher as string }), devicePubkeys: [...v.devicePubkeys] as string[], chunks,
     ...(v.nextRotation === undefined ? {} : { nextRotation: v.nextRotation as number }) }

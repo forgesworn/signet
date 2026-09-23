@@ -20,7 +20,7 @@ describe('vault checkpoint trust boundary', () => {
   })
   it('bounds rotations forward and rejects oversized or malformed JSON', () => {
     expect(parse({ ...checkpoint, nextRotation: 1 })?.nextRotation).toBe(1)
-    for (const nextRotation of [0, -1, 1.5, 4294967296]) expect(parse({ ...checkpoint, nextRotation })).toBeNull()
+    for (const nextRotation of [0, -1, 1.5, 2, 4000, 4294967296]) expect(parse({ ...checkpoint, nextRotation })).toBeNull()
     expect(parseVaultCheckpoint('{', expected)).toBeNull()
     expect(parse({ ...checkpoint, padding: 'x'.repeat(13000) })).toBeNull()
   })
