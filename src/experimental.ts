@@ -17,7 +17,7 @@ export type { VaultCheckpoint, VaultChunkRef } from './vault-checkpoint.js'
 export { readVaultSnapshot, readVaultRotations, readVaultHeads, readVaultHeadRotations } from './vault-recovery.js'
 export type { VaultReadResult, VaultReader, VaultHeadsResult } from './vault-recovery.js'
 
-export { createVaultRelayReader, fetchVaultEvents } from './vault-relay.js'
+export { createVaultRelayReader, fetchVaultEvents, MAX_VAULT_EVENTS_PER_RELAY } from './vault-relay.js'
 
 export { BOT_OWNERSHIP_TYPE, BOT_OWNERSHIP_POLICY, buildBotOwnership, buildBotOwnershipRevocation,
   readBotOwnership, readBotOwnershipSync, botOwnershipRenewalDue } from './bot-ownership.js';

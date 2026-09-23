@@ -37,6 +37,15 @@ relay is offline or a new checkpoint fails to decrypt. A previously observed
 sequence is a rollback floor. A fresh device cannot detect a relay withholding
 all newer state without another trusted source; do not claim otherwise.
 
+`createVaultRelayReader` queries at most eight `wss://` relays (plain `ws://`
+only for `localhost` and `127.0.0.1`, matching `RelayClient`). An empty answer
+counts as absence only when every queried relay returned EOSE and none failed;
+one relay answering empty while another times out or errors is `unavailable`,
+never `absent`. A non-empty answer needs one relay to have answered. Each relay's
+events are re-checked against the requested author, kind, ID and d-tag and
+de-duplicated before a per-relay cap of 128, so unrelated events cannot crowd
+out requested ones; a relay over the cap counts as failed.
+
 The SDK provides stateless read/validation and forward rotation traversal.
 Writer scheduling, dataset import and durable canonical markers belong to
 consumers. The candidate Signet app implements scheduling and confirmed-copy
