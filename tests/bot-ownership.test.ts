@@ -112,3 +112,11 @@ it('refuses soft hyphen, Mongolian vowel separator, word joiner, invisible math 
   const event = await signEvent(buildBotOwnership({ ...expected, label: joined }), owner.privateKey);
   expect(await readBotOwnership(event, expected)).toMatchObject({ status: 'valid', claim: { label: joined } });
 });
+
+it('refuses a Hangul filler (U+3164) in a label, on build and on read', async () => {
+  const label = `Bot${String.fromCodePoint(0x3164)}`;
+  expect(() => buildBotOwnership({ ...expected, label })).toThrow();
+  const base = buildBotOwnership({ ...expected, label: 'Assistant' });
+  const forged = await signEvent({ ...base, content: JSON.stringify({ v: 1, label }) }, owner.privateKey);
+  expect((await readBotOwnership(forged, expected)).status).toBe('invalid');
+});

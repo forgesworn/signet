@@ -11,8 +11,11 @@ a credential or vouch. Ownership never grants the bot the owner's trust.
 A live claim has `valid_from` equal to `created_at`, matching `valid_to` and
 `expiration`, and content `{ "v": 1, "label": "…" }` (100 characters maximum).
 Labels refuse C0/C1 controls, DEL, zero-width and bidi marks (LRM, RLM, ALM),
-line/paragraph separators and bidi embeddings, overrides and isolates. The
-zero-width joiner (U+200D) is allowed, for emoji sequences.
+line/paragraph separators and bidi embeddings, overrides and isolates, and
+every other Unicode format or default-ignorable code point, except the
+narrow in-context forms emoji sequences need: the zero-width joiner between
+emoji elements, the VS15/VS16 variation selectors right after an emoji or a
+keycap base, and a well-formed flag tag sequence.
 The event supplies principal, agent, issue date and expiry without requiring a
 raw-hash signature: ordinary NIP-46 sign_event works on hardware. Revocation is
 the existing same-address attestation with `status=revoked` and empty content.
