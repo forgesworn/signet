@@ -7,6 +7,32 @@
 
 # [1.2.0](https://github.com/forgesworn/signet/compare/v1.1.0...v1.2.0) (2026-04-12)
 
+## 1.11.0 (2026-09-24)
+
+### Features
+
+- add vault and bot protocol contracts
+
+### Bug Fixes
+
+- accept only the RGI subdivision flags and reject lone surrogates in bot-ownership labels
+- reject format and default-ignorable characters in bot-ownership labels, emoji sequences aside
+- use a plain Error for a bad minRotation, and clarify floors semantics
+- reject more invisible-format characters in bot-ownership labels
+- reject a cross-rotation rollback in vault head recovery
+- allow the zero-width joiner in bot-ownership labels
+- document vault rotation write order and the 32-rotation bound
+- share one control and bidi character class for displayed text
+- never read a superseded vault rotation
+- require every vault relay to answer a checkpoint query and name failures
+- make vault rotation a revocation boundary and bound checkpoint time
+- treat an empty vault relay answer as absent only when every relay answered
+- reject retired device replacement heads
+- scope vault device retirement enforcement
+- scope vault device revocations per vault and device
+
+
+
 ## 1.10.1 (2026-08-13)
 
 ### Bug Fixes
