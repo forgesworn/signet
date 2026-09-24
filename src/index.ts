@@ -518,3 +518,6 @@ export {
   parseMigrationEvent,
   followMigrationChain,
 } from './migration.js';
+
+// Private vault and bot-ownership contracts are unreleased drafts: import them
+// from 'signet-protocol/experimental'. Nothing from them is exported here.

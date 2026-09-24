@@ -65,6 +65,11 @@ export async function signEvent(
 
 /** Verify a signed Nostr event's signature */
 export async function verifyEvent(event: NostrEvent): Promise<boolean> {
+  return verifyEventSync(event);
+}
+
+/** Synchronous verification for codecs that must reject invalid events inline. */
+export function verifyEventSync(event: NostrEvent): boolean {
   try {
     const expectedId = getEventId(event);
     if (expectedId !== event.id) return false;

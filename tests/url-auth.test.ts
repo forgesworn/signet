@@ -143,3 +143,9 @@ describe('buildAuthCallbackUrl', () => {
     expect(() => buildAuthCallbackUrl('http://attacker.com/cb', pubkey, npub, signature, eventId)).toThrow();
   });
 });
+
+import { getUrlAuthSiteName } from '../src/url-auth.js';
+it('site-name sanitiser still strips U+200B-U+200F, including the zero-width joiner', () => {
+  const name = 'Si​t‌e‍‎‏X';
+  expect(getUrlAuthSiteName(`?name=${encodeURIComponent(name)}`)).toBe('SiteX');
+});
