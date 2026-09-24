@@ -45,10 +45,20 @@ export const UNSAFE_LABEL_CHARS = /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e
 const CF_OR_DEFAULT_IGNORABLE = /[\p{Cf}\p{Default_Ignorable_Code_Point}]/u;
 const EXTENDED_PICTOGRAPHIC = /\p{Extended_Pictographic}/u;
 const KEYCAP_BASE = /[#*0-9]/;
+// A single unpaired UTF-16 surrogate is not a valid code point. In `u`-mode a
+// correctly paired surrogate combines into one astral code point first and
+// never matches this class; only a lone (unpaired) half does.
+const LONE_SURROGATE = /[\uD800-\uDFFF]/u;
 const ZWJ = 0x200d;
 const VS15 = 0xfe0e, VS16 = 0xfe0f;
 const SKIN_TONE_MIN = 0x1f3fb, SKIN_TONE_MAX = 0x1f3ff;
 const TAG_CHAR_MIN = 0xe0020, TAG_CHAR_MAX = 0xe007e, TAG_CANCEL = 0xe007f, FLAG_BASE = 0x1f3f4;
+// RGI emoji tag sequences: only these three UK subdivision flags are
+// well-formed. Each entry is the tag-character run (base and cancel tag
+// excluded) spelling the ISO 3166-2 subdivision code in lowercase ASCII,
+// shifted into the U+E0000 tag-character plane.
+const RGI_FLAG_TAG_SEQUENCES: readonly (readonly number[])[] = ['gbeng', 'gbsct', 'gbwls'].map(code =>
+  Array.from(code, ch => 0xe0000 + (ch.codePointAt(0) as number)));
 
 /**
  * Whether `codePoints[index]` is "an emoji element" for the zero-width-joiner
@@ -66,9 +76,10 @@ function endsInEmojiElement(codePoints: string[], index: number): boolean {
 }
 
 /**
- * A label is unsafe if it contains any `UNSAFE_LABEL_CHARS` character, or any
- * Unicode format (Cf) or Default_Ignorable_Code_Point code point, EXCEPT the
- * narrow in-context uses emoji sequences need:
+ * A label is unsafe if it contains a lone (unpaired) UTF-16 surrogate, any
+ * `UNSAFE_LABEL_CHARS` character, or any Unicode format (Cf) or
+ * Default_Ignorable_Code_Point code point, EXCEPT the narrow in-context uses
+ * emoji sequences need:
  *
  *  1. U+200D (ZWJ) only between two emoji elements: the code point before it
  *     ends in an emoji element (see `endsInEmojiElement`) and the code point
@@ -78,29 +89,33 @@ function endsInEmojiElement(codePoints: string[], index: number): boolean {
  *     an Extended_Pictographic code point or a keycap base ([#*0-9]). Every
  *     other variation selector (U+FE00-FE0D, U+E0100-E01EF) is rejected
  *     everywhere.
- *  3. Tag characters U+E0020-E007E only inside a well-formed emoji tag
- *     sequence: U+1F3F4 (waving black flag), one or more U+E0020-E007E, then
- *     the cancel tag U+E007F. U+E0001 and any tag character outside such a
- *     sequence (unterminated, or with no U+1F3F4 base) is rejected.
+ *  3. Tag characters U+E0020-E007E only inside one of the three RGI UK
+ *     subdivision emoji flag sequences: U+1F3F4 (waving black flag) followed
+ *     by the exact tag-character spelling of "gbeng", "gbsct" or "gbwls"
+ *     then the cancel tag U+E007F, with nothing else in between. Any other
+ *     tag run — a different or misspelled subdivision code, extra or missing
+ *     tag characters, a hidden payload, a missing/extra cancel tag, or tag
+ *     characters with no U+1F3F4 base — is rejected, as is U+E0001 anywhere.
  *
  * Iterates by code point, not UTF-16 code unit.
  */
 export function isSafeLabel(label: string): boolean {
-  if (UNSAFE_LABEL_CHARS.test(label)) return false;
+  if (LONE_SURROGATE.test(label) || UNSAFE_LABEL_CHARS.test(label)) return false;
   const codePoints = Array.from(label);
-  // Indices that are part of a well-formed emoji flag tag sequence: the run
-  // of tag characters plus the cancel tag immediately following a U+1F3F4.
+  // Indices that are part of one of the three well-formed RGI subdivision
+  // flag tag sequences: the exact tag-character spelling plus its cancel tag,
+  // immediately following a U+1F3F4.
   const reservedTagIndex = new Set<number>();
   for (let i = 0; i < codePoints.length; i++) {
     if (codePoints[i].codePointAt(0) !== FLAG_BASE) continue;
-    let j = i + 1;
-    while (j < codePoints.length) {
-      const cp = codePoints[j].codePointAt(0) as number;
-      if (cp < TAG_CHAR_MIN || cp > TAG_CHAR_MAX) break;
-      j++;
-    }
-    if (j > i + 1 && j < codePoints.length && codePoints[j].codePointAt(0) === TAG_CANCEL) {
-      for (let k = i + 1; k <= j; k++) reservedTagIndex.add(k);
+    for (const seq of RGI_FLAG_TAG_SEQUENCES) {
+      const cancelIndex = i + 1 + seq.length;
+      if (cancelIndex >= codePoints.length) continue;
+      const matchesSpelling = seq.every((cp, k) => codePoints[i + 1 + k].codePointAt(0) === cp);
+      if (matchesSpelling && codePoints[cancelIndex].codePointAt(0) === TAG_CANCEL) {
+        for (let k = i + 1; k <= cancelIndex; k++) reservedTagIndex.add(k);
+        break;
+      }
     }
   }
   for (let i = 0; i < codePoints.length; i++) {

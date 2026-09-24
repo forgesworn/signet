@@ -120,3 +120,11 @@ it('refuses a Hangul filler (U+3164) in a label, on build and on read', async ()
   const forged = await signEvent({ ...base, content: JSON.stringify({ v: 1, label }) }, owner.privateKey);
   expect((await readBotOwnership(forged, expected)).status).toBe('invalid');
 });
+
+it('accepts RGI flag tag sequences and other emoji-sequence labels through the builder and reader, not only isSafeLabel directly', async () => {
+  const englandFlag = '\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}';
+  for (const label of ['Coder \u{1F468}‍\u{1F4BB}', `Team ${englandFlag}`, 'Score #\u{FE0F}\u{20E3}']) {
+    const event = await signEvent(buildBotOwnership({ ...expected, label }), owner.privateKey);
+    expect(await readBotOwnership(event, expected)).toMatchObject({ status: 'valid', claim: { label } });
+  }
+});

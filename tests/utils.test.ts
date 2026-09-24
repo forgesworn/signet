@@ -42,8 +42,13 @@ describe('constantTimeEqual', () => {
 });
 
 describe('isSafeLabel', () => {
-  // Scotland (gb-sct) emoji flag tag sequence: U+1F3F4 + tag_g/b/s/c/t + cancel.
-  const scotland = '\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}';
+  // RGI UK subdivision emoji flag tag sequences: U+1F3F4 + the tag-character
+  // spelling of the ISO 3166-2 code + the cancel tag U+E007F.
+  const flagTagSequence = (code: string) =>
+    `\u{1F3F4}${Array.from(code, ch => String.fromCodePoint(0xe0000 + (ch.codePointAt(0) as number))).join('')}\u{E007F}`;
+  const england = flagTagSequence('gbeng');
+  const scotland = flagTagSequence('gbsct');
+  const wales = flagTagSequence('gbwls');
 
   const accept = [
     ['plain ascii', 'Home bot'],
@@ -53,8 +58,14 @@ describe('isSafeLabel', () => {
     ['flag + VS16 + ZWJ + rainbow', '\u{1F3F3}\u{FE0F}‍\u{1F308}'],
     ['emoji + skin tone modifier', '\u{1F44B}\u{1F3FD}'],
     ['emoji + VS16', '\u{2764}\u{FE0F}'],
-    ['keycap sequence', '1\u{FE0F}\u{20E3}'],
+    ['keycap sequence (digit)', '1\u{FE0F}\u{20E3}'],
+    ['keycap sequence (hash)', '#\u{FE0F}\u{20E3}'],
+    ['keycap sequence (asterisk)', '*\u{FE0F}\u{20E3}'],
+    ['flag tag sequence (England)', england],
     ['flag tag sequence (Scotland)', scotland],
+    ['flag tag sequence (Wales)', wales],
+    ['trans flag (flag + VS16 + ZWJ + symbol + VS16)', '\u{1F3F3}\u{FE0F}‍\u{26A7}\u{FE0F}'],
+    ['eye in speech bubble (EP + VS16 + ZWJ + EP + VS16)', '\u{1F441}\u{FE0F}‍\u{1F5E8}\u{FE0F}'],
     ['Arabic', 'بوت'],
     ['Hebrew', 'בוט'],
   ] as const;
@@ -101,6 +112,15 @@ describe('isSafeLabel', () => {
     ['flag tag run with no cancel tag', '\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}'],
     ['a lone cancel tag', 'a\u{E007F}b'],
     ['tag characters with no flag base', 'a\u{E0067}\u{E0062}\u{E007F}b'],
+    ['flag base + hidden-payload tag sequence', `\u{1F3F4}${Array.from('secretpayload', ch => String.fromCodePoint(0xe0000 + (ch.codePointAt(0) as number))).join('')}\u{E007F}`],
+    ['flag base + single space tag + cancel', '\u{1F3F4}\u{E0020}\u{E007F}'],
+    ['flag base + cancel with no tag run at all', '\u{1F3F4}\u{E007F}'],
+    ['a well-shaped but non-RGI subdivision code (usca)', `\u{1F3F4}${Array.from('usca', ch => String.fromCodePoint(0xe0000 + (ch.codePointAt(0) as number))).join('')}\u{E007F}`],
+    ['a complete flag tag sequence followed by ZWJ', `${scotland}‍\u{1F308}`],
+    ['a lone E0100 variation selector supplement', 'a\u{E0100}b'],
+    ['a tag-plane character below the tag-char range (U+E0080)', 'a\u{E0080}b'],
+    ['an unpaired high surrogate', 'a\uD800b'],
+    ['a lone low surrogate', 'a\uDC00b'],
   ] as const;
 
   it.each(rejectedContexts)('rejects %s', (_name, label) => {
