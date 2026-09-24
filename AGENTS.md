@@ -1,0 +1,99 @@
+# Signet Protocol
+
+Signet is an open-source identity verification protocol for Nostr. It uses zero-knowledge proofs to let users prove claims about their identity without revealing personal data.
+
+This repo contains:
+- `spec/protocol.md`: the full protocol specification
+- `spec/voting.md`: voting extension specification (linkable ring signatures, elections; implemented as a separate package, not part of `signet-protocol`)
+- `src/`: TypeScript protocol library (npm publishable as `signet-protocol`)
+- `examples/`: example event payloads and flows
+- `legal/`: legal documents in multiple languages
+- `docs/signet-in-5-minutes.md`: one-page developer overview
+- `docs/implementation-levels.md`: three-level integration guide for client developers
+
+## Key Concepts
+
+- **4 verification tiers**: Tier 1 (self-declared) -> Tier 2 (web-of-trust) -> Tier 3 (professional adult) -> Tier 4 (professional adult+child)
+- **1 generic attestation kind** (31000, NIP-VA via `nostr-attestations`): credential, vouch, verifier, challenge, revocation, identity-bridge, delegation, differentiated by `type` tag
+- **Policies** on NIP-78 kind 30078
+- **Voting extension event kinds** (30482-30484): election, ballot, election result; specified in `spec/voting.md` but implemented in a separate package
+- **Two-credential ceremony**: Professional verification issues Natural Person credential (with nullifier, Merkle root) + Persona credential (anonymous, age-range only) simultaneously
+- **Document-based nullifiers**: SHA-256 of length-prefixed fields (docType, country, docNumber, "signet-nullifier-v2") prevents duplicate identity without revealing documents
+- **Guardian delegation**: Kind 31000 (`type: delegation`) events with scopes (full, activity-approval, content-management, contact-approval) for family structures
+- **Crypto stack**: Schnorr (secp256k1 base) + Pedersen range proofs (age range proofs) + future ZK layer
+- **No central authority**: professional bodies (Law Society, medical boards, notary commissions) are the trust anchors
+- **"Signet me"**: Time-based word verification (configurable 1-16 words, default 3) powered by canary-kit's CANARY-DERIVE
+- **nsec-tree identity model**: Master secret from BIP-39 mnemonic (`fromMnemonic()`) or existing nsec (`fromNsec()`). Two required personas (natural-person, persona) with optional extras. Linkage proofs (blind/full) via BIP-340 Schnorr. Shamir backup via `@forgesworn/shamir-words`.
+
+## Development Workflow
+
+### After ANY code change, you MUST:
+
+1. **Run the full test suite**: `node node_modules/vitest/vitest.mjs run`
+2. **Run typecheck**: `node node_modules/typescript/bin/tsc --noEmit`
+3. **If a bug is found and fixed**, update `spec/protocol.md` with any clarifications needed so the spec is sufficient to rebuild from scratch without hitting the same bug
+4. **Commit** the code changes, test fixes, and any spec updates together
+5. **Push** to remote
+
+Never claim work is complete without fresh test output confirming it passes. Evidence before assertions.
+
+### Pacing and Accuracy
+
+This is a protocol that others will build on. Correctness matters more than speed. Follow these rules:
+
+1. **Verify before presenting.** When building analysis tables, mappings, or logical arguments, re-read each row/cell and confirm it's correct before showing it to the user. Don't rush tables: wrong analysis is worse than slow analysis.
+2. **Re-read the user's words.** When the user proposes options (A, B, C), re-read their exact descriptions before summarising or mapping them. Don't paraphrase from memory: go back to what they actually said.
+3. **Check assumptions in tests.** When writing tests with hardcoded values, verify the arithmetic (e.g., does this timestamp actually fall where I think it does in the epoch?).
+4. **Say "I'm not sure" when you're not sure.** This is a protocol with legal, cryptographic, and social implications. Confident-sounding wrong answers are dangerous. If a claim needs verification, say so.
+5. **Slow down during brainstorming.** Design discussions set the foundation for everything built on top. Take time to reason carefully about edge cases, naming, and category boundaries. Getting the model right matters more than getting it fast.
+
+### Spec-First Development
+
+The spec (`spec/protocol.md`) is the source of truth. If implementation reveals ambiguity, underspecification, or an error in the spec, **update the spec first**, then fix the code. The spec must always be complete enough that a new implementer could rebuild the system from the spec alone.
+
+## Project Structure
+
+```
+Signet/
+├── src/          - Protocol library (TypeScript, no framework dependencies)
+├── tests/        - Protocol tests (vitest)
+├── spec/         - Protocol specification
+├── examples/     - Example flows
+├── legal/        - Legal documents (multi-language)
+├── docs/         - Developer documentation
+├── dist/         - Compiled protocol library output
+└── .github/      - CI workflows
+```
+
+## Commands
+
+```bash
+# Protocol
+node node_modules/vitest/vitest.mjs run                        # run all protocol tests
+node node_modules/vitest/vitest.mjs run tests/voting.test.ts   # run a single test file
+node node_modules/typescript/bin/tsc --noEmit                   # typecheck protocol
+npm run build                                                   # compile to dist/
+```
+
+## Security Conventions
+
+These conventions were established during the security hardening review (2026-03-12) and MUST be followed for all new code:
+
+- **Merkle trees**: Use RFC 6962 domain separation: `0x00` prefix for leaf hashes, `0x01` for internal nodes
+- **Ring signatures**: Always include a domain separator (e.g. `signet-sag-v1`, `signet-lsag-v1`) as the first argument to challenge hashes
+- **ECDH**: Always check `sharedPoint.equals(ProjectivePoint.ZERO)` after multiplication; reject identity point
+- **Ring size**: Enforce `MAX_RING_SIZE = 1000` in both sign and verify paths
+- **LSAG ballot privacy**: The LSAG message MUST be `electionId:SHA-256(encryptedVote)`, never sign the plaintext vote
+- **Field-size bounds**: All event validators must check `MAX_CONTENT_LENGTH` (64KB), `MAX_TAGS_COUNT` (100), `MAX_TAG_VALUE_LENGTH` (1024)
+- **JSON.parse on untrusted input**: Always add runtime type guards after parsing, never cast directly to a type
+- **`parseInt` on untrusted tag values**: Always check `isNaN()` after parsing; `NaN < x` is `false` in JavaScript, silently bypassing security comparisons. Pattern: `const v = parseInt(str, 10); if (isNaN(v) || v < threshold) reject;`
+- **Credential chain depth**: Cap at `MAX_CHAIN_DEPTH = 100` with cycle detection via `visited` set
+- **Error classes**: Use `SignetError` hierarchy (`SignetValidationError`, `SignetCryptoError`, `SignetVotingError`) for new throw statements
+- **IndexedDB**: Never store `privateKey` or `mnemonic` in plaintext; use `crypto-store.ts` (PBKDF2 + AES-256-GCM)
+
+## Gotchas
+
+- **spoken-token dependency**: `spoken-token` is published on npm as `^2.0.3`. Used in `src/signet-words.ts` for word-based verification tokens. v2.0 has breaking changes (PIN encoding bias fix, directional pair domain separation, whitespace context rejection) but Signet's usage (deriveTokenBytes + encodeAsWords) is backwards-compatible.
+- **npm publication**: `signet-protocol` is published to npm via `forgesworn/anvil@v0` (workflow_call) on push to main.
+- **`@noble/hashes` v2 import paths**: v2 requires `.js` suffix on subpath imports (e.g. `@noble/hashes/sha2.js`, `@noble/hashes/utils.js`, `@noble/curves/secp256k1.js`). The old `sha256` subpath is now `sha2` (but the `sha256` named export still exists within it). `randomPrivateKey` was renamed to `randomSecretKey`. Several functions now require `Uint8Array` instead of hex strings.
+- **nsec-tree dependency**: `nsec-tree` is published on npm as `^1.6.0-alpha.1`. Provides identity derivation, personas, sub-identity derivation, linkage proofs, NIP-19 encoding. Requires Node `>=22`.
