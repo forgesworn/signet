@@ -17,7 +17,6 @@ Default to **Sonnet** unless the task genuinely needs Opus-level reasoning. Pref
 | `Explore` | Haiku | Read-only, no Edit/Write tools: fast search is all that's needed |
 | `general-purpose` | Sonnet | Most implementation work is well-scoped by the time it's dispatched |
 | `Plan` | Opus | Planning benefits from deeper reasoning about trade-offs |
-| `superpowers:code-reviewer` | Sonnet | Review against known criteria is systematic, not creative |
 
 ### Guidance by skill
 
