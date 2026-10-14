@@ -2,6 +2,22 @@
 
 Signet is split into focused libraries, each with one job. This page is the orientation map: tell us what you're building, and we'll tell you which packages to install.
 
+## Game sign-in with online-play approval
+
+My Signet implements an optional,
+versioned `app_permission` extension to Sign in with Signet. A supported app
+can receive the exact signed online-play statement with the sign-in answer,
+without enabling a general Bunker. The person may choose sign-in only;
+family decisions stay within My Signet. Existing clients retain their usual
+flow, and new clients must retain the standalone permission fallback for
+older installed versions.
+
+See the [My Signet integration guide](https://github.com/forgesworn/signet-app/blob/main/docs/app-integration.md)
+for request/response examples, verification, caching, scoped NIP-46 limits and
+release compatibility. This is an app extension, not a capability currently
+advertised by every published sign-in SDK. Installed releases may lag behind
+the source on main.
+
 ## "I want to…"
 
 | Goal | Install | Reach for |
