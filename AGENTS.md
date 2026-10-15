@@ -4,7 +4,7 @@ Signet is an open-source identity verification protocol for Nostr. It uses zero-
 
 This repo contains:
 - `spec/protocol.md`: the full protocol specification
-- `spec/voting.md`: voting extension specification (linkable ring signatures, elections; implemented as a separate package, not part of `signet-protocol`)
+- `spec/voting.md`: voting extension specification (linkable ring signatures, elections; implemented as the separate `nostr-anon-vote` package, not part of `signet-protocol`)
 - `src/`: TypeScript protocol library (npm publishable as `signet-protocol`)
 - `examples/`: example event payloads and flows
 - `legal/`: legal documents in multiple languages
@@ -16,14 +16,14 @@ This repo contains:
 - **4 verification tiers**: Tier 1 (self-declared) -> Tier 2 (web-of-trust) -> Tier 3 (professional adult) -> Tier 4 (professional adult+child)
 - **1 generic attestation kind** (31000, NIP-VA via `nostr-attestations`): credential, vouch, verifier, challenge, revocation, identity-bridge, delegation, differentiated by `type` tag
 - **Policies** on NIP-78 kind 30078
-- **Voting extension event kinds** (30482-30484): election, ballot, election result; specified in `spec/voting.md` but implemented in a separate package
+- **Voting extension event kinds** (30482-30484): election, ballot, election result; specified in `spec/voting.md` but implemented in the separate `nostr-anon-vote` package (npm, `forgesworn/nostr-anon-vote`)
 - **Two-credential ceremony**: Professional verification issues Natural Person credential (with nullifier, Merkle root) + Persona credential (anonymous, age-range only) simultaneously
 - **Document-based nullifiers**: SHA-256 of length-prefixed fields (docType, country, docNumber, "signet-nullifier-v2") prevents duplicate identity without revealing documents
 - **Guardian delegation**: Kind 31000 (`type: delegation`) events with scopes (full, activity-approval, content-management, contact-approval) for family structures
-- **Crypto stack**: Schnorr (secp256k1 base) + Pedersen range proofs (age range proofs) + future ZK layer
+- **Crypto stack**: Schnorr (secp256k1 base) + Pedersen range proofs via `@forgesworn/range-proof` (age range proofs; bit-decomposition, no trusted setup) + future ZK layer
 - **No central authority**: professional bodies (Law Society, medical boards, notary commissions) are the trust anchors
 - **"Signet me"**: Time-based word verification (configurable 1-16 words, default 3) powered by canary-kit's CANARY-DERIVE
-- **nsec-tree identity model**: Master secret from BIP-39 mnemonic (`fromMnemonic()`) or existing nsec (`fromNsec()`). Two required personas (natural-person, persona) with optional extras. Linkage proofs (blind/full) via BIP-340 Schnorr. Shamir backup via `@forgesworn/shamir-words`.
+- **nsec-tree identity model**: Master secret from BIP-39 mnemonic or existing nsec. Public API: `createSignetIdentity(mnemonic, passphrase?)` / `createSignetIdentityFromNsec(nsec)`; these wrap nsec-tree's `fromMnemonic()` / `fromNsec()`, which are nsec-tree exports that `signet-protocol` does not re-export. Two required personas (natural-person, persona) with optional extras. Linkage proofs (blind/full) via BIP-340 Schnorr. Shamir backup via `@forgesworn/shamir-words`.
 
 ## Development Workflow
 

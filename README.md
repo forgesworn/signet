@@ -27,20 +27,24 @@ Signet solves this without centralised data collection. A professional verifies 
 npm install signet-protocol
 ```
 
-Display a verification badge for any Nostr user (Level 1 — a weekend to integrate):
+Requires Node ≥22. ESM only (no CommonJS `require` export).
+
+Display a verification badge for any Nostr user (Level 1: a weekend to integrate):
 
 ```typescript
-import { computeBadge, buildBadgeFilters, meetsMinimumTier } from 'signet-protocol';
+import { computeBadge, buildBadgeFilters, fetchFromRelay, meetsMinimumTier } from 'signet-protocol';
 
 const filters = buildBadgeFilters(['<hex-pubkey>']);
-const events = await fetchFromRelay(filters);
-const badge = computeBadge('<hex-pubkey>', events, { verifySignatures: true });
+const events = await fetchFromRelay('wss://relay.example.com', filters);
+const badge = await computeBadge('<hex-pubkey>', events, { verifySignatures: true });
 
 // badge.tier => 3, badge.score => 106, badge.displayLabel => "Verified (Tier 3)"
 if (meetsMinimumTier(badge, 2)) {
   // allow posting in verified-only community
 }
 ```
+
+`fetchFromRelay(relayUrl, filters)` is the package's own minimal relay client and returns `Promise<NostrEvent[]>`. Any other Nostr client works too: pass `buildBadgeFilters` output as the REQ filters and hand the resulting events to `computeBadge`. `computeBadge` is async and returns `Promise<BadgeInfo>`.
 
 See [Signet in 5 Minutes](docs/signet-in-5-minutes.md) for a full developer overview, or the [full flow example](examples/full-flow.ts) for all 4 tiers, trust scoring, policies, and verifier lifecycle.
 
@@ -62,9 +66,8 @@ All identity attestations use a single NIP-VA kind (31000), differentiated by `t
 | 31000 | `revocation` | Verifier Revocation | Community confirms challenge, revokes verifier |
 | 31000 | `identity-bridge` | Identity Bridge | Link two keypairs via ring signature |
 | 31000 | `delegation` | Delegation | Guardian or agent delegation with scoped permission |
-| 30482 | — | Election | Voting extension: define an election |
-| 30483 | — | Ballot | Voting extension: cast an anonymous ballot |
-| 30484 | — | Election Result | Voting extension: publish tallied result |
+
+Voting extension: kinds 30482 (election), 30483 (ballot) and 30484 (election result) are specified in [`spec/voting.md`](spec/voting.md) and implemented in the separate [`nostr-anon-vote`](https://github.com/forgesworn/nostr-anon-vote) package, not in `signet-protocol`.
 
 ### Crypto Stack
 
@@ -73,8 +76,8 @@ Layer 1: Schnorr (secp256k1) — zero new dependencies
          Credential signing, Merkle selective disclosure,
          ring signatures for issuer privacy, MuSig2
 
-Layer 2: Bulletproofs (secp256k1) — age range proofs
-         ~700 byte proofs, no trusted setup
+Layer 2: Pedersen range proofs (secp256k1): age range proofs
+         via @forgesworn/range-proof, no trusted setup
 
 Layer 3: General-purpose ZK (future, if needed)
          Complex threshold proofs, recursive composition
@@ -82,7 +85,7 @@ Layer 3: General-purpose ZK (future, if needed)
 
 ## Status
 
-**v1.0.0** — spec complete, TypeScript library implemented, reference apps functional. Seeking community feedback.
+**Status:** spec complete, TypeScript library implemented, reference apps functional. Seeking community feedback.
 
 All identity attestations use kind 31000 (NIP-VA, Verifiable Attestations), differentiated by `type` tag.
 

@@ -87,7 +87,7 @@ flowchart TB
     end
 
     subgraph L2["Layer 2: Pedersen range proofs (secp256k1)"]
-        Age["Age range proofs\n(~700 byte, no trusted setup)"]
+        Age["Age range proofs\n(no trusted setup)"]
     end
 
     subgraph L3["Layer 3: LSAG"]

@@ -10,17 +10,19 @@ Signet is for Nostr client developers, relay operators, and anyone building iden
 npm install signet-protocol
 ```
 
+Requires Node ≥22. ESM only (no CommonJS `require` export).
+
 Display a verification badge for any Nostr pubkey (Level 1 integration: a weekend):
 
 ```typescript
-import { computeBadge, buildBadgeFilters, meetsMinimumTier } from 'signet-protocol';
+import { computeBadge, buildBadgeFilters, fetchFromRelay, meetsMinimumTier } from 'signet-protocol';
 
-// Build relay filters and fetch events
+// Build relay filters and fetch events (fetchFromRelay is the package's own minimal relay client)
 const filters = buildBadgeFilters(['<hex-pubkey>']);
-const events = await fetchFromRelay(filters);
+const events = await fetchFromRelay('wss://relay.example.com', filters);
 
-// Compute badge
-const badge = computeBadge('<hex-pubkey>', events, { verifySignatures: true });
+// Compute badge (async: returns Promise<BadgeInfo>)
+const badge = await computeBadge('<hex-pubkey>', events, { verifySignatures: true });
 // badge.tier => 3, badge.score => 106, badge.displayLabel => "Verified (Tier 3)"
 
 // Gate features on verification level
@@ -29,56 +31,96 @@ if (meetsMinimumTier(badge, 2)) {
 }
 ```
 
+`fetchFromRelay(relayUrl: string, filters: NostrFilter[]): Promise<NostrEvent[]>` connects, collects events until EOSE and disconnects. Non-localhost relay URLs must be `wss://`. Any other Nostr client works equally well: pass the `buildBadgeFilters` output as REQ filters and give the returned events to `computeBadge`.
+
 ## Key Concepts
 
 - **4 verification tiers**: Self-declared (Tier 1) → Web-of-trust via peer vouches (Tier 2) → Professional verification with ZKP age proof (Tier 3) → Professional + child safety (Tier 4)
-- **Signet IQ** (0–200): A continuous identity quality score measuring statistical confidence that an identity is real, not fabricated. Weighted by professional verification, in-person vouches, online vouches, account age, and identity bridges. 100 represents the current government standard. IQ is not reputation: it measures identity quality, not trustworthiness.
-- **Zero-knowledge age proofs**: Bulletproofs on secp256k1 prove age ranges (e.g. "adult" or "child aged 8–12") without revealing date of birth.
+- **Signet IQ** (0–200): A continuous identity quality score measuring statistical confidence that an identity is real, not fabricated. Weighted by professional verification, in-person vouches, online vouches, account age, and identity bridges. 100 represents the current government standard. IQ is not reputation: it measures identity quality, not trustworthiness. The source calls the same number the "Signet Score" (`TrustScoreBreakdown.score`).
+- **Zero-knowledge age proofs**: Pedersen range proofs on secp256k1 (the `@forgesworn/range-proof` dependency; no trusted setup) prove age ranges (e.g. "adult" or "child aged 8–12") without revealing date of birth.
 - **Document nullifiers**: SHA-256 of document fields prevents duplicate identity registration without storing any personal data.
-- **Single attestation kind** (31000, NIP-VA) plus policies (30078) and voting (30482–30484): All identity attestations (credentials, vouches, verifier management, challenges, revocations, identity bridges, delegation) share kind 31000, differentiated by `type` tag.
+- **Single attestation kind** (31000, NIP-VA) plus policies (30078): All identity attestations (credentials, vouches, verifier management, challenges, revocations, identity bridges, delegation) share kind 31000, differentiated by `type` tag. The voting extension (kinds 30482–30484) is a separate package, `nostr-anon-vote`.
 
 ## API Surface
 
+Conventions used throughout:
+- Private keys are 64-character hex strings (not `Uint8Array`). Public keys are 64-character x-only hex. The identity functions are the exception: `createSignetIdentity` takes a BIP-39 mnemonic and `createSignetIdentityFromNsec` takes a bech32 nsec string or 32 raw bytes.
+- Every `create*` function is async and returns a signed `Promise<NostrEvent>` (with `id` and `sig`). The matching `build*Event` functions return an unsigned `UnsignedEvent`.
+- Tiers are `SignetTier` (`1 | 2 | 3 | 4`). Timestamps (`expiresAt`, `occurredAt`, `accountCreatedAt`) are unix seconds.
+- Throws use the `SignetError` hierarchy (`SignetValidationError`, `SignetCryptoError`).
+
 ### Credentials (kind 31000, type: credential)
-- `createSelfDeclaredCredential(privateKey)`: Tier 1
-- `createPeerVouchedCredential(issuerKey, subjectPubkey)`: Tier 2
-- `createProfessionalCredential(verifierKey, subjectPubkey, opts)`: Tier 3
-- `createChildSafetyCredential(verifierKey, parentPubkey, opts)`: Tier 4
-- `verifyCredential(event)`: verify signature and structure
-- `parseCredential(event)`: extract structured fields
+- `createSelfDeclaredCredential(privateKey, scope = 'adult', expiresAt?)`: Tier 1. `scope` is `'adult' | 'adult+child'`.
+- `createPeerVouchedCredential(issuerPrivateKey, subjectPubkey, opts)`: Tier 2. `opts: { assertionEventId: string; assertionRelay?: string; expiresAt?: number }`. `assertionEventId` is the subject's Tier 1 event.
+- `createProfessionalCredential(verifierPrivateKey, subjectPubkey, opts)`: Tier 3. `opts: { assertionEventId: string; profession: string; jurisdiction: string; actualAge: number; assertionRelay?: string; expiresAt?: number; occurredAt?: number; proofBlob?: string }`. Generates an `'18+'` range proof from `actualAge` into the event content.
+- `createChildSafetyCredential(verifierPrivateKey, subjectPubkey, opts)`: Tier 4. Same `opts` as Tier 3 plus `ageRange: string` (the range proved, e.g. `'8-12'`).
+- `verifyCredential(event)`: `Promise<{ signatureValid: boolean; structureValid: boolean; expired: boolean; errors: string[] }>`
+- `parseCredential(event)`: `ParsedCredential | null`
+
+`ageRange` format everywhere: `'<min>-<max>'` inclusive (e.g. `'8-12'`, `'13-17'`) or `'<min>+'` (e.g. `'18+'`, upper bound 150). Anything else fails to parse.
+
+Default credential expiry is two years (`DEFAULT_CREDENTIAL_EXPIRY_SECONDS`) when `expiresAt` is omitted.
 
 ### Vouches (kind 31000, type: vouch)
-- `createVouch(privateKey, params)`: vouch for another user
-- `hasEnoughVouches(vouches, pubkey)`: check Tier 2 threshold
+- `createVouch(voucherPrivateKey, params)`: vouch for another user. `params: { subjectPubkey: string; method: 'in-person' | 'online'; voucherTier: SignetTier; voucherScore: number; context?: string; occurredAt?: number }`. `voucherScore` is the voucher's own Signet IQ (0–200).
+- `hasEnoughVouches(vouches, subjectPubkey, threshold = 3, minVoucherTier = 2)`: `boolean`. `true` when the number of qualifying vouches (one per voucher, voucher tier ≥ `minVoucherTier`) reaches `threshold`. `countQualifyingVouches(vouches, subjectPubkey, minVoucherTier?)` returns the count.
 
 ### Trust & Badges
-- `computeBadge(pubkey, events, opts)`: Level 1 badge display
-- `computeTrustScore(pubkey, credentials, vouches, accountCreatedAt)`: full Signet IQ
+- `computeBadge(pubkey, events, opts?)`: `Promise<BadgeInfo>`. `opts: { verifySignatures?: boolean (default false); now?: number }`. `BadgeInfo: { pubkey, tier, tierLabel, score, isVerified, displayLabel, credentialCount, vouchCount, entityType? }`.
+- `buildBadgeFilters(pubkeys: string[])`: `Array<{ kinds: number[]; '#d': string[] }>`. One filter for kind 31000 with d-tags `credential:<pubkey>` and `vouch:<pubkey>` for each pubkey.
+- `meetsMinimumTier(badge: BadgeInfo, minTier: SignetTier)`: `boolean`. `true` only when `badge.isVerified` and `badge.tier >= minTier`.
+- `computeTrustScore(subjectPubkey, credentials, vouches, accountCreatedAt?, bridges?)`: `TrustScoreBreakdown` (`{ score, tier, professionalVerifications, inPersonVouches, onlineVouches, accountAgeDays, signals }`). This is the full Signet IQ. It does not verify signatures.
+
+`badge.score` is on the same 0–200 scale and uses the same weights as `computeTrustScore(...).score` (professional verification 80, in-person vouch up to 16, online vouch up to 4, each vouch scaled by the voucher's score ÷ 200), but it is a Level 1 approximation, not the full IQ: `computeBadge` ignores account age and identity bridges and does not apply the per-type caps (1 professional, 3 in-person vouches, 5 online vouches). Use `computeTrustScore` when you need the full IQ.
 
 ### Policies (kind 30078, NIP-78)
-- `createPolicy(privateKey, params)`: community verification requirements
-- `PolicyChecker`: check users against a policy
+- `createPolicy(operatorPrivateKey, params)`: community verification requirements. `params: { communityId: string; adultMinTier: SignetTier; childMinTier: SignetTier; enforcement: 'client' | 'relay' | 'both'; minScore?: number; modMinTier?: SignetTier; verifierBond?: number; revocationThreshold?: number; description?: string }`. The d-tag is `signet:policy:<communityId>`.
+- `new PolicyChecker(policyEvent: NostrEvent)`: throws `SignetValidationError('Invalid policy event')` if the event is not a valid policy. Methods: `getPolicy(): ParsedPolicy`, `checkAdult(tier, score)`, `checkChild(tier, score)`, `checkModerator(tier, score)`. Each check returns `PolicyCheckResult`: `{ allowed: boolean; reason?: string; requiredTier: SignetTier; actualTier: SignetTier; requiredScore?: number; actualScore?: number }`.
+- `parsePolicy(event)`: `ParsedPolicy | null`. `checkPolicyCompliance(policy, userTier, userScore, { isChild?, isModerator? })`: `PolicyCheckResult`.
 
 ### Verifiers (kind 31000, type: verifier)
-- `createVerifierCredential(privateKey, params)`: register as professional verifier
-- `checkCrossVerification(pubkey, vouches, verifiers)`: activation check
+- `createVerifierCredential(privateKey, params)`: register as professional verifier. `params: { profession: string; jurisdiction: string; licenceHash: string; professionalBody: string; statement?: string; bondProof?: BondProof }`.
+- `checkCrossVerification(verifierPubkey, vouches, verifierCredentials)`: activation check. Returns `{ activated: boolean; vouchCount: number; professions: string[]; errors: string[] }`.
+- `isVerifierRevoked(verifierPubkey, revocations)`: `boolean`
+
+### Challenges and Revocations (kind 31000, type: challenge / revocation)
+- `createChallenge(reporterPrivateKey, params)`: `Promise<NostrEvent>`. `params: { verifierPubkey: string; reason: 'anomalous-volume' | 'registry-mismatch' | 'fraudulent-attestation' | 'licence-revoked' | 'other'; evidenceType: string; reporterTier: SignetTier; evidence: string; occurredAt?: number }`. `evidence` becomes the event content.
+- `createRevocation(authorityPrivateKey, params)`: `Promise<NostrEvent>`. `params: { verifierPubkey: string; challengeEventId: string; confirmations: number; bondAction: 'slashed' | 'returned' | 'held'; scope: 'full' | 'partial'; effectiveAt: number; summary: string }`.
+- `countChallengeConfirmations(challengeEventId, confirmationEvents, credentialEvents)`: `number`
+- `hasReachedRevocationThreshold(confirmations, threshold = 5)`: `boolean`
+- `parseChallenge(event)` / `parseRevocation(event)`: parsed object or `null`.
 
 ### Identity Bridge (kind 31000, type: identity-bridge)
-- `createIdentityBridge(anonKey, realKey, ring, signerIndex, minTier)`: link anonymous account to verified identity via ring signature
+- `createIdentityBridge(anonPrivateKey, realPrivateKey, ring, signerIndex, ringMinTier, opts?)`: link anonymous account to verified identity via ring signature. `ring: string[]` of pubkeys (at least 5, `MIN_BRIDGE_RING_SIZE`); `opts: { occurredAt?: number }`. Signed by the anonymous key.
+- `selectDecoyRing(verifiedPubkeys, realPubkey, ringSize = 5)`: `{ ring: string[]; signerIndex: number }`
+- `verifyIdentityBridge(event, opts?)`: `Promise<boolean>`. `opts: { maxAgeSeconds?: number }` (default 24 hours; `0` disables the freshness check).
 
 ### ZKP Age Proofs
-- `createAgeRangeProof(age, ageRange, subjectPubkey?)`: create an age-range proof
-- `verifyAgeRangeProof(proof, expectedAgeRange, expectedSubjectPubkey?)`: verify against an expected age policy
+- `createAgeRangeProof(age: number, ageRange: string, subjectPubkey?: string)`: `RangeProof` (synchronous). `subjectPubkey` binds the proof to one credential.
+- `verifyAgeRangeProof(proof, expectedAgeRange, expectedSubjectPubkey?)`: `boolean`. Verify against the age policy you expect, not the range the proof claims.
+- `serializeRangeProof(proof): string` / `deserializeRangeProof(json: string): RangeProof`
 
 ### Identity & Personas
-- `createSignetIdentity(mnemonic, passphrase?)` / `createSignetIdentityFromNsec(nsec)`: derive a master identity with natural-person and persona sub-identities
-- `deriveAdditionalPersona(root, name, index?)` / `deriveDependantIdentity(root, dependantIndex)`: derive further personas or dependant (child) identities
-- `createLinkageProof(...)` / `verifyLinkageProof(proof, ...)`: prove or verify that two personas share a root identity
+- `createSignetIdentity(mnemonic, passphrase?)` / `createSignetIdentityFromNsec(nsec: string | Uint8Array)`: derive a master identity. Both return `SignetIdentity` (`{ root, naturalPerson, persona, mnemonic? }`) with natural-person and persona sub-identities.
+- `deriveAdditionalPersona(root, name, index = 0)`: further `Persona`. `deriveDependantIdentity(root, dependantIndex)`: `DependantIdentity` (`{ derivationPath, naturalPerson, persona }`) for a child.
+- `createLinkageProof(root, child, type: 'blind' | 'full')` / `verifyLinkageProof(proof)` (returns `boolean`): prove or verify that a child identity belongs to a root.
+- `destroyIdentity(identity)`: zeroes the root and persona keys.
+- nsec-tree's own `fromMnemonic` / `fromNsec` are not re-exported; this package wraps them as the two `createSignetIdentity*` functions. `derive` and `zeroise` are re-exported.
 
 ### Guardian Delegation
-- `createGuardianDelegation(privateKey, params)`: kind 31000 (type: delegation) event scoping a guardian's authority over a dependant
+- `createGuardianDelegation(guardianPrivateKey, params)`: kind 31000 (type: delegation) event scoping a guardian's authority over a dependant. `params: { childPubkey: string; delegatePubkey: string; scope: 'full' | 'activity-approval' | 'content-management' | 'contact-approval'; expiresAt?: number; occurredAt?: number }`.
 
-The voting extension (kinds 30482–30484) is specified in `spec/voting.md` but implemented as a separate package, not part of `signet-protocol`.
+### signet-protocol/experimental (unstable)
+
+Import from `signet-protocol/experimental`. Nothing here is exported from the package root. These are unreleased draft contracts under protocol review: any export may change or be removed in any release, including a minor or patch, with no deprecation period. Do not depend on them for production data.
+
+- Private vault keys (see `docs/private-vault-v1.md`): `vaultPurpose`, `parseVaultPurpose`, `vaultKeyContext`, `deriveVaultIdentity`, `vaultIdentityFromMnemonic`; type `VaultDataset`.
+- Private vault checkpoints: `VAULT_EVENT_KIND`, `MAX_VAULT_CHUNKS`, `MAX_VAULT_DEVICES`, `MAX_VAULT_CONTROL_BYTES`, `MAX_VAULT_CHUNK_BYTES`, `vaultCheckpointTag`, `vaultContentHash`, `parseVaultCheckpoint`, `matchesVaultChunk`, `vaultCheckpointShapedTag`; types `VaultCheckpoint`, `VaultChunkRef`.
+- Private vault recovery: `readVaultSnapshot`, `readVaultRotations`, `readVaultHeads`, `readVaultHeadRotations`, `VAULT_CLOCK_TOLERANCE_SECONDS`; types `VaultReadResult`, `VaultReader`, `VaultHeadsResult`.
+- Private vault relay reads: `createVaultRelayReader`, `fetchVaultEvents`, `MAX_VAULT_EVENTS_PER_RELAY`, `VaultRelayError`.
+- Bot ownership profile (see `docs/bot-ownership-v1.md`): `BOT_OWNERSHIP_TYPE`, `BOT_OWNERSHIP_POLICY`, `buildBotOwnership`, `buildBotOwnershipRevocation`, `readBotOwnership`, `readBotOwnershipSync`, `botOwnershipRenewalDue`; types `BotOwnershipClaim`, `BotOwnershipResult`.
+
+The voting extension (kinds 30482–30484) is specified in `spec/voting.md` and implemented in the separate `nostr-anon-vote` package on npm, not in `signet-protocol`.
 
 ## Optional
 
