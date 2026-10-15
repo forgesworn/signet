@@ -45,7 +45,7 @@ if (meetsMinimumTier(badge, 2)) {
 
 Conventions used throughout:
 - Private keys are 64-character hex strings (not `Uint8Array`). Public keys are 64-character x-only hex. The identity functions are the exception: `createSignetIdentity` takes a BIP-39 mnemonic and `createSignetIdentityFromNsec` takes a bech32 nsec string or 32 raw bytes.
-- Every `create*` function is async and returns a signed `Promise<NostrEvent>` (with `id` and `sig`). The matching `build*Event` functions return an unsigned `UnsignedEvent`.
+- Of the `create*` functions documented in this file, the event-signing ones (credentials, vouches, policies, verifiers, challenges, revocations, identity bridges, guardian delegations) are async and return a signed `Promise<NostrEvent>` (with `id` and `sig`). The matching `build*Event` functions return an unsigned `UnsignedEvent`. The documented `create*` helpers that are not event signers return what is stated beside them: `createAgeRangeProof` (synchronous, `RangeProof`), `createSignetIdentity` / `createSignetIdentityFromNsec` (synchronous, `SignetIdentity`) and `createLinkageProof` (synchronous, `LinkageProof`). The package root exports other `create*` functions that this file does not cover (for example `createTwoCredentialCeremony`, `createBondProof`); check their return types in `src/` rather than assuming the event-signer shape.
 - Tiers are `SignetTier` (`1 | 2 | 3 | 4`). Timestamps (`expiresAt`, `occurredAt`, `accountCreatedAt`) are unix seconds.
 - Throws use the `SignetError` hierarchy (`SignetValidationError`, `SignetCryptoError`).
 
@@ -124,6 +124,7 @@ The voting extension (kinds 30482–30484) is specified in `spec/voting.md` and 
 
 ## Optional
 
+- [llms-full.txt](llms-full.txt): llms.txt plus the full protocol and voting specifications and the developer guides in one file
 - [Full protocol specification](spec/protocol.md)
 - [Voting extension specification](spec/voting.md)
 - [Signet in 5 Minutes: developer overview](docs/signet-in-5-minutes.md)

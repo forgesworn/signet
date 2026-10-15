@@ -153,5 +153,5 @@ stateDiagram-v2
 
 | File | Description |
 |------|-------------|
-| [llms.txt](../llms.txt) | Concise LLM-optimised overview (~100 lines) |
+| [llms.txt](../llms.txt) | Concise LLM-optimised overview of the API |
 | [llms-full.txt](../llms-full.txt) | Full context: llms.txt + protocol spec + voting spec + developer guides |

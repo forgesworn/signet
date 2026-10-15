@@ -10,6 +10,8 @@ This repo contains:
 - `legal/`: legal documents in multiple languages
 - `docs/signet-in-5-minutes.md`: one-page developer overview
 - `docs/implementation-levels.md`: three-level integration guide for client developers
+- `llms.txt`: concise API overview for LLM tooling (ships in the npm package)
+- `llms-full.txt`: `llms.txt` followed by `spec/protocol.md`, `spec/voting.md`, `docs/signet-in-5-minutes.md` and `docs/implementation-levels.md`, joined by `---` rules, with the `protocol.md` link in `spec/voting.md` rewritten to `spec/protocol.md` (ships in the npm package). It is a concatenation with no build script: regenerate it by hand whenever any of those five files change, and keep its API text in step with `src/`
 
 ## Key Concepts
 

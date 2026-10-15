@@ -3,7 +3,7 @@
 Signet is an open-source, decentralised identity verification protocol for Nostr. It lets users prove claims
 about who they are — human, professional, adult, organisation — without exposing personal data. Verification
 is anchored to professional bodies (law societies, medical boards, notary commissions) rather than any central
-authority. Trust accumulates as a continuous Signet Score score (0–200, where 100 represents the current government standard) assembled from weighted signals, and is expressed as a tier badge any Nostr client can display.
+authority. Trust accumulates as a continuous Signet Score (0–200, where 100 represents the current government standard) assembled from weighted signals, and is expressed as a tier badge any Nostr client can display.
 
 
 ## How Trust Flows
