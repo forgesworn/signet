@@ -124,6 +124,8 @@ The voting extension (kinds 30482–30484) is specified in `spec/voting.md` and 
 
 ## Optional
 
+These paths ship in the npm package (`spec/`, `examples/`, and the `docs/` pages named below and in the experimental section above), so the relative links resolve inside `node_modules/signet-protocol/`. The examples import from the package's own `src/` directory; in your own code import from `signet-protocol`.
+
 - [llms-full.txt](llms-full.txt): llms.txt plus the full protocol and voting specifications and the developer guides in one file
 - [Full protocol specification](spec/protocol.md)
 - [Voting extension specification](spec/voting.md)

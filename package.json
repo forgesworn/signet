@@ -19,6 +19,12 @@
   "files": [
     "dist",
     "src",
+    "spec",
+    "examples",
+    "docs/signet-in-5-minutes.md",
+    "docs/implementation-levels.md",
+    "docs/private-vault-v1.md",
+    "docs/bot-ownership-v1.md",
     "llms.txt",
     "llms-full.txt"
   ],
