@@ -174,13 +174,15 @@ describe('shamir', () => {
     });
 
     it('wordsToShare detects corrupted words via checksum', () => {
-      const shares = splitSecret(secret16, 2, 3);
-      const words = shareToWords(shares[0]);
-      const middleIdx = Math.floor(words.length / 2);
-      const original = words[middleIdx];
-      const replacement = original === 'abandon' ? 'ability' : 'abandon';
+      // A fixed share: a random share and replacement word occasionally pass the
+      // checksum by chance, which made this test flaky.
+      const words = [
+        'avoid', 'avoid', 'erupt', 'year', 'smoke', 'alien', 'learn', 'lab',
+        'spring', 'disease', 'glue', 'spice', 'great', 'glad', 'fix',
+      ];
+      expect(() => wordsToShare(words)).not.toThrow();
       const corrupted = [...words];
-      corrupted[middleIdx] = replacement;
+      corrupted[7] = 'abandon';
       expect(() => wordsToShare(corrupted)).toThrow('Checksum mismatch');
     });
 
