@@ -48,7 +48,7 @@ if (meetsMinimumTier(badge, 2)) {
 
 See [Signet in 5 Minutes](docs/signet-in-5-minutes.md) for a full developer overview, or the [full flow example](examples/full-flow.ts) for all 4 tiers, trust scoring, policies, and verifier lifecycle.
 
-For LLM and agent tooling, [llms.txt](llms.txt) is a concise API overview and [llms-full.txt](llms-full.txt) adds the full protocol and voting specifications and the developer guides in one file. Both ship in the npm package.
+For LLM and agent tooling, [llms.txt](llms.txt) is a concise API overview and [llms-full.txt](llms-full.txt) adds the full protocol and voting specifications and the developer guides in one file. Both ship in the npm package, as do `spec/`, `examples/` and the four `docs/` pages linked from this README and `llms.txt` (`signet-in-5-minutes.md`, `implementation-levels.md`, `private-vault-v1.md` and `bot-ownership-v1.md`), so those relative links resolve inside `node_modules/signet-protocol/`. Other files under `docs/`, `legal/` and `tests/` stay in the repository only.
 
 ## Protocol
 
