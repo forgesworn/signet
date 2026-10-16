@@ -7,6 +7,14 @@
 
 # [1.2.0](https://github.com/forgesworn/signet/compare/v1.1.0...v1.2.0) (2026-04-12)
 
+## 1.11.1 (2026-10-16)
+
+### Bug Fixes
+
+- correct the published docs against the source (#63) (docs)
+
+
+
 ## 1.11.0 (2026-09-24)
 
 ### Features
