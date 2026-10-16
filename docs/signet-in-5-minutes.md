@@ -3,7 +3,7 @@
 Signet is an open-source, decentralised identity verification protocol for Nostr. It lets users prove claims
 about who they are — human, professional, adult, organisation — without exposing personal data. Verification
 is anchored to professional bodies (law societies, medical boards, notary commissions) rather than any central
-authority. Trust accumulates as a continuous Signet Score score (0–200, where 100 represents the current government standard) assembled from weighted signals, and is expressed as a tier badge any Nostr client can display.
+authority. Trust accumulates as a continuous Signet Score (0–200, where 100 represents the current government standard) assembled from weighted signals, and is expressed as a tier badge any Nostr client can display.
 
 
 ## How Trust Flows
@@ -131,19 +131,19 @@ npm install signet-protocol
 Fetch events from a relay, then call `computeBadge`:
 
 ```typescript
-import { computeBadge, buildBadgeFilters, meetsMinimumTier } from 'signet-protocol';
+import { computeBadge, buildBadgeFilters, fetchFromRelay, meetsMinimumTier } from 'signet-protocol';
 import type { NostrEvent } from 'signet-protocol';
 
 // 1. Build relay filters for one or more pubkeys
 const pubkeys = ['<hex-pubkey>'];
 const filters = buildBadgeFilters(pubkeys);
-// filters = [{ kinds: [31000], '#d': ['<hex-pubkey>'] }]
+// filters = [{ kinds: [31000], '#d': ['credential:<hex-pubkey>', 'vouch:<hex-pubkey>'] }]
 
-// 2. Fetch events from your relay (using whatever WebSocket client you prefer)
-const events: NostrEvent[] = await fetchFromRelay(filters);
+// 2. Fetch events from your relay (fetchFromRelay is the package's own client; any Nostr client works)
+const events: NostrEvent[] = await fetchFromRelay('wss://relay.example.com', filters);
 
 // 3. Compute the badge
-const badge = computeBadge(pubkeys[0], events, { verifySignatures: true });
+const badge = await computeBadge(pubkeys[0], events, { verifySignatures: true });
 
 // badge.displayLabel  => "Verified (Tier 3)"
 // badge.score         => 106

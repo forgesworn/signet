@@ -87,7 +87,7 @@ flowchart TB
     end
 
     subgraph L2["Layer 2: Pedersen range proofs (secp256k1)"]
-        Age["Age range proofs\n(~700 byte, no trusted setup)"]
+        Age["Age range proofs\n(no trusted setup)"]
     end
 
     subgraph L3["Layer 3: LSAG"]
@@ -153,5 +153,5 @@ stateDiagram-v2
 
 | File | Description |
 |------|-------------|
-| [llms.txt](../llms.txt) | Concise LLM-optimised overview (~100 lines) |
+| [llms.txt](../llms.txt) | Concise LLM-optimised overview of the API |
 | [llms-full.txt](../llms-full.txt) | Full context: llms.txt + protocol spec + voting spec + developer guides |

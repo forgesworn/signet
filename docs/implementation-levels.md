@@ -43,7 +43,7 @@ const filters = buildBadgeFilters([pubkey]);
 // The filters request kind 31000 with credential and vouch type tags.
 
 // 2. Compute badge from the events you receive
-const badge = computeBadge(pubkey, events);
+const badge = await computeBadge(pubkey, events); // async: returns Promise<BadgeInfo>
 
 // 3. Display
 if (badge.isVerified) {
@@ -56,7 +56,7 @@ The `badge` object includes:
 - `badge.isVerified` — boolean, true if the pubkey has any Signet verification
 - `badge.tier` — number 1–4, the highest verified tier
 - `badge.tierLabel` — human-readable string (e.g. `"Vouched"`, `"Verified"`, `"Verified (Child Safety)"`)
-- `badge.score` — integer 0–200 Signet Score derived from weighted trust signals (100 = government standard)
+- `badge.score`: integer 0–200 on the Signet IQ scale (100 = government standard), derived from credentials and vouches only. It is a Level 1 approximation of `computeTrustScore(...).score`: it ignores account age and identity bridges and applies no per-type caps
 
 ### Trust tiers at a glance
 
