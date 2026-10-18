@@ -136,6 +136,65 @@ describe('badge display (Level 1)', () => {
       expect(badge.vouchCount).toBe(1);
     });
 
+    it('does not let a forged vouch shadow the real one when verifying signatures', async () => {
+      const subject = generateKeyPair();
+      const voucher = generateKeyPair();
+
+      const real = await createVouch(voucher.privateKey, {
+        subjectPubkey: subject.publicKey,
+        method: 'in-person',
+        voucherTier: 2,
+        voucherScore: 50,
+      });
+      const forged: NostrEvent = { ...real, id: real.id.replace(/^./, real.id[0] === '0' ? '1' : '0') };
+
+      const badge = await computeBadge(subject.publicKey, [forged, real], { verifySignatures: true });
+      expect(badge.vouchCount).toBe(1);
+    });
+
+    describe('isTrustedIssuer', () => {
+      it('skips Tier 3 credentials from an issuer the predicate rejects', async () => {
+        const verifier = generateKeyPair();
+        const subject = generateKeyPair();
+        const cred = await createProfessionalCredential(
+          verifier.privateKey,
+          subject.publicKey,
+          await buildTier3Opts(subject.privateKey, { profession: 'legal', jurisdiction: 'GB' })
+        );
+
+        const badge = await computeBadge(subject.publicKey, [cred], { isTrustedIssuer: () => false });
+        expect(badge.tier).toBe(1);
+        expect(badge.score).toBe(0);
+        expect(badge.isVerified).toBe(false);
+        expect(badge.credentialCount).toBe(0);
+      });
+
+      it('counts Tier 3 credentials from an issuer the predicate accepts', async () => {
+        const verifier = generateKeyPair();
+        const subject = generateKeyPair();
+        const cred = await createProfessionalCredential(
+          verifier.privateKey,
+          subject.publicKey,
+          await buildTier3Opts(subject.privateKey, { profession: 'legal', jurisdiction: 'GB' })
+        );
+
+        const seen: string[] = [];
+        const badge = await computeBadge(subject.publicKey, [cred], {
+          isTrustedIssuer: (pk) => { seen.push(pk); return pk === verifier.publicKey; },
+        });
+        expect(badge.tier).toBe(3);
+        expect(seen).toEqual([verifier.publicKey]);
+      });
+
+      it('does not consult the predicate for Tier 1 credentials', async () => {
+        const kp = generateKeyPair();
+        const cred = await createSelfDeclaredCredential(kp.privateKey);
+        const badge = await computeBadge(kp.publicKey, [cred], { isTrustedIssuer: () => false });
+        expect(badge.isVerified).toBe(true);
+        expect(badge.tier).toBe(1);
+      });
+    });
+
     it('ignores expired credentials', async () => {
       const kp = generateKeyPair();
       const past = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago

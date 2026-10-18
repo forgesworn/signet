@@ -179,6 +179,54 @@ describe('verifiers', () => {
       expect(result.activated).toBe(false);
       expect(result.vouchCount).toBe(1);
     });
+
+    async function crossVerifiedSetup() {
+      const newVerifier = generateKeyPair();
+      const lawyer = generateKeyPair();
+      const doctor = generateKeyPair();
+      const creds = await Promise.all([
+        createVerifierCredential(lawyer.privateKey, {
+          profession: 'solicitor', jurisdiction: 'UK', licenceHash: 'law123', professionalBody: 'Law Society',
+        }),
+        createVerifierCredential(doctor.privateKey, {
+          profession: 'doctor', jurisdiction: 'UK', licenceHash: 'med456', professionalBody: 'GMC',
+        }),
+      ]);
+      const vouches = await Promise.all([lawyer, doctor].map((v) => createVouch(v.privateKey, {
+        subjectPubkey: newVerifier.publicKey, method: 'in-person', voucherTier: 3, voucherScore: 90,
+      })));
+      return { newVerifier, lawyer, doctor, creds, vouches };
+    }
+
+    it('skips revoked vouchers when revocations are supplied', async () => {
+      const { newVerifier, lawyer, creds, vouches } = await crossVerifiedSetup();
+      const authority = generateKeyPair();
+      const revocation = await createRevocation(authority.privateKey, {
+        verifierPubkey: lawyer.publicKey,
+        challengeEventId: 'abc123',
+        confirmations: 7,
+        bondAction: 'slashed',
+        scope: 'full',
+        effectiveAt: Math.floor(Date.now() / 1000),
+        summary: 'Fraudulent attestations confirmed',
+      });
+
+      expect(checkCrossVerification(newVerifier.publicKey, vouches, creds).activated).toBe(true);
+      const result = checkCrossVerification(newVerifier.publicKey, vouches, creds, { revocations: [revocation] });
+      expect(result.activated).toBe(false);
+      expect(result.vouchCount).toBe(1);
+      expect(result.professions).toEqual(['doctor']);
+    });
+
+    it('skips vouchers the isActiveVerifier predicate rejects', async () => {
+      const { newVerifier, doctor, creds, vouches } = await crossVerifiedSetup();
+      const result = checkCrossVerification(newVerifier.publicKey, vouches, creds, {
+        isActiveVerifier: (pk) => pk !== doctor.publicKey,
+      });
+      expect(result.activated).toBe(false);
+      expect(result.vouchCount).toBe(1);
+      expect(result.professions).toEqual(['solicitor']);
+    });
   });
 
   describe('isVerifierRevoked', () => {

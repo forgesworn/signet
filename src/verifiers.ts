@@ -75,11 +75,23 @@ export function parseVerifier(event: NostrEvent): ParsedVerifier | null {
 }
 
 /** Check if a verifier has sufficient cross-verification.
- *  Requires vouches from verified professionals in different fields. */
+ *  Requires vouches from verified professionals in different fields.
+ *
+ *  The spec also requires each voucher to be an active, non-revoked verifier.
+ *  Pass `options.revocations` to skip vouchers that `isVerifierRevoked` reports
+ *  as revoked, and `options.isActiveVerifier` to skip vouchers your client does
+ *  not treat as activated. Activation is recursive (a voucher's own activation
+ *  depends on its vouchers), so the library takes it as a caller-supplied
+ *  predicate rather than resolving the chain itself. Without these options a
+ *  voucher only needs a `type: verifier` credential with a `profession` tag. */
 export function checkCrossVerification(
   verifierPubkey: string,
   vouches: NostrEvent[],
-  verifierCredentials: NostrEvent[]
+  verifierCredentials: NostrEvent[],
+  options?: {
+    revocations?: NostrEvent[];
+    isActiveVerifier?: (voucherPubkey: string) => boolean;
+  }
 ): {
   activated: boolean;
   vouchCount: number;
@@ -114,6 +126,10 @@ export function checkCrossVerification(
     // Voucher must themselves be a verified professional
     const voucherProfession = verifierProfessions.get(vouch.pubkey);
     if (!voucherProfession) continue;
+
+    // Voucher must be active and not revoked, when the caller supplies the evidence
+    if (options?.revocations && isVerifierRevoked(vouch.pubkey, options.revocations)) continue;
+    if (options?.isActiveVerifier && !options.isActiveVerifier(vouch.pubkey)) continue;
 
     // One vouch per voucher
     if (vouchersSeen.has(vouch.pubkey)) continue;

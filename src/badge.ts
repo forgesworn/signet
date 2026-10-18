@@ -54,16 +54,24 @@ const TIER_TO_TRUST_LEVEL: Record<SignetTier, TrustLevel> = {
  *
  * @param pubkey - The Nostr pubkey to compute a badge for
  * @param events - All relevant kind 31000 (`type: credential` and `type: vouch`) events
- * @param options - Optional configuration
+ * @param options - Optional configuration. `isTrustedIssuer`, when given, is
+ *   called with the signer of each Tier 3/4 or `verification-type: professional`
+ *   credential; credentials whose issuer it rejects are skipped. Without it,
+ *   any key's Tier 3/4 credential counts.
  * @returns Badge info for display
  */
 export async function computeBadge(
   pubkey: string,
   events: NostrEvent[],
-  options?: { verifySignatures?: boolean; now?: number }
+  options?: {
+    verifySignatures?: boolean;
+    now?: number;
+    isTrustedIssuer?: (issuerPubkey: string) => boolean;
+  }
 ): Promise<BadgeInfo> {
   const now = options?.now ?? Math.floor(Date.now() / 1000);
   const verify = options?.verifySignatures ?? false;
+  const isTrustedIssuer = options?.isTrustedIssuer;
 
   let highestTier: SignetTier = 1;
   let rawScore = 0;
@@ -95,6 +103,15 @@ export async function computeBadge(
     // Optional signature verification
     if (verify && !await verifyEvent(event)) continue;
 
+    const rawTier = parseInt(getTagValue(event, 'tier') || '1', 10);
+    const tier = (rawTier >= 1 && rawTier <= 4 ? rawTier : 1) as SignetTier;
+    const verificationType = getTagValue(event, 'verification-type');
+
+    // Optional issuer standing: professional-grade credentials need a trusted issuer
+    if (isTrustedIssuer && (tier >= 3 || verificationType === 'professional') && !isTrustedIssuer(event.pubkey)) {
+      continue;
+    }
+
     hasAnyCredential = true;
     credentialCount++;
 
@@ -104,11 +121,8 @@ export async function computeBadge(
       if (et) entityType = et;
     }
 
-    const rawTier = parseInt(getTagValue(event, 'tier') || '1', 10);
-    const tier = (rawTier >= 1 && rawTier <= 4 ? rawTier : 1) as SignetTier;
     if (tier > highestTier) highestTier = tier;
 
-    const verificationType = getTagValue(event, 'verification-type');
     if (verificationType === 'professional') {
       rawScore += TRUST_WEIGHTS.PROFESSIONAL_VERIFICATION;
     }
@@ -125,11 +139,11 @@ export async function computeBadge(
     const subject = dTag.startsWith('vouch:') ? dTag.slice('vouch:'.length) : dTag;
     if (subject !== pubkey) continue;
 
-    // One vouch per voucher
+    // One vouch per voucher. Verify before claiming the slot, so a forged
+    // vouch under a voucher's pubkey cannot shadow that voucher's real one.
     if (vouchersSeen.has(event.pubkey)) continue;
-    vouchersSeen.add(event.pubkey);
-
     if (verify && !await verifyEvent(event)) continue;
+    vouchersSeen.add(event.pubkey);
 
     vouchCount++;
 
