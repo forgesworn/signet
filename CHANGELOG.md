@@ -7,6 +7,14 @@
 
 # [1.2.0](https://github.com/forgesworn/signet/compare/v1.1.0...v1.2.0) (2026-04-12)
 
+## 1.11.3 (2026-10-18)
+
+### Bug Fixes
+
+- add opt-in issuer and voucher standing checks (#68)
+
+
+
 ## 1.11.2 (2026-10-18)
 
 ### Bug Fixes

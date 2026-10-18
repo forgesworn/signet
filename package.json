@@ -1,6 +1,6 @@
 {
   "name": "signet-protocol",
-  "version": "1.11.2",
+  "version": "1.11.3",
   "description": "Decentralised identity verification protocol for Nostr",
   "homepage": "https://github.com/forgesworn/signet#readme",
   "type": "module",
