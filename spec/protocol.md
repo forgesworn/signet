@@ -365,6 +365,8 @@ Minimum requirement for verifier activation:
 - At least 2 different professions represented
 - Vouchers must themselves be active, non-revoked verifiers
 
+Activation is recursive: whether a voucher is active depends on its own vouchers. A client therefore resolves it from a set of verifiers it already accepts and cannot derive it from a single verifier's vouches alone. A client counting vouches (for activation or for a score) MUST check each vouch's signature before treating that voucher as seen, so that an invalid event carrying a voucher's pubkey cannot displace the voucher's valid vouch.
+
 ### Layer 3 — Rate Limiting / Anomaly Detection
 
 All credentials are public Nostr events. Issuance volume is visible to the entire network.

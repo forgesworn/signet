@@ -79,7 +79,7 @@ The `badge` object includes:
 Two things Level 1 does not do for you:
 
 - Signature checking is opt-in. `verifySignatures` defaults to `false`, so `computeBadge(pubkey, events)` with no options trusts every event it is given. Keep `{ verifySignatures: true }` unless the events were already verified (`fetchFromRelay` drops events with an invalid signature or id by default; events from other sources are not checked for you).
-- Issuer standing is not checked. `computeBadge` does not look at who signed a Tier 3 or Tier 4 credential, and `buildBadgeFilters` fetches no verifier or revocation events, so any key can sign an event that carries `tier: 3` and it will count. To require an activated, unrevoked verifier, fetch the verifier credentials, their vouches and revocations yourself, apply `checkCrossVerification(...).activated` and `isVerifierRevoked(...)`, and drop other issuers' Tier 3 and Tier 4 credentials before calling `computeBadge` (see `llms.txt`).
+- Issuer standing is opt-in. `computeBadge` checks who issued a Tier 3 or Tier 4 credential only when you pass `isTrustedIssuer`, and `buildBadgeFilters` does not fetch verifier or revocation events. Without the option, any key can sign an event that carries `tier: 3` and it will count. To require an activated, unrevoked verifier, fetch the verifier credentials, their vouches and revocations yourself, decide which issuers pass with `checkCrossVerification(...).activated` and `isVerifierRevoked(...)`, and pass `{ isTrustedIssuer: (pk) => accepted.has(pk) }` to `computeBadge` (see `llms.txt`).
 
 ---
 
