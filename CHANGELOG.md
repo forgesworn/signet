@@ -7,6 +7,14 @@
 
 # [1.2.0](https://github.com/forgesworn/signet/compare/v1.1.0...v1.2.0) (2026-04-12)
 
+## 1.11.2 (2026-10-18)
+
+### Bug Fixes
+
+- state issuer-standing, signature and type contracts the source implements (#67) (docs)
+
+
+
 ## 1.11.1 (2026-10-16)
 
 ### Bug Fixes
