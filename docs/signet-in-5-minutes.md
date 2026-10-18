@@ -69,7 +69,7 @@ kind 30078 (NIP-78) policy parsing so your client respects community verificatio
 
 Issue professional credentials, manage verifier lifecycle (kind 31000 types: verifier, challenge, revocation), build
 guardian delegation (kind 31000, `type: delegation`), support credential chains (supersedes / superseded-by),
-and integrate the voting extension (kinds 30482–30484).
+and integrate the voting extension (kinds 30482–30484). The voting extension is specified in `spec/voting.md` and implemented in the separate `nostr-anon-vote` package, not in `signet-protocol`; this package ships only the linkable ring signature primitives it builds on (`lsagSign`, `lsagVerify`, `computeKeyImage`).
 
 
 ## How Verification Works (Tier 3 / 4)
@@ -119,6 +119,8 @@ by two other licensed professionals before becoming active. A challenge / revoca
 | 30483 | —                 | Voting extension: cast an anonymous ballot         |
 | 30484 | —                 | Voting extension: publish tallied result           |
 
+Kinds 30482–30484 are specified in `spec/voting.md` and implemented in the separate `nostr-anon-vote` package, not in `signet-protocol`.
+
 
 ## Integrating at Level 1
 
@@ -146,7 +148,7 @@ const events: NostrEvent[] = await fetchFromRelay('wss://relay.example.com', fil
 const badge = await computeBadge(pubkeys[0], events, { verifySignatures: true });
 
 // badge.displayLabel  => "Verified (Tier 3)"
-// badge.score         => 106
+// badge.score         => 106 (illustrative; see the score note below)
 // badge.tier          => 3
 // badge.vouchCount    => 5
 
@@ -159,6 +161,10 @@ if (meetsMinimumTier(badge, 2)) {
 `computeBadge` accepts any mix of kind 31000 (`type: credential` and `type: vouch`) events. It handles expiry, deduplication
 (one vouch counted per voucher pubkey), and optional Schnorr signature verification. The result is
 a plain object — no rendering assumptions are made.
+
+- `verifySignatures` defaults to `false`. `computeBadge(pubkey, events)` with no options checks no signatures, so keep `{ verifySignatures: true }` unless the events were already verified. `fetchFromRelay` drops events with an invalid signature or id by default; events from any other source are not checked for you.
+- `badge.score` is on the 0–200 Signet IQ scale but is a Level 1 approximation of `computeTrustScore(...).score`: it ignores account age and identity bridges and applies no per-type caps (1 professional verification, 3 in-person vouches, 5 online vouches). Use `computeTrustScore` for the full score.
+- `computeBadge` does not check who issued a Tier 3 or Tier 4 credential, and `buildBadgeFilters` fetches no verifier or revocation events. Any key can sign an event that carries `tier: 3` and it will count. To require an activated, unrevoked verifier, fetch the verifier credentials, their vouches and revocations yourself, apply `checkCrossVerification(...).activated` and `isVerifierRevoked(...)`, and drop other issuers' Tier 3 and Tier 4 credentials before calling `computeBadge` (see `llms.txt`).
 
 The `buildBadgeFilters` helper returns a standard Nostr REQ filter array ready for use with any
 relay client library.
