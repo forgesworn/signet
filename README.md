@@ -39,12 +39,19 @@ const events = await fetchFromRelay('wss://relay.example.com', filters);
 const badge = await computeBadge('<hex-pubkey>', events, { verifySignatures: true });
 
 // badge.tier => 3, badge.score => 106, badge.displayLabel => "Verified (Tier 3)"
+// (illustrative values; badge.score is a Level 1 approximation, see the notes below)
 if (meetsMinimumTier(badge, 2)) {
   // allow posting in verified-only community
 }
 ```
 
 `fetchFromRelay(relayUrl, filters)` is the package's own minimal relay client and returns `Promise<NostrEvent[]>`. Any other Nostr client works too: pass `buildBadgeFilters` output as the REQ filters and hand the resulting events to `computeBadge`. `computeBadge` is async and returns `Promise<BadgeInfo>`.
+
+Three things to know before you copy this:
+
+- `verifySignatures` defaults to `false`. A call such as `computeBadge(pubkey, events)` checks no signatures and trusts every event it is given, so keep `{ verifySignatures: true }` unless the events were already verified. `fetchFromRelay` drops events with an invalid signature or id by default; events from any other source are not checked for you.
+- `badge.score` is on the 0-200 Signet IQ scale but is a Level 1 approximation of `computeTrustScore(...).score`: it ignores account age and identity bridges and applies none of the per-type caps (1 professional verification, 3 in-person vouches, 5 online vouches). Use `computeTrustScore` when you need the full score.
+- `computeBadge` does not check who issued a Tier 3 or Tier 4 credential, and `buildBadgeFilters` does not fetch verifier or revocation events. Any key can sign an event that carries `tier: 3`, and it will count. To require that the issuer is an activated, unrevoked verifier, fetch the verifier credentials, their vouches and revocations yourself, apply `checkCrossVerification(...).activated` and `isVerifierRevoked(...)`, and drop other issuers' Tier 3 and Tier 4 credentials before calling `computeBadge`. [llms.txt](llms.txt) has the steps.
 
 See [Signet in 5 Minutes](docs/signet-in-5-minutes.md) for a full developer overview, or the [full flow example](examples/full-flow.ts) for all 4 tiers, trust scoring, policies, and verifier lifecycle.
 

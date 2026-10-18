@@ -24,12 +24,15 @@ const events = await fetchFromRelay('wss://relay.example.com', filters);
 // Compute badge (async: returns Promise<BadgeInfo>)
 const badge = await computeBadge('<hex-pubkey>', events, { verifySignatures: true });
 // badge.tier => 3, badge.score => 106, badge.displayLabel => "Verified (Tier 3)"
+// (illustrative values; badge.score is a Level 1 approximation, see "Trust & Badges")
 
 // Gate features on verification level
 if (meetsMinimumTier(badge, 2)) {
   // allow posting in verified-only community
 }
 ```
+
+`verifySignatures` defaults to `false` in `computeBadge`, so keep `{ verifySignatures: true }` in copied code unless the events were already verified. `computeBadge` also does not check who issued a Tier 3 or Tier 4 credential; see "Who may issue Tier 3 and Tier 4" before gating on a professional tier.
 
 `fetchFromRelay(relayUrl: string, filters: NostrFilter[]): Promise<NostrEvent[]>` connects, collects events until EOSE and disconnects. Non-localhost relay URLs must be `wss://`. Any other Nostr client works equally well: pass the `buildBadgeFilters` output as REQ filters and give the returned events to `computeBadge`.
 
@@ -48,13 +51,16 @@ Conventions used throughout:
 - Of the `create*` functions documented in this file, the event-signing ones (credentials, vouches, policies, verifiers, challenges, revocations, identity bridges, guardian delegations) are async and return a signed `Promise<NostrEvent>` (with `id` and `sig`). The matching `build*Event` functions return an unsigned `UnsignedEvent`. The documented `create*` helpers that are not event signers return what is stated beside them: `createAgeRangeProof` (synchronous, `RangeProof`), `createSignetIdentity` / `createSignetIdentityFromNsec` (synchronous, `SignetIdentity`) and `createLinkageProof` (synchronous, `LinkageProof`). The package root exports other `create*` functions that this file does not cover (for example `createTwoCredentialCeremony`, `createBondProof`); check their return types in `src/` rather than assuming the event-signer shape.
 - Tiers are `SignetTier` (`1 | 2 | 3 | 4`). Timestamps (`expiresAt`, `occurredAt`, `accountCreatedAt`) are unix seconds.
 - Throws use the `SignetError` hierarchy (`SignetValidationError`, `SignetCryptoError`).
+- Types are exported from the package root as type-only exports (use `import type { NostrEvent } from 'signet-protocol'`; they have no runtime value): `NostrEvent` (`{ id, pubkey, created_at, kind, tags: string[][], content, sig }`), `UnsignedEvent` (the same without `id` and `sig`), `NostrFilter` (`{ ids?, authors?, kinds?, '#d'?, '#p'?, '#L'?, '#l'?, since?, until?, limit? }`), `BadgeInfo` and `RangeProof`. The error classes `SignetError`, `SignetValidationError` and `SignetCryptoError` are exported from the root as ordinary values you can use with `instanceof`. `src/errors.ts` also defines `SignetVotingError`, but it is not exported from the root and nothing in this package throws it.
+- Arguments named `events`, `credentials`, `vouches`, `bridges`, `revocations`, `verifierCredentials` and `confirmationEvents` are raw signed `NostrEvent[]` as returned by a relay, not parsed objects (`ParsedCredential`, `ParsedVouch` and so on). The functions read the tags themselves and skip events of the wrong kind or `type`. Unless a signature check is stated beside a function, it does not verify signatures: verify first, or fetch with `fetchFromRelay`, whose `RelayClient` drops events with an invalid signature or id by default.
+- Issuer standing is not checked by the Level 1 and scoring functions. See "Who may issue Tier 3 and Tier 4" below.
 
 ### Credentials (kind 31000, type: credential)
 - `createSelfDeclaredCredential(privateKey, scope = 'adult', expiresAt?)`: Tier 1. `scope` is `'adult' | 'adult+child'`.
 - `createPeerVouchedCredential(issuerPrivateKey, subjectPubkey, opts)`: Tier 2. `opts: { assertionEventId: string; assertionRelay?: string; expiresAt?: number }`. `assertionEventId` is the subject's Tier 1 event.
 - `createProfessionalCredential(verifierPrivateKey, subjectPubkey, opts)`: Tier 3. `opts: { assertionEventId: string; profession: string; jurisdiction: string; actualAge: number; assertionRelay?: string; expiresAt?: number; occurredAt?: number; proofBlob?: string }`. Generates an `'18+'` range proof from `actualAge` into the event content.
 - `createChildSafetyCredential(verifierPrivateKey, subjectPubkey, opts)`: Tier 4. Same `opts` as Tier 3 plus `ageRange: string` (the range proved, e.g. `'8-12'`).
-- `verifyCredential(event)`: `Promise<{ signatureValid: boolean; structureValid: boolean; expired: boolean; errors: string[] }>`
+- `verifyCredential(event: NostrEvent)`: `Promise<{ signatureValid: boolean; structureValid: boolean; expired: boolean; errors: string[] }>`. Checks the event's own Schnorr signature, tag structure (for example a Tier 3 or Tier 4 credential must carry `verification-type: professional` and a `profession` tag) and expiry. It does not look at who signed it: a valid result does not mean the issuer is an activated, unrevoked verifier. See "Who may issue Tier 3 and Tier 4".
 - `parseCredential(event)`: `ParsedCredential | null`
 
 `ageRange` format everywhere: `'<min>-<max>'` inclusive (e.g. `'8-12'`, `'13-17'`) or `'<min>+'` (e.g. `'18+'`, upper bound 150). Anything else fails to parse.
@@ -63,15 +69,25 @@ Default credential expiry is two years (`DEFAULT_CREDENTIAL_EXPIRY_SECONDS`) whe
 
 ### Vouches (kind 31000, type: vouch)
 - `createVouch(voucherPrivateKey, params)`: vouch for another user. `params: { subjectPubkey: string; method: 'in-person' | 'online'; voucherTier: SignetTier; voucherScore: number; context?: string; occurredAt?: number }`. `voucherScore` is the voucher's own Signet IQ (0–200).
-- `hasEnoughVouches(vouches, subjectPubkey, threshold = 3, minVoucherTier = 2)`: `boolean`. `true` when the number of qualifying vouches (one per voucher, voucher tier ≥ `minVoucherTier`) reaches `threshold`. `countQualifyingVouches(vouches, subjectPubkey, minVoucherTier?)` returns the count.
+- `hasEnoughVouches(vouches: NostrEvent[], subjectPubkey: string, threshold = 3, minVoucherTier: SignetTier = 2)`: `boolean`. `vouches` is raw kind 31000 vouch events (`NostrEvent[]`), not `ParsedVouch` objects. `true` when the number of qualifying vouches (one per voucher, `voucher-tier` tag ≥ `minVoucherTier`) reaches `threshold`. It does not verify signatures, and the voucher tier is the self-reported tag, not looked up. `countQualifyingVouches(vouches: NostrEvent[], subjectPubkey: string, minVoucherTier?: SignetTier)` returns the count.
 
 ### Trust & Badges
-- `computeBadge(pubkey, events, opts?)`: `Promise<BadgeInfo>`. `opts: { verifySignatures?: boolean (default false); now?: number }`. `BadgeInfo: { pubkey, tier, tierLabel, score, isVerified, displayLabel, credentialCount, vouchCount, entityType? }`.
-- `buildBadgeFilters(pubkeys: string[])`: `Array<{ kinds: number[]; '#d': string[] }>`. One filter for kind 31000 with d-tags `credential:<pubkey>` and `vouch:<pubkey>` for each pubkey.
+- `computeBadge(pubkey: string, events: NostrEvent[], opts?)`: `Promise<BadgeInfo>`. `opts: { verifySignatures?: boolean (default false); now?: number }`. `BadgeInfo: { pubkey, tier, tierLabel, score, isVerified, displayLabel, credentialCount, vouchCount, entityType? }`. `verifySignatures` defaults to `false`: with the default, `computeBadge` does not check any signature, so a call that omits it trusts every event it is given. Pass `{ verifySignatures: true }` unless the events came from `fetchFromRelay` or another source that has already dropped events with an invalid signature or id. `computeBadge` reads the `tier`, `verification-type`, `expiration`, `method` and `voucher-score` tags. It does not run `validateCredential` and does not check who signed a credential, so it does not enforce issuer standing (see "Who may issue Tier 3 and Tier 4").
+- `buildBadgeFilters(pubkeys: string[])`: `Array<{ kinds: number[]; '#d': string[] }>`. One filter for kind 31000 with d-tags `credential:<pubkey>` and `vouch:<pubkey>` for each pubkey. It fetches no verifier, challenge or revocation events, so the events it returns cannot be used to check issuer standing.
 - `meetsMinimumTier(badge: BadgeInfo, minTier: SignetTier)`: `boolean`. `true` only when `badge.isVerified` and `badge.tier >= minTier`.
-- `computeTrustScore(subjectPubkey, credentials, vouches, accountCreatedAt?, bridges?)`: `TrustScoreBreakdown` (`{ score, tier, professionalVerifications, inPersonVouches, onlineVouches, accountAgeDays, signals }`). This is the full Signet IQ. It does not verify signatures.
+- `computeTrustScore(subjectPubkey: string, credentials: NostrEvent[], vouches: NostrEvent[], accountCreatedAt?: number, bridges?: NostrEvent[])`: `TrustScoreBreakdown` (`{ score, tier, professionalVerifications, inPersonVouches, onlineVouches, accountAgeDays, signals }`). This is the full Signet IQ. `credentials`, `vouches` and `bridges` are raw kind 31000 events (`NostrEvent[]`), not parsed objects. It does not verify signatures and, like `computeBadge`, does not check issuer standing. `bridges` are matched by `event.pubkey === subjectPubkey` and are not ring-signature verified here: run `verifyIdentityBridge` first.
 
 `badge.score` is on the same 0–200 scale and uses the same weights as `computeTrustScore(...).score` (professional verification 80, in-person vouch up to 16, online vouch up to 4, each vouch scaled by the voucher's score ÷ 200), but it is a Level 1 approximation, not the full IQ: `computeBadge` ignores account age and identity bridges and does not apply the per-type caps (1 professional, 3 in-person vouches, 5 online vouches). Use `computeTrustScore` when you need the full IQ.
+
+### Who may issue Tier 3 and Tier 4
+
+The library does not enforce issuer standing in `computeBadge`, `computeTrustScore`, `verifyCredential` or `countChallengeConfirmations`. A kind 31000 `type: credential` event that carries `tier: 3` (or 4) and `verification-type: professional` counts toward the tier and the score whichever key signed it, including a key that has never published a verifier credential, and `verifySignatures: true` only proves the signer wrote the event. `buildBadgeFilters` fetches only `credential:` and `vouch:` events, so a badge built from its output cannot tell a licensed verifier from any other key. The protocol requires issuers of Tier 3 and Tier 4 to be activated, unrevoked verifiers (see `spec/protocol.md`); your client has to apply that rule before calling `computeBadge`:
+
+1. Fetch the candidate issuer's `type: verifier` credential, the vouches for that issuer, the verifier credentials of those vouchers, and any `type: revocation` events (all kind 31000). `buildBadgeFilters` does not fetch these, so build your own filters.
+2. Treat an issuer as acceptable only when `checkCrossVerification(issuerPubkey, vouches, verifierCredentials).activated` is `true` and `isVerifierRevoked(issuerPubkey, revocations)` is `false`.
+3. Drop every Tier 3 and Tier 4 credential whose `event.pubkey` is not an acceptable issuer, then pass the remaining events to `computeBadge`.
+
+`checkCrossVerification` does not check that each voucher is itself activated or unrevoked, so filter `verifierCredentials` the same way before step 2 if you need the spec's full rule.
 
 ### Policies (kind 30078, NIP-78)
 - `createPolicy(operatorPrivateKey, params)`: community verification requirements. `params: { communityId: string; adultMinTier: SignetTier; childMinTier: SignetTier; enforcement: 'client' | 'relay' | 'both'; minScore?: number; modMinTier?: SignetTier; verifierBond?: number; revocationThreshold?: number; description?: string }`. The d-tag is `signet:policy:<communityId>`.
@@ -80,20 +96,20 @@ Default credential expiry is two years (`DEFAULT_CREDENTIAL_EXPIRY_SECONDS`) whe
 
 ### Verifiers (kind 31000, type: verifier)
 - `createVerifierCredential(privateKey, params)`: register as professional verifier. `params: { profession: string; jurisdiction: string; licenceHash: string; professionalBody: string; statement?: string; bondProof?: BondProof }`.
-- `checkCrossVerification(verifierPubkey, vouches, verifierCredentials)`: activation check. Returns `{ activated: boolean; vouchCount: number; professions: string[]; errors: string[] }`.
-- `isVerifierRevoked(verifierPubkey, revocations)`: `boolean`
+- `checkCrossVerification(verifierPubkey: string, vouches: NostrEvent[], verifierCredentials: NostrEvent[])`: activation check. `vouches` is kind 31000 vouch events (`NostrEvent[]`) and `verifierCredentials` is kind 31000 `type: verifier` events (`NostrEvent[]`), not parsed objects. Returns `{ activated: boolean; vouchCount: number; professions: string[]; errors: string[] }`. `activated` is `true` when at least `VERIFIER_ACTIVATION.MIN_VOUCHES` vouches for `verifierPubkey` come from distinct vouchers that each appear in `verifierCredentials` with a `profession` tag, and those vouchers cover at least `VERIFIER_ACTIVATION.MIN_PROFESSIONS` different professions. It does not verify signatures, and it does not check that a voucher is itself activated or unrevoked (the spec asks for that, the function does not do it), so filter `verifierCredentials` to activated, unrevoked verifiers yourself.
+- `isVerifierRevoked(verifierPubkey: string, revocations: NostrEvent[])`: `boolean`. `true` when any kind 31000 `type: revocation` event in `revocations` targets `verifierPubkey`. It does not verify signatures or check who signed the revocation.
 
 ### Challenges and Revocations (kind 31000, type: challenge / revocation)
 - `createChallenge(reporterPrivateKey, params)`: `Promise<NostrEvent>`. `params: { verifierPubkey: string; reason: 'anomalous-volume' | 'registry-mismatch' | 'fraudulent-attestation' | 'licence-revoked' | 'other'; evidenceType: string; reporterTier: SignetTier; evidence: string; occurredAt?: number }`. `evidence` becomes the event content.
 - `createRevocation(authorityPrivateKey, params)`: `Promise<NostrEvent>`. `params: { verifierPubkey: string; challengeEventId: string; confirmations: number; bondAction: 'slashed' | 'returned' | 'held'; scope: 'full' | 'partial'; effectiveAt: number; summary: string }`.
-- `countChallengeConfirmations(challengeEventId, confirmationEvents, credentialEvents)`: `number`
+- `countChallengeConfirmations(challengeEventId: string, confirmationEvents: NostrEvent[], credentialEvents: NostrEvent[])`: `number`. All arrays are raw `NostrEvent[]`. Counts distinct confirmation signers whose `challenge` tag equals `challengeEventId` and who hold a credential event with a `tier` tag of 3 or higher in `credentialEvents`. It does not verify signatures or the issuers of those credentials.
 - `hasReachedRevocationThreshold(confirmations, threshold = 5)`: `boolean`
 - `parseChallenge(event)` / `parseRevocation(event)`: parsed object or `null`.
 
 ### Identity Bridge (kind 31000, type: identity-bridge)
-- `createIdentityBridge(anonPrivateKey, realPrivateKey, ring, signerIndex, ringMinTier, opts?)`: link anonymous account to verified identity via ring signature. `ring: string[]` of pubkeys (at least 5, `MIN_BRIDGE_RING_SIZE`); `opts: { occurredAt?: number }`. Signed by the anonymous key.
-- `selectDecoyRing(verifiedPubkeys, realPubkey, ringSize = 5)`: `{ ring: string[]; signerIndex: number }`
-- `verifyIdentityBridge(event, opts?)`: `Promise<boolean>`. `opts: { maxAgeSeconds?: number }` (default 24 hours; `0` disables the freshness check).
+- `createIdentityBridge(anonPrivateKey: string, realPrivateKey: string, ring: string[], signerIndex: number, ringMinTier: SignetTier, opts?)`: `Promise<NostrEvent>`. Links an anonymous account to a verified identity via ring signature. `ring: string[]` is the anonymity set of verified pubkeys (at least 5, `MIN_BRIDGE_RING_SIZE`) and must contain the public key of `realPrivateKey`. `signerIndex` is the zero-based position in `ring` of that real public key (`selectDecoyRing` returns it for you); a wrong index makes ring signing throw (`Private key does not match ring member at signerIndex`). `ringMinTier` is the lowest verification tier among the ring members, which you assert yourself: it is written to the event's `ring-min-tier` tag and scales the bridge's contribution to `computeTrustScore` (`TRUST_WEIGHTS.IDENTITY_BRIDGE` of 50 × `ringMinTier` ÷ 4). Neither `createIdentityBridge` nor `verifyIdentityBridge` checks that the ring members hold that tier. `opts: { occurredAt?: number }`. Signed by the anonymous key.
+- `selectDecoyRing(verifiedPubkeys: string[], realPubkey: string, ringSize = 5)`: `{ ring: string[]; signerIndex: number }`. Picks decoys from `verifiedPubkeys` (`realPubkey` is filtered out of the pool if present) and places `realPubkey` at a random position. Throws if the pool has fewer than `ringSize - 1` other pubkeys.
+- `verifyIdentityBridge(event: NostrEvent, opts?)`: `Promise<boolean>`. `opts: { maxAgeSeconds?: number }` (default 24 hours; `0` disables the freshness check).
 
 ### ZKP Age Proofs
 - `createAgeRangeProof(age: number, ageRange: string, subjectPubkey?: string)`: `RangeProof` (synchronous). `subjectPubkey` binds the proof to one credential.

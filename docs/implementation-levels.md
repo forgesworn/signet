@@ -35,19 +35,21 @@ npm install signet-protocol
 ### Code example
 
 ```typescript
-import { computeBadge, buildBadgeFilters } from 'signet-protocol';
+import { computeBadge, buildBadgeFilters, fetchFromRelay } from 'signet-protocol';
 
-// 1. Fetch events from relay
+const pubkey = '<hex-pubkey>';
+
+// 1. Fetch events from a relay (fetchFromRelay is the package's own client; any Nostr client works)
 const filters = buildBadgeFilters([pubkey]);
-// Send a REQ message to your relay with these filters.
 // The filters request kind 31000 with credential and vouch type tags.
+const events = await fetchFromRelay('wss://relay.example.com', filters);
 
 // 2. Compute badge from the events you receive
-const badge = await computeBadge(pubkey, events); // async: returns Promise<BadgeInfo>
+const badge = await computeBadge(pubkey, events, { verifySignatures: true }); // async: returns Promise<BadgeInfo>
 
 // 3. Display
 if (badge.isVerified) {
-  showBadge(badge.tierLabel, badge.score);
+  console.log(badge.tierLabel, badge.score); // replace with your own rendering
 }
 ```
 
@@ -73,6 +75,11 @@ The `badge` object includes:
 - Nullifier computation
 - Merkle trees
 - Any cryptographic primitives beyond standard Nostr signature verification
+
+Two things Level 1 does not do for you:
+
+- Signature checking is opt-in. `verifySignatures` defaults to `false`, so `computeBadge(pubkey, events)` with no options trusts every event it is given. Keep `{ verifySignatures: true }` unless the events were already verified (`fetchFromRelay` drops events with an invalid signature or id by default; events from other sources are not checked for you).
+- Issuer standing is not checked. `computeBadge` does not look at who signed a Tier 3 or Tier 4 credential, and `buildBadgeFilters` fetches no verifier or revocation events, so any key can sign an event that carries `tier: 3` and it will count. To require an activated, unrevoked verifier, fetch the verifier credentials, their vouches and revocations yourself, apply `checkCrossVerification(...).activated` and `isVerifierRevoked(...)`, and drop other issuers' Tier 3 and Tier 4 credentials before calling `computeBadge` (see `llms.txt`).
 
 ---
 
@@ -165,7 +172,7 @@ Reference: `src/policies.ts`
 **Event kinds:** 31000 (all attestation types), 30078 (policies), 30482-30484 (voting)
 **New crypto required:** Merkle trees, Pedersen range proofs (age range proofs), linkable ring signatures
 
-Level 3 is full reference implementation. This is appropriate for clients that want to act as professional verifiers, run elections, or issue and receive Tier 3/4 credentials with zero-knowledge proofs.
+Level 3 is full reference implementation. This is appropriate for clients that want to act as professional verifiers, run elections, or issue and receive Tier 3/4 credentials with zero-knowledge proofs. Elections themselves (kinds 30482–30484) live in the separate `nostr-anon-vote` package, not in `signet-protocol`.
 
 ### What to build (beyond Level 2)
 
@@ -173,7 +180,7 @@ Level 3 is full reference implementation. This is appropriate for clients that w
 - **Merkle selective disclosure:** Verified attributes are stored as private leaves of a Merkle tree. Only the root is published on-chain. Users disclose individual leaves with inclusion proofs when required.
 - **Age range proofs:** Pedersen range proofs prove that a user is within an age range without revealing their exact date of birth.
 - **Professional verifier onboarding:** Verifier accounts (kind `31000` with `type: verifier`) are backed by recognised professional bodies (law societies, medical boards, notary commissions). The protocol has no central authority — trust anchors are these external bodies.
-- **Ring signatures and elections:** The voting extension (kinds `30482`–`30484`) uses linkable ring signatures for anonymous voting with double-spend prevention.
+- **Ring signatures and elections:** The voting extension (kinds `30482`–`30484`) uses linkable ring signatures for anonymous voting with double-spend prevention. It is specified in `spec/voting.md` and implemented in the separate `nostr-anon-vote` package; `signet-protocol` ships only the linkable ring signature primitives (`lsagSign`, `lsagVerify`, `computeKeyImage`).
 - **Guardian delegation:** Delegation attestations (kind `31000` with `type: delegation`) with scopes (`full`, `activity-approval`, `content-management`, `contact-approval`) support family structures and guardian-linked sub-accounts.
 - **Revocation and lifecycle:** Revocation attestations (kind `31000` with `type: revocation`) and credential chains using `supersedes`/`superseded-by` tags handle name changes, document renewal, and tier upgrades.
 - **Identity bridging:** Identity bridge attestations (kind `31000` with `type: identity-bridge`) link verified identities across protocols or jurisdictions.
