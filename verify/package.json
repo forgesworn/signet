@@ -15,9 +15,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@forgesworn/qr": "^0.1.0",
     "@noble/curves": "^1.8.1",
-    "@noble/hashes": "^1.7.1",
-    "uqr": "^0.1.2"
+    "@noble/hashes": "^1.7.1"
   },
   "devDependencies": {
     "esbuild": "^0.28.1",
