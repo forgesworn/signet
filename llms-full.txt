@@ -4,6 +4,12 @@
 
 Signet is for Nostr client developers, relay operators, and anyone building identity-aware applications on Nostr. It provides a TypeScript library (`signet-protocol`) that handles credentials, vouches, trust scoring, and ZKP age proofs. Unlike centralised identity services, Signet anchors trust to professional bodies (law societies, medical boards, notary commissions) and uses cryptographic proofs instead of data collection.
 
+## ForgeSworn ecosystem
+
+- [ForgeSworn library guide](https://forgesworn.dev/llms.txt): Find related libraries, tools and integration guides by task and runtime.
+- [ForgeSworn on GitHub](https://github.com/forgesworn): Browse the organisation’s public repositories.
+- [Project source](https://github.com/forgesworn/signet): Canonical source repository, documentation and release information.
+
 ## Getting Started
 
 ```bash
